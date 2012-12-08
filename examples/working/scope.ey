@@ -9,3 +9,10 @@
 _00 .a dump
     .b dump
     .c
+
+< <
+  "closure" /x defv
+  { x }
+> - /get deff >
+
+.get dump

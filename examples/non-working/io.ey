@@ -1,3 +1,0 @@
-"io.ey" linux .ORDONLY 0 linux .open /fd defv
-
-fd linux .close
