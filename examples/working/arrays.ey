@@ -1,0 +1,30 @@
+#!/usr/bin/env elymas
+
+1 /testValue defv
+{ testValue and
+  _ /testValue defv
+    { } { "test failed" die } ? *
+} /test deff
+
+3 4 add
+  7 eq test
+[ 4 7 ]
+  -00
+  0 -01 * 4 eq test
+  1 -01 * 7 eq test
+3 [ -0111 ]
+  -000
+  0 -01 * 3 eq test
+  1 -01 * 3 eq test
+  2 -01 * 3 eq test
+1 [ 4 7 ] *
+  7 eq test
+3 [ 4 7 ] add
+  -00
+  0 -01 * 7 eq test
+  1 -01 * 10 eq test
+[ 1 2 3 ] _0 add
+  -000
+  0 -01 * 2 eq test
+  1 -01 * 4 eq test
+  2 -01 * 6 eq test

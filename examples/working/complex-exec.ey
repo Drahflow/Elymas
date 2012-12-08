@@ -1,0 +1,3 @@
+#!/usr/bin/env elymas
+
+3 { 2 add } |mul -21*20* dump

@@ -1,0 +1,109 @@
+Expressions:
+0 1 2...  -> just push themselves on the stack
+"string"  -> pushes "string" on the stack
+<non-bareword><bareword> -> "bareword" <non-bareword>
+  /bareword -> "bareword" /
+  |bareword -> "bareword" |
+  \bareword -> "bareword" \
+
+bareword  -> lookup "bareword" in current scopes
+  -> passive -> push value on the stack
+  -> active  -> call value on current stack
+
+/ -> nop
+"string" | -> resolve "string" in current scope, push value
+"string" \ -> resolve "string" in current scope, call value on current stack
+
+[ -> push array begin marker on stack
+] -> since the topmost array marker, create array from stack values
+
+( -> push tuple begin marker on stack
+) -> since the topmost tuple marker, create tuple from stack values
+
+{ -> push quote begin marker on stack, increase parser quote count
+} -> since the topmost quote marker, everything becomes one closure (deduce type), decrease parser quote count
+
+dup -> dups
+|dup -> push dup function pointer
+\dup -> dups
+
+|f |g ; -> { f g }
+{ ...1 } variable ; { ...2 } ; -> { ...1 variable } { ...2 } ; -> { ...1 variable ...2 }
+1 2 |add * -> 3
+
+|f * -> f
+|f *10 g -> f <copy the former _10> g
+
+StructuredData.field -> StructuredData "field" . -> dereference field in structured data, if passive push, if active do
+SD "field" .| -> dereference, push value
+SD "field" .\ -> dereference, call
+
+x "string" =    -> dereference, create (passive/active depends on type) field if not existent, set value to x
+x pointer =     -> dereference, set value to x
+x /pointervar = -> sets the pointer itself
+x |pointervar = -> sets the value the pointer points to
+x \pointervar = -> if the pointer points to a value which is a pointer, assign where that pointer points to
+
+v "name" deff -> define name as active name, assign v
+v "name" defv -> define name as passive name, assign v
+
+< -> push new scope
+> -> pop scope, structured data object now on stack
+< 0 =a 0 =b > -> something which has a and b is on top of stack
+
+0 1 2 _0 -> 0 1 2 2
+0 1 2 _1 -> 0 1 2 1
+0 1 2 _2 -> 0 1 2 0
+0 1 2 -0 -> 2
+0 1 2 -1 -> 1
+0 1 2 -2 -> 0
+
+exch = -01
+pop = -
+nop = _
+dup = _0
+_<digits> -> copy stack contents according to digits
+-<digits> -> delete stack contents up to largest digit or count of "-" whichever is larger, recreate according to digits
+
+1 [ 2 3 ] add -> [ 3 4 ]
+[ [ 1 ] [ 2 ] ] length -> 2     # scanning for applicable base type from top
+
+A->int B->int add    ->  B->A->int
+A->int A->int add    ->  A->int
+
+Characters:
+!: <open>
+": string quote
+#: line comment
+$: <open>
+%: <open>
+&: <open>
+': <open>
+(: tuple begin
+): tuple end
+*: apply function
++: <open>
+,: <open>
+-: stack manipulation
+.: field dereference
+/: stringify
+0-9: numbers
+:: <open>
+;: function composition
+<: scope start
+=: assignment
+>: scope end
+?: ternary operator
+@: <open>
+A-Z: bareword characters
+[: array begin
+\: callify
+]: array end
+^: <open>
+_: stack manipulation
+`: <open>
+a-z: bareword characters
+{: quote begin
+|: passify
+}: quote end
+~: <open>

@@ -1,0 +1,11 @@
+#!/usr/bin/env elymas
+
+<
+  1 /a defv
+  2 /b defv
+  { "yes" dump } /c deff
+>
+
+_00 .a dump
+    .b dump
+    .c

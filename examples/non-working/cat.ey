@@ -1,0 +1,13 @@
+#!/usr/bin/env elymas
+
+/stdlib import
+
+4096 malloc =buf
+0 =len
+
+0 \argv 0 open =f
+{
+  f buf 4096 read =len
+  f buf len write
+} len while
+f close

@@ -1,0 +1,8 @@
+{ * } /now defq
+
+{ { 1 2 3 add add } now } /f deff
+f dump
+
+{ blk 0 -01 * sym die } /qdie defq
+{ code die } /qcode defq
+{ f qcode }

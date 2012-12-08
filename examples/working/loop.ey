@@ -1,0 +1,1 @@
+50 { _ 30 gt } { _ dump 1 sub } loop dump

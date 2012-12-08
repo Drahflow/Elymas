@@ -1,0 +1,1128 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+
+BEGIN {
+  my $libPath = $0;
+  $libPath =~ s!/?elymas$!!;
+  push @INC, $libPath;
+}
+
+use Data::Dumper;
+# $Data::Dumper::Deparse = 1;
+
+use Elymas;
+# use ElymasLinux;
+use ElymasSys;
+
+my @globalCallStack;
+my @globalData;
+
+my $quoted = 0;
+my $globalScope = \{
+  '/' => [sub { }, ['func', '/'], 'active'],
+  '|' => [sub {
+      my ($data, $scope) = @_;
+
+      my $n = pop @$data or die "Stack underflow";
+      my $meaning = resolve($$scope, $data, $n->[0]);
+      if(not defined $meaning) {
+        die "could not resolve '$n->[0]'";
+      }
+      push @$data, [$meaning->[0], $meaning->[1]];
+    }, ['func', '|'], 'active'],
+  '\\' => [sub {
+      my ($data, $scope) = @_;
+
+      my $n = pop @$data or die "Stack underflow";
+      my $meaning = resolve($$scope, $data, $n->[0]);
+      if(not defined $meaning) {
+        die "could not resolve '$n'";
+      }
+      push @$data, [$meaning->[0], $meaning->[1]];
+      execute($data, $scope);
+    }, ['func', '\\'], 'active'],
+  '{' => [sub {
+      my ($data, $scope) = @_;
+      ++$quoted;
+      push @$data, ['{', 'tok', '{'];
+    }, ['func', '{'], 'quote'],
+  '}' => [sub {
+      my ($data, $scope) = @_;
+
+      --$quoted;
+
+      my @code;
+      while(1) {
+        my $t = pop @$data or die "Stack underflow";
+        last if($t->[1] eq 'tok' and $t->[0] eq '{');
+
+        unshift @code, $t;
+      };
+
+      if($quoted) {
+        push @$data, [sub {
+          my ($data, $scope) = @_;
+          my $createdSub;
+          push @$data, [$createdSub = sub {
+            my ($data) = @_;
+            my $lscope = \{ ' parent' => $$scope };
+            interpretCode(\@code, $data, $lscope);
+          }, ['func', Dumper(\@code)]];
+        }, ['func', 'func-quoted'], \@code];
+      } else {
+        my $createdSub;
+        push @$data, [$createdSub = sub {
+          my ($data) = @_;
+          my $lscope = \{ ' parent' => $$scope };
+          interpretCode(\@code, $data, $lscope);
+        }, ['func', Dumper(\@code)]];
+      }
+    }, ['func', '}'], 'quote'],
+  ';' => [sub {
+      my ($data, $scope) = @_;
+
+      my $g = pop @$data or die "Stack underflow";
+      my $f = pop @$data or die "Stack underflow";
+      
+      push @$data, [sub {
+          my ($data, $scope) = @_;
+
+          push @$data, $f;
+          execute($data, $scope);
+          push @$data, $g;
+          execute($data, $scope);
+        }, ['func', 'f g ;']];
+    }, ['func', ';'], 'active'],
+  '[' => [sub {
+      my ($data, $scope) = @_;
+      push @$data, ['[', 'tok'];
+    }, ['func', '['], 'active'],
+  ']' => [sub {
+      my ($data, $scope) = @_;
+
+      my @content;
+      my $type = undef;
+      while(1) {
+        my $t = pop @$data or die "Stack underflow";
+        last if($t->[1] eq 'tok' and $t->[0] eq '[');
+
+        if($type) {
+          die "mismatched types in array" if($type ne $t->[1]);
+        } else {
+          $type = $t->[1];
+        }
+
+        unshift @content, $t;
+      };
+
+      push @$data, [\@content, ['array', '[]', [['range', 0, $#content]], [$type]]];
+    }, ['func', '}'], 'active'],
+  '<' => [sub {
+      my ($data, $scope) = @_;
+      $$scope = { ' parent' => $$scope };
+    }, ['func', '<'], 'active'],
+  '>' => [sub {
+      my ($data, $scope) = @_;
+      my %struct = %$$scope;
+
+      delete $struct{' parent'};
+
+      push @$data, [enstruct(\%struct)];
+      $$scope = $$scope->{' parent'};
+    }, ['func', '>'], 'active'],
+  '.' => [sub {
+      my ($data, $scope) = @_;
+
+      my $member = pop @$data;
+      my $struct = pop @$data;
+      $member = $member->[0];
+
+      die "not a struct during member dereference in $struct" unless $struct->[1]->[0] eq 'struct';
+      die "requested member $member is not in fact existent in " . Dumper($struct) unless exists $struct->[1]->[1]->{$member};
+
+      push @$data, $struct->[0]->{$member};
+      execute($data, $scope) if($data->[-1]->[2] eq 'active');
+    }, ['func', '.'], 'active'],
+  '.|' => [sub {
+      my ($data, $scope) = @_;
+
+      my $member = pop @$data;
+      my $struct = pop @$data;
+      $member = $member->[0];
+
+      die "not a struct during member dereference in $struct" unless $struct->[1]->[0] eq 'struct';
+      die "requested member $member is not in fact existent in " . Dumper($struct) unless exists $struct->[1]->[1]->{$member};
+
+      push @$data, $struct->[0]->{$member};
+    }, ['func', '.|'], 'active'],
+  'deff' => [sub {
+      my ($data, $scope) = @_;
+
+      my $name = pop @$data or die "Stack underflow";
+      my $func = pop @$data or die "Stack underflow";
+
+      $$scope->{$name->[0]} = [@$func, 'active'];
+    }, ['func', 'deff'], 'active'],
+  'defv' => [sub {
+      my ($data, $scope) = @_;
+
+      my $name = pop @$data or die "Stack underflow";
+      my $func = pop @$data or die "Stack underflow";
+
+      $$scope->{$name->[0]} = [@$func, 'passive'];
+    }, ['func', 'defv'], 'active'],
+  'defq' => [sub {
+      my ($data, $scope) = @_;
+
+      my $name = pop @$data or die "Stack underflow";
+      my $func = pop @$data or die "Stack underflow";
+
+      $$scope->{$name->[0]} = [@$func, 'quote'];
+    }, ['func', 'defq'], 'active'],
+  '=' => [sub {
+      my ($data, $scope) = @_;
+
+      my $name = pop @$data or die "Stack underflow";
+      my $func = pop @$data or die "Stack underflow";
+
+      my $meaning = resolve($$scope, $data, $name->[0]);
+      if(not $meaning) {
+        $$scope->{$name->[0]} = [@$func, 'passive'];
+      } else {
+        $meaning->[0] = $func->[0];
+        $meaning->[1] = $func->[1];
+      }
+    }, ['func', 'defv'], 'active'],
+  'code' => [sub {
+      my ($data, $scope) = @_;
+
+      my $f = pop @$data or die "Stack underflow";
+      my $code = $f->[2];
+
+      my $res = 0;
+      if(defined $code and not ref($code)) {
+        $res = 1;
+      } elsif(defined $code and ref($code) eq 'ARRAY') {
+        $res = 2;
+      }
+
+      push @$data, [$res, 'int'];
+    }, ['func', 'code'], 'active'],
+  'sym' => [sub {
+      my ($data, $scope) = @_;
+
+      my $f = pop @$data or die "Stack underflow";
+      my $str = $f->[2];
+      die "not in fact code" unless defined $str;
+      die "code not a symbol" if ref($str) eq 'ARRAY';
+
+      push @$data, [$str, 'string'];
+    }, ['func', 'sym'], 'active'],
+  'blk' => [sub {
+      my ($data, $scope) = @_;
+
+      my $f = pop @$data or die "Stack underflow";
+      my $block = $f->[2];
+      die "not in fact code" unless defined $block;
+      die "code not a block" unless ref($block) eq 'ARRAY';
+
+      push @$data, [$block, ['array', '... blk', [['range', 0, $#{$block}]], [undef]]];
+    }, ['func', 'blk'], 'active'],
+  'rep' => [sub {
+      my ($data, $scope) = @_;
+
+      my $c = pop @$data or die "Stack underflow";
+      my $f = pop @$data or die "Stack underflow";
+
+      die "Not numeric: " . Dumper($c) unless $c->[1] eq 'int';
+
+      foreach my $i (1 .. $c->[0]) {
+        push @$data, $f;
+        execute($data, $scope);
+      }
+    }, ['func', 'rep'], 'active'],
+  '?' => [sub {
+      my ($data, $scope) = @_;
+
+      my $b = pop @$data or die "Stack underflow";
+      my $a = pop @$data or die "Stack underflow";
+      my $p = pop @$data or die "Stack underflow";
+
+      push @$data, ($p->[1] eq 'int' and $p->[0] == 0? $b: $a);
+    }, ['func', '?'], 'active'],
+
+# not really part of the spec, this is just for debugging
+  'dump' => [sub {
+      my ($data, $scope) = @_;
+
+      my $d = pop @$data or die "Stack underflow";
+      print Dumper($d);
+    }, ['func', 'dump'], 'active'],
+  'die' => [sub {
+      my ($data, $scope) = @_;
+
+      my $d = pop @$data or die "Stack underflow";
+      die Dumper($d); # , $scope);
+    }, ['func', 'die'], 'active'],
+
+# stuff from J
+  'sig' => [sub {
+      my ($data, $scope) = @_;
+
+      my $v = pop @$data or die "Stack underflow";
+      die "Not numeric: " . Dumper($v) unless $v->[1] eq 'int';
+
+      push @$data, -1 if $v->[0] < 0;
+      push @$data, 0 if $v->[0] == 0;
+      push @$data, 1 if $v->[0] > 0;
+    }, ['func', 'sig'], 'active'],
+  'len' => [sub {
+      my ($data, $scope) = @_;
+
+      my $a = pop @$data or die "Stack underflow";
+      die "Not array: " . Dumper($a) unless ref($a->[1]) eq 'ARRAY' and $a->[1]->[0] eq 'array';
+
+      push @$data, [scalar @{$a->[0]}, 'int'];
+    }, ['func', 'len'], 'active'],
+  '=[]' => [sub {
+      my ($data, $scope) = @_;
+
+      my $a = pop @$data or die "Stack underflow";
+      my $i = pop @$data or die "Stack underflow";
+      my $v = pop @$data or die "Stack underflow";
+      die "Not array: " . Dumper($a) unless ref($a->[1]) eq 'ARRAY' and $a->[1]->[0] eq 'array';
+      die "Not numeric: " . Dumper($i) unless $i->[1] eq 'int';
+      die "Type mismatch between value and array in assignment: " . Dumper($v, $a)
+        unless canCastTo($v->[1], $a->[1]->[3]->[0]);
+      my $idx = $i->[0];
+
+      $idx += @{$a->[0]} while($idx < 0);
+      $idx = $idx % @{$a->[0]};
+
+      $a->[0]->[$idx] = $v;
+    }, ['func', '=[]'], 'active'],
+  'dearray' => [sub {
+      my ($data, $scope) = @_;
+
+      my $c = pop @$data or die "Stack underflow";
+      my $a = pop @$data or die "Stack underflow";
+      die "Not numeric: " . Dumper($c) unless $c->[1] eq 'int';
+      die "Not array: " . Dumper($a) unless ref($a->[1]) eq 'ARRAY' and $a->[1]->[0] eq 'array';
+
+      foreach my $i (0 .. $c->[0] - 1) {
+        push @$data, $a->[0]->[$i % @{$a->[0]}];
+      }
+    }, ['func', 'dearray'], 'active'],
+  'each' => [sub {
+      my ($data, $scope) = @_;
+
+      my $f = pop @$data or die "Stack underflow";
+      my $a = pop @$data or die "Stack underflow";
+      die "Not array: " . Dumper($a) unless ref($a->[1]) eq 'ARRAY' and $a->[1]->[0] eq 'array';
+
+      foreach my $i (@{$a->[0]}) {
+        push @$data, $i;
+        push @$data, $f;
+        execute($data, $scope);
+      }
+    }, ['func', 'each'], 'active'],
+  'range' => [sub {
+      my ($data, $scope) = @_;
+
+      my $e = pop @$data or die "Stack underflow";
+      my $s = pop @$data or die "Stack underflow";
+      die "Not numeric: " . Dumper($e) unless $e->[1] eq 'int';
+      die "Not numeric: " . Dumper($s) unless $s->[1] eq 'int';
+
+      $s = $s->[0];
+      $e = $e->[0];
+
+      push @$data, [[map { [$_, 'int'] } $s .. $e], ['array', '[]', [['range', 0, $e - $s]], ['int']]];
+    }, ['func', 'seq'], 'active'],
+  'loop' => [sub {
+      my ($data, $scope) = @_;
+
+      my $b = pop @$data or die "Stack underflow";
+      my $t = pop @$data or die "Stack underflow";
+
+      while(1) {
+        push @$data, $t;
+        execute($data, $scope);
+
+        my $c = pop @$data or die "Stack underflow";
+        die "Not numeric: " . Dumper($c) unless $c->[1] eq 'int';
+        last unless $c->[0];
+
+        push @$data, $b;
+        execute($data, $scope);
+      }
+    }, ['func', 'loop'], 'active'],
+  'dom' => [sub {
+      my ($data, $scope) = @_;
+
+      my $a = pop @$data or die "Stack underflow";
+
+      if(ref($a->[1]) eq 'ARRAY' and $a->[1]->[0] eq 'array') {
+        my $l = @{$a->[0]};
+
+        push @$data, [[map { [$_, 'int'] } 0 .. $l - 1], ['array', '[]', [['range', 0, $l - 1]], ['int']]];
+      } elsif(ref($a->[1]) eq 'ARRAY' and $a->[1]->[0] eq 'struct') {
+        die "no supporting dom member in struct" . Dumper($a) unless exists $a->[1]->[1]->{'dom'};
+
+        push @$data, $a->[0]->{'dom'};
+        execute($data, $scope) if($data->[-1]->[2] eq 'active');
+      } else {
+        die "dom not supportde on this value: " . Dumper($a);
+      }
+    }, ['func', 'dom'], 'active'],
+  'exe' => [sub {
+      my ($data, $scope) = @_;
+
+      push @$data, $globalCallStack[-2];
+    }, ['func', 'rec'], 'active'],
+  'linux' => [enstruct($ElymasLinux::linux), 'passive'],
+};
+
+sub installGlobal1IntFunction {
+  my ($name, $code) = @_;
+
+  $$globalScope->{$name} = [sub {
+      my ($data, $scope) = @_;
+
+      my $a = popInt($data);
+      push @$data, [&$code($a), 'int'];
+    }, ['func', $name, ['int'], ['int']], 'active'];
+}
+
+sub installGlobal2IntFunction {
+  my ($name, $code) = @_;
+
+  $$globalScope->{$name} = [sub {
+      my ($data, $scope) = @_;
+
+      my $b = popInt($data);
+      my $a = popInt($data);
+      push @$data, [&$code($a, $b), 'int'];
+    }, ['func', $name, ['int', 'int'], ['int']], 'active'];
+}
+
+# math and logic stuff
+installGlobal2IntFunction('add', sub { return $_[0] + $_[1] });
+installGlobal2IntFunction('sub', sub { return $_[0] - $_[1] });
+installGlobal2IntFunction('mul', sub { return $_[0] * $_[1] });
+installGlobal2IntFunction('div', sub { return int($_[0] / $_[1]) });
+installGlobal2IntFunction('mod', sub { return $_[0] % $_[1] });
+
+installGlobal2IntFunction('and', sub { return ($_[0] and $_[1])? 1: 0 });
+installGlobal2IntFunction('nand', sub { return (not ($_[0] and $_[1]))? 1: 0 });
+installGlobal2IntFunction('or', sub { return ($_[0] or $_[1])? 1: 0 });
+installGlobal2IntFunction('xor', sub { return ($_[0] xor $_[1])? 1: 0 });
+installGlobal2IntFunction('nxor', sub { return (not ($_[0] xor $_[1]))? 1: 0 });
+installGlobal2IntFunction('nor', sub { return (not ($_[0] or $_[1]))? 1: 0 });
+
+installGlobal2IntFunction('band', sub { return ($_[0] & $_[1])? 1: 0 });
+installGlobal2IntFunction('bnand', sub { return (~ ($_[0] & $_[1]))? 1: 0 });
+installGlobal2IntFunction('bor', sub { return ($_[0] | $_[1])? 1: 0 });
+installGlobal2IntFunction('bxor', sub { return ($_[0] ^ $_[1])? 1: 0 });
+installGlobal2IntFunction('bnxor', sub { return (~ ($_[0] ^ $_[1]))? 1: 0 });
+installGlobal2IntFunction('bnor', sub { return (~ ($_[0] | $_[1]))? 1: 0 });
+
+installGlobal2IntFunction('eq', sub { return ($_[0] == $_[1])? 1: 0 });
+installGlobal2IntFunction('neq', sub { return ($_[0] != $_[1])? 1: 0 });
+installGlobal2IntFunction('lt', sub { return ($_[0] < $_[1])? 1: 0 });
+installGlobal2IntFunction('le', sub { return ($_[0] <= $_[1])? 1: 0 });
+installGlobal2IntFunction('gt', sub { return ($_[0] > $_[1])? 1: 0 });
+installGlobal2IntFunction('ge', sub { return ($_[0] >= $_[1])? 1: 0 });
+
+installGlobal2IntFunction('gcd', sub { my ($a, $b) = @_; ($a, $b) = ($b, $a % $b) while($b); return $a; });
+
+installGlobal1IntFunction('neg', sub { return -$_[0] });
+installGlobal1IntFunction('not', sub { return not $_[0] });
+installGlobal1IntFunction('bnot', sub { return ~ $_[0] });
+installGlobal1IntFunction('abs', sub { return abs $_[0] });
+
+sub enstruct {
+  my ($struct) = @_;
+
+  return ($struct, ['struct', { map { my @e = ($_, [@{$struct->{$_}}]); shift @{$e[1]}; @e } keys %$struct }]);
+}
+
+# J comparison (http://www.jsoftware.com/docs/help701/dictionary/vocabul.htm)
+# = Self-Classify • Equal              -> <TODO redundant> / eq
+# =. Is (Local)                        -> <nope>
+# =: Is (Global)                       -> <nope>
+
+# < Box • Less Than                    -> <nope> / lt
+# <. Floor • Lesser Of (Min)           -> <TODO: float> / { _10 lt ? }
+# <: Decrement • Less Or Equal         -> { 1 - } / le
+# > Open • Larger Than                 -> <nope> / gt
+# >. Ceiling • Larger of (Max)         -> <TODO: float> / { _10 gt ? }
+# >: Increment • Larger Or Equal       -> { 1 + } / ge
+
+# _ Negative Sign / Infinity           -> neg / <TODO: float>
+# _. Indeterminate                     -> <TODO: floats>
+# _: Infinity                          -> <TODO: floats>
+#  
+# + Conjugate • Plus                   -> <TODO: complex> / add
+# +. Real / Imaginary • GCD (Or)       -> <TODO: complex> / gcd
+# +: Double • Not-Or                   -> { 2 * } / nor
+# * Signum • Times                     -> sig / mul
+# *. Length/Angle • LCM (And)          -> <TODO: complex> / { |mul *10 gcd div }
+# *: Square • Not-And                  -> { _ mul } / nand
+# - Negate • Minus                     -> neg / sub
+# -. Not • Less                        -> not / <TODO: all elements of a which are not also in b>
+# -: Halve • Match                     -> { 2 div } / <TODO: recursive equal>
+# % Reciprocal • Divide                -> { 1 -01 div } / div
+# %. Matrix Inverse • Matrix Divide    -> <TODO matrix solve>
+# %: Square Root • Root                -> <TODO: floats>
+
+# ^ Exponential • Power                -> <TODO: exp> / <TODO: pow>
+# ^. Natural Log • Logarithm           -> <TODO: ln> / <TODO: log>
+# ^: Power (u^:n u^:v)                 -> rep / <TODO: understand J>
+
+# $ Shape Of • Shape                   -> <TODO: think about abstract shapes and reshaping>
+# $. Sparse                            -> <nope>
+# $: Self-Reference                    -> { <depth> rec }
+# ~ Reflex • Passive / Evoke           -> { _ } / { -01 } / { | }
+# ~. Nub •                             -> <TODO: implement "uniq">
+# ~: Nub Sieve • Not-Equal             -> <TODO: implement "uniq-idx"> / ne
+# | Magnitude • Residue                -> abs / mod
+# |. Reverse • Rotate (Shift)          -> <TODO: think about abstract reverse> / <TODO: think about abstract rotate>
+# |: Transpose                         -> <TODO: think about abstract transpose implementation>
+#  
+# . Determinant • Dot Product          -> <TODO: implement the algorithm>
+# .. Even                              -> { -20*1*21* add 2 div }
+# .: Odd                               -> { -20*1*21* sub 2 div }
+# : Explicit / Monad-Dyad              -> <nope> / <nope>
+# :. Obverse                           -> <TODO: think of inverse functions>
+# :: Adverse                           -> <TODO: think about error handling>
+# , Ravel • Append                     -> <TODO: create array of submost elements> / <TODO: think about abstract append>
+# ,. Ravel Items • Stitch              -> <TODO: explicit 1-level mapping of ,>
+# ,: Itemize • Laminate                -> <TODO: implementable without new primitives>
+# ; Raze • Link                        -> <nope (this be unboxing stuff)>
+# ;. Cut                               -> <TODO: implement said algorithms, but use separate functions>
+# ;: Words • Sequential Machine        -> <TODO: think about providing lexing / sequential machine support>
+#  
+# # Tally • Copy                       -> { len } / <TODO: implementable without new primitives>
+# #. Base 2 • Base                     -> <TODO: implement rebase: multiply then add, left atom is made into list, left list is multiplied up, try to do it without primitives>
+# #: Antibase 2 • Antibase             -> <TODO: implement antibase, try to do it without primitives>
+# ! Factorial • Out Of                 -> <TODO: factorial and binomial coefficients, possibly without primitives>
+# !. Fit (Customize)                   -> <nope>
+# !: Foreign                           -> <TODO: wrap stuff from man 2>
+# / Insert • Table                     -> { =f _ len =l l dearray f l 1 sub rep } / <FIXME: create (only)-non-identical types and casts>
+# /. Oblique • Key                     -> <TODO: implement this without new primitives> / <TODO: implement with out new primitives>
+# /: Grade Up • Sort                   -> <TODO: implement grade and sort with basic primitives, create generic version> / <TODO: implement order with basic primitives>
+# \ Prefix • Infix                     -> <TODO: implement without new primitives> / <TODO: implement without new primitives>
+# \. Suffix • Outfix                   -> <TODO: implement without new primitives> / <TODO: implement without new primitives>
+# \: Grade Down • Sort                 -> <via generic sort> / <via generic sort>
+#  
+# [ Same • Left                        -> { -0 } / { -1 }
+# [: Cap                               -> <nope>
+# ] Same • Right                       -> { -0 } / { -0 }
+# { Catalogue • From                   -> <TODO: should be implementable in terms of table> / { * }
+# {. Head • Take                       -> <TODO: implement without new primitives> / <TODO: implement take interval without new primitives>
+# {: Tail •                            -> <TODO: implement without new primitives>
+# {:: Map • Fetch                      -> <nope>
+# } Item Amend • Amend (m} u})         -> <TODO: implement without new primitives> / =[]
+# }. Behead • Drop                     -> <TODO: implement without new primitives> / <TODO: implement without new primitives>
+# }: Curtail •                         -> <TODO: implement without new primitives>
+#  
+# " Rank (m"n u"n m"v u"v)             -> <FIXME: think about (function) type casts>
+# ". Do • Numbers                      -> <nope> / <FIXME: create (sscanf-style) parser>
+# ": Default Format • Format           -> <FIXME: create (printf-style) printer>
+# ` Tie (Gerund)                       -> <implement as arrays of functions>
+# `: Evoke Gerund                      -> { _ len dearray -<logic> }
+# @ Atop                               -> { -0*1* }
+# @. Agenda                            -> { =i =fs { fs * * } i each }
+# @: At                                -> <nope>
+# & Bond / Compose                     -> <via various - constructs>
+# &. &.: Under (Dual)                  -> <TODO: think about inverse functions>
+# &: Appose                            -> <via various - constructs>
+# ? Roll • Deal                        -> <TODO: implement rand>
+# ?. Roll • Deal (fixed seed)          -> <TODO: implement srand>
+#  
+# a. Alphabet                          -> <TODO: maybe create a lib for this>
+# a: Ace (Boxed Empty)                 -> <nope>
+# A. Anagram Index • Anagram           -> <TODO: maybe create a lib for this>
+# b. Boolean / Basic                   -> <TODO: implement generic boolean function> / <TODO: think about runtime token availability>
+# C. Cycle-Direct • Permute            -> <TODO: maybe create a lib for this>
+# d. Derivative                        -> <nope>
+# D. Derivative                        -> <TODO: maybe create a lib for this (also consider run/compile-time token availablitiy)>
+# D: Secant Slope                      -> <TODO: maybe create a lib for this (also consider run/compile-time token availablitiy)>
+# e. Raze In • Member (In)             -> <nope> / <see grep.ey>
+# E. • Member of Interval              -> <TODO: implement without new primitives>
+# f. Fix                               -> <TODO: implement cloning of closures>
+# H. Hypergeometric                    -> <TODO: maybe create a lib for this>
+#  
+# i. Integers • Index Of               -> range / <see grep.ey>
+# i: Steps • Index Of Last             -> range <step> mul / <see grep.ey>
+# I. Indices • Interval Index          -> <see grep.ey> / <nope>
+# j. Imaginary • Complex               -> <TODO: complex>
+# L. Level Of •                        -> <nope>
+# L: Level At                          -> <nope>
+# M. Memo                              -> <TODO: implement function result caching>
+# NB. Comment                          -> #
+# o. Pi Times • Circle Function        -> <TODO: create a lib for this>
+# p. Roots • Polynomial                -> <TODO: create a lib for this>
+# p.. Poly. Deriv. • Poly. Integral    -> <TODO: goes into the polynomial lib>
+# p: Primes                            -> <TODO: create a lib for this>
+#  
+# q: Prime Factors • Prime Exponents   -> <TODO: goes into the primes lib>
+# r. Angle • Polar                     -> <TODO: complex>
+# s: Symbol                            -> <nope>
+# S: Spread                            -> <nope>
+# t. Taylor Coeff. (m t. u t.)         -> <TODO: goes into the polynomial lib>
+# t: Weighted Taylor                   -> <TODO: goes into the polynomial lib>
+# T. Taylor Approximation              -> <TODO: goes into the polynomial lib>
+# u: Unicode                           -> <TODO: think about encoding>
+# x: Extended Precision                -> <TODO: arbitrary precision lib>
+# _9: to 9: Constant Functions         -> { 9 neg } ... { 9 }
+
+executeFile($ARGV[0]);
+
+sub executeFile {
+  my ($file) = @_;
+
+  open my $code, '<', $file or die "cannot open $file: $!";
+  while(my $line = <$code>) {
+    chomp $line;
+
+    my @tokens = tokenize($line);
+    interpretTokens(\@tokens, \@globalData, $globalScope);
+  }
+  close $code;
+}
+
+sub tokenize {
+  my ($line) = @_;
+  $line .= ' ';
+
+  my @t;
+
+  while($line) {
+    if($line =~ /^ +(.*)/s) {
+      $line = $1;
+    } elsif($line =~ /^#/s) {
+      $line = '';
+    } elsif($line =~ /^(\d+) +(.*)/s) {
+      $line = $2;
+      push @t, [$1, 'int'];
+    } elsif($line =~ /^"([^"]+)" +(.*)/s) {
+      $line = $2;
+      push @t, [$1, 'string'];
+    } elsif($line =~ /^([^a-zA-Z ]+)([a-zA-Z]+) +(.*)/s) {
+      $line = "$1 $3";
+      push @t, [$2, 'string'];
+    } elsif($line =~ /^([a-zA-Z]+|[^a-zA-Z ]+) +(.*)/s) {
+      $line = $2;
+      push @t, [$1, 'tok'];
+    } else {
+      die "cannot tokenize: '$line'";
+    }
+  }
+
+  return @t;
+}
+
+sub applyResolvedName {
+  my ($t, $meaning, $data, $scope) = @_;
+
+  if(not defined $meaning) {
+    if($quoted) {
+      push @$data, [sub {
+          my ($data, $scope) = @_;
+
+          my $meaning = resolve($$scope, $data, $t->[0]);
+          applyResolvedName($t, $meaning, $data, $scope);
+        }, ['func', 'quoted late-resolve of ' . $t->[0]], $t->[0]];
+    } else {
+      die "could not resolve '$t->[0]'";
+    }
+  } elsif($meaning->[2] eq 'passive') {
+    if($quoted) {
+      push @$data, [sub { push @{$_[0]}, [$meaning->[0], $meaning->[1]] }, ['func', 'quoted-constant of ' . $t->[0]], $t->[0]];
+    } else {
+      push @$data, [$meaning->[0], $meaning->[1]];
+    }
+  } elsif($meaning->[2] eq 'active') {
+    if($quoted) {
+      push @$data, [$meaning->[0], $meaning->[1], $t->[0]];
+    } else {
+      push @$data, [$meaning->[0], $meaning->[1]];
+      execute($data, $scope);
+    }
+  } elsif($meaning->[2] eq 'quote') {
+    push @$data, [$meaning->[0], $meaning->[1]];
+    execute($data, $scope);
+  } else {
+    die "unknown scope entry meaning for '$t->[0]'";
+  }
+}
+
+sub interpretTokens {
+  my ($tokens, $data, $scope) = @_;
+
+  foreach my $t (@$tokens) {
+    eval {
+      if($t->[1] eq 'tok') {
+        my $meaning = resolve($$scope, $data, $t->[0]);
+        applyResolvedName($t, $meaning, $data, $scope);
+      } elsif(ref($t->[1]) eq 'ARRAY' and $t->[1]->[0] eq 'func') {
+        die "function pointer in interpretTokens";
+      } else {
+        push @$data, $t;
+      }
+    };
+    if($@) {
+      #print "Code: " . Dumper($tokens);
+      #print "Scope: " . Dumper($scope);
+      print "Stack: " . Dumper($data);
+      print "Token: " . Dumper($t);
+      die;
+    }
+  }
+}
+
+sub interpretCode {
+  my ($code, $data, $scope) = @_;
+
+  foreach my $t (@$code) {
+    eval {
+      if($t->[1] eq 'tok') {
+        die "unexpanded token in interpretCode";
+      } elsif(ref($t->[1]) eq 'ARRAY' and $t->[1]->[0] eq 'func') {
+        push @$data, $t;
+        execute($data, $scope);
+      } else {
+        push @$data, $t;
+      }
+    };
+    if($@) {
+      #print "Code: " . Dumper($tokens);
+      #print "Scope: " . Dumper($scope);
+      print "Stack: " . Dumper($data);
+      print "Token: " . Dumper($t);
+      die;
+    }
+  }
+}
+
+sub resolve {
+  my ($scope, $data, $name) = @_;
+
+  die "resolution for undefined name attempted" unless defined $name;
+
+  return $scope->{$name} if(exists $scope->{$name});
+  return resolve($scope->{' parent'}, $data, $name) if(exists $scope->{' parent'});
+
+  if($name =~ /^(_+)(\d*)$/s) {
+    my @spec = split //, $2;
+    @spec = (0) unless @spec;
+
+    return [sub {
+      my ($data, $scope) = @_;
+
+      my @new;
+      foreach my $i (@spec) {
+        die "Stack underflow" if @$data < $i + 1;
+        push @new, $data->[-$i - 1];
+      }
+      push @$data, @new;
+    }, ['func', 'auto-created of ' . $name], 'active'];
+  } elsif($name =~ /^(-+)([0-9*]*)$/s) {
+    my $max = length($1) - 1;
+    my @spec = split //, $2;
+    $max = $_ > $max? $_: $max foreach grep { $_ ne '*' } @spec;
+
+    return [sub {
+      my ($data, $scope) = @_;
+
+      my @buffer;
+      foreach (0 .. $max) {
+        die "Stack underflow" unless @$data;
+        push @buffer, pop @$data;
+      }
+
+      foreach my $i (@spec) {
+        if($i eq '*') {
+          execute($data, $scope);
+        } else {
+          push @$data, $buffer[$i];
+        }
+      }
+    }, ['func', 'auto-created of ' . $name], 'active'];
+  } elsif($name =~ /^\*(\d*)$/s) {
+    my @spec = split //, $1;
+
+    return [sub {
+      my ($data, $scope) = @_;
+
+      my @buffer;
+      foreach my $i (@spec) {
+        die "Stack underflow" if @$data < $i + 2;
+        push @buffer, $data->[-$i - 2];
+      }
+      execute($data, $scope);
+      push @$data, @buffer;
+    }, ['func', 'auto-created of ' . $name], 'active'];
+  }
+
+  return undef;
+}
+
+sub arrayAccess {
+  my ($array, $data, $scope) = @_;
+
+  my $i = pop @$data or die "Stack underflow";
+  die "array index must be int" unless $i->[1] eq 'int';
+
+  push @$data, $array->[0]->[$i->[0]];
+}
+
+sub typeStack {
+  my ($type) = @_;
+
+  if(ref($type) eq 'ARRAY') {
+    if($type->[0] eq 'func' or $type->[0] eq 'array') {
+      if(not exists $type->[2]) {
+        die "type analysis incomplete on " . Dumper($type);
+      }
+      if(@{$type->[2]} == 1 and @{$type->[3]} == 1) {
+        my $ret = typeStack($type->[3]->[0]);
+        unshift @$ret, $type->[2]->[0];
+        return $ret;
+      }
+    }
+  }
+
+  return [$type];
+}
+
+sub typeEqual {
+  my ($a, $b) = @_;
+
+  return 0 if(ref($a) xor ref($b));
+  if(ref($a) and ref($b)) {
+    return 0 if($a->[0] ne $b->[0]);
+
+    if($a->[0] eq 'range') {
+      return $a->[1] == $b->[1] && $a->[2] == $b->[2];
+    } elsif($a->[0] eq 'array' or $a->[0] eq 'func') {
+      return 0 if(@{$a->[2]} != @{$b->[2]});
+      return 0 if(@{$a->[3]} != @{$b->[3]});
+
+      return 0 unless @{$a->[2]} == grep { typeEqual($a->[2]->[$_], $b->[2]->[$_]) } 0 .. $#{$a->[2]};
+      return 0 unless @{$a->[3]} == grep { typeEqual($a->[3]->[$_], $b->[3]->[$_]) } 0 .. $#{$a->[3]};
+      return 1;
+    } else {
+      die "not yet implemented";
+    }
+  }
+
+  return $a eq $b;
+}
+
+sub canCastTo {
+  my ($subtype, $supertype) = @_;
+
+  return 1 if(typeEqual($subtype, $supertype));
+  return 1 if($supertype eq '*');
+  return 1 if($supertype eq 'int' and ref($subtype) eq 'ARRAY' and $subtype->[0] eq 'range');
+
+  return 0;
+}
+
+sub commonSubType {
+  my ($a, $b) = @_;
+
+  return $a if(canCastTo($a, $b));
+  return $b if(canCastTo($b, $a));
+
+  return undef;
+}
+
+sub typeMismatchCount {
+  my ($formal, $concrete) = @_;
+
+  my @rFormal = reverse @$formal;
+  my @rConcrete = reverse @$concrete;
+
+  my $mismatches = 0;
+
+  while(@rFormal) {
+    my $f = shift @rFormal;
+
+    if(canCastTo($rConcrete[0], $f)) {
+      shift @rConcrete;
+    } else {
+      ++$mismatches;
+    }
+  }
+
+  return $mismatches;
+}
+
+sub isVariableType {
+  my ($type) = @_;
+
+  return 0;
+}
+
+sub isIterableType {
+  my ($type) = @_;
+
+  return 1 if(ref($type) eq 'ARRAY' and $type->[0] eq 'range');
+
+  return 0;
+}
+
+sub getLoopStart {
+  my ($iterable) = @_;
+
+  if(ref($iterable->[1]) eq 'ARRAY' and $iterable->[1]->[0] eq 'array') {
+    return [0, 'int'];
+  }
+
+  die "Cannot iterate: " . Dumper($iterable);
+}
+
+sub isLoopEnd {
+  my ($iterable, $i) = @_;
+
+  if(ref($iterable->[1]) eq 'ARRAY' and $iterable->[1]->[0] eq 'array') {
+    return $i->[0] == @{$iterable->[0]};
+  }
+
+  die "Cannot iterate: " . Dumper($iterable);
+}
+
+sub doLoopStep {
+  my ($iterable, $i) = @_;
+
+  if(ref($iterable->[1]) eq 'ARRAY' and $iterable->[1]->[0] eq 'array') {
+    return [$i->[0] + 1, 'int'];
+  }
+
+  die "Cannot iterate: " . Dumper($iterable);
+}
+
+# Executing a function f: A->B->C (i.e. B A f) on concrete arguments b a.
+# Phase 1
+#   Foreach argument:
+#     Find the function input type from top of concrete argument type stack,
+#       increase viewport from top of concrete type stack
+#         match type from bottom to top, if type cannot be found, create constant function
+#         final match is that which creates minimal number of constant function layers
+# Phase 2
+#   Foreach argument type:
+#     Identify the type stack above the match from phase 1.
+#     Run from right (stacktop) argument to left (stacklow) argument:
+#       Take topmost type, check whether it can be found in other stacks (from top)
+#         Eliminate all matching types via function or loop creation
+
+sub execute {
+  my ($data, $scope) = @_;
+  my $f = pop @$data or die "Stack underflow";
+
+  if(ref($f->[1]) ne 'ARRAY') {
+    push @$data, $f;
+    return;
+  }
+
+  if($f->[1]->[0] eq 'array') {
+    my $ff = $f;
+    $f = [sub {
+      my ($data, $scope) = @_;
+      arrayAccess($ff, $data, $scope);
+    }, ['func', 'array-to-func-cast', ['int'], [$ff->[1]->[1]]]];
+  }
+
+  die "complex type unsuitable for execution" if($f->[1]->[0] ne 'func');
+
+  if(not $f->[1]->[2]) {
+    # untyped function, just call
+    push @globalCallStack, $f;
+    &{$f->[0]}($data, $scope);
+    pop @globalCallStack;
+    return;
+  }
+
+  my @concreteArgs;
+  my @viewPortOffset;
+
+  # Phase 1
+  for(my $argI = $#{$f->[1]->[2]}; $argI >= 0; --$argI) {
+    # print "Analyzing Arg $argI\n";
+
+    my $formalArg = $f->[1]->[2]->[$argI];
+    my $formalTypeStack = typeStack($formalArg);
+    my $c = pop @$data;
+    my $typeStack = typeStack($c->[1]);
+    # die "Type-Stack: " . Dumper($typeStack);
+
+    my $bestViewPortSize = 0;
+    my $bestViewPortMatch = @$typeStack + 1;
+
+    # print "Formal Type Stack: @$formalTypeStack\n";
+    # print "       Type Stack: @$typeStack\n";
+
+    if(isVariableType($typeStack->[-1])) {
+      for(my $viewPortSize = 1; $viewPortSize < @$typeStack + 1; ++$viewPortSize) {
+        my @typeViewPort;
+        unshift @typeViewPort, $typeStack->[$_ - 1] for(1 .. $viewPortSize);
+
+        # print "@$formalTypeStack vs. @$typeStack\n";
+
+        my $viewPortMatch = typeMismatchCount($formalTypeStack, $typeStack);
+        if($viewPortMatch < $bestViewPortMatch) {
+          $bestViewPortSize = $viewPortSize;
+          $bestViewPortMatch = $viewPortMatch;
+        }
+      }
+    } else {
+      $bestViewPortSize = @$typeStack;
+      $bestViewPortMatch = 0;
+    }
+
+    # convert concrete argument to exactly matching function
+    # ... which calls the concrete argument using its relevant args
+    if($bestViewPortMatch == 0) {
+      # zero mismatches, can directly use concrete argument
+      unshift @viewPortOffset, @$typeStack - @$formalTypeStack;
+    } else {
+      # if argument is concrete, but we need are construction a function overall, then concrete
+      # argument needs to be converted to a constant function in whatever domain is necessary
+      die "concrete argument constant functionification needs to be implemented, mismatch: $bestViewPortMatch";
+      $c = sub { "magic goes here FIXME" };
+    }
+
+    unshift @concreteArgs, $c;
+  }
+
+  # print "Viewport Offsets: @viewPortOffset\n";
+
+  # Phase 2,
+  my @toBeAbstractedTypes;
+  foreach my $i (0 .. $#viewPortOffset) {
+    my @remaining = @{typeStack($concreteArgs[$i]->[1])};
+    @{$toBeAbstractedTypes[$i]} = @remaining[0 .. $viewPortOffset[$i] - 1];
+  }
+
+  # print "To be abstracted: " . Dumper(@toBeAbstractedTypes);
+
+  if(not grep { @$_ } @toBeAbstractedTypes) {
+    # no types need to be abstracted, function can be called
+    push @globalCallStack, $f;
+    &{$f->[0]}(\@concreteArgs, $scope);
+    pop @globalCallStack;
+    push @$data, @concreteArgs;
+  } else {
+    my @argTypes; # the type stack of the new function
+    my @stageCalls; # which functions to call in each stage
+    my @loops; # undef for lambda abstraction, loop bound source for loops
+
+    foreach my $i (reverse 0 .. $#toBeAbstractedTypes) {
+      while(@{$toBeAbstractedTypes[$i]}) {
+        my $type = shift @{$toBeAbstractedTypes[$i]};
+
+        my $stageCalls = [$i];
+        my $iterationSource = undef; # which concrete argument we'll take the iteration bounds from
+        if(isIterableType($type)) {
+          $iterationSource = $i;
+        }
+
+        foreach my $j (reverse 0 .. $i - 1) {
+          next unless @{$toBeAbstractedTypes[$j]};
+          my $common = commonSubType($type, $toBeAbstractedTypes[$j]->[0]);
+          next unless $common;
+          $type = $common;
+
+          if(isIterableType($type) and not defined $iterationSource) {
+            $iterationSource = $j;
+          }
+
+          shift @{$toBeAbstractedTypes[$j]};
+          unshift @$stageCalls, $j;
+        }
+
+        if(defined $iterationSource) {
+          unshift @argTypes, undef;
+          unshift @loops, $iterationSource;
+        } else {
+          unshift @argTypes, $type;
+          unshift @loops, undef;
+        }
+
+        push @stageCalls, $stageCalls;
+      }
+    }
+
+    # die Dumper(\@argTypes, \@stageCalls, \@loops);
+
+    my $unravel; $unravel = sub {
+      my ($data, $concreteArgs, $stageCalls, $argTypes, $loops) = @_;
+
+      my @stageCallCopy = @$stageCalls;
+      my @argTypeCopy = @$argTypes;
+      my @loopCopy = @$loops;
+
+      my $stage = pop @stageCallCopy;
+      my $argType = pop @argTypeCopy;
+      my $loop = pop @loopCopy;
+
+      if($argType) {
+        my $abstraction = sub {
+          my ($data, $scope) = @_;
+          my $v = pop @$data;
+
+          my @argCopy = @$concreteArgs;
+
+          foreach my $i (@$stage) {
+            my @s = ($v, $argCopy[$i]);
+            execute(\@s, $scope);
+            $argCopy[$i] = $s[0];
+          }
+
+          &$unravel($data, \@argCopy, \@stageCallCopy, \@argTypeCopy, \@loopCopy);
+        };
+
+        push @$data, [$abstraction, ['func', 'autoabstraction of ' . $f->[1]->[1], [grep { $_ } @argTypeCopy], undef]];
+        # FIXME the undef can be determined
+      } elsif(defined $loop) {
+        my @argCopy = @$concreteArgs;
+
+        my @results;
+        for (my $i = getLoopStart($argCopy[$loop]); !isLoopEnd($argCopy[$loop], $i); $i = doLoopStep($argCopy[$loop], $i)) {
+          my @argCopy2 = @$concreteArgs;
+
+          foreach my $j (@$stage) {
+            my @s = ($i, $argCopy2[$j]);
+            execute(\@s, $scope);
+            $argCopy2[$j] = $s[0];
+          }
+
+          my $count = @$data;
+          &$unravel($data, \@argCopy2, \@stageCallCopy, \@argTypeCopy, \@loopCopy);
+          push @results, pop @$data;
+          die "abstracted function produced multiple results (can be handled corretly, needs to be implemented)"
+            unless $count == @$data;
+          # by producing two arrays side by side
+        }
+
+        push @$data, [\@results, ['array', '[]', [['range', 0, $#results]], [undef]]];
+        # FIXME the undef can be determined
+      } else {
+        my @argCopy = @$concreteArgs;
+
+        push @globalCallStack, $f;
+        &{$f->[0]}(\@argCopy, $scope);
+        pop @globalCallStack;
+        push @$data, @argCopy;
+      }
+    };
+
+    &$unravel($data, \@concreteArgs, \@stageCalls, \@argTypes, \@loops);
+  }
+}

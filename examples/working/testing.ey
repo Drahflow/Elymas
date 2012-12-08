@@ -1,0 +1,11 @@
+#!/usr/bin/env elymas
+
+1 /testValue defv
+{ testValue and
+  _ /testValue defv
+    { } { "test failed" die } ? *
+} /test deff
+
+1 test
+1 test
+0 test

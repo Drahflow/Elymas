@@ -1,0 +1,15 @@
+{ 2 add } /f deff
+{ 3 mul } /g deff
+
+1 f g dump
+1 { f g } * dump
+
+|f |g ; /h deff
+
+1 h dump
+
+{ /ff defv
+  { 1 2 3 } ff ; ff ;
+} /test deff
+
+|add test * dump
