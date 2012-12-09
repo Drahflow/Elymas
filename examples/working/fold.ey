@@ -6,7 +6,7 @@
   ? *
 } /fold deff
 
-{ =f _ len =l l dearray f l 1 sub rep } /foldshort deff
+{ =f _ len =l l dearray l 1 sub f rep } /foldshort deff
 
 { =f { f fold } } /enfold deff
 

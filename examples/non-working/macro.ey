@@ -1,8 +1,51 @@
-{ * } /now defq
+# an alternative to }, moving the top stack element
+# into closure storage and pushing it back before
+# executing the block
 
-{ { 1 2 3 add add } now } /f deff
-f dump
+{ "}" | *
+  { /f deff /x defv
+    { x f }
+  } quoted { } { * } ? *
+} "}0" defq
 
-{ blk 0 -01 * sym die } /qdie defq
-{ code die } /qcode defq
-{ f qcode }
+5 { { dump }0 } * /dumpfive deff
+5 { dump }0 /dumpfivetwo deff
+
+7 dumpfive -
+7 dumpfivetwo -
+
+
+# import members of other objects into local scope
+
+{
+  "_" | "-021" | ".|" | "-01" | |deff
+} /usef defq
+
+
+# codewalker
+
+{ "lol" dump } /lol deff
+
+{
+  1 /cont defv
+
+  { cont } { 0 {
+    exe /walkelem deff
+    { sys .out .writestr } /out deff
+
+    _ { { " " out } rep }0 /indent deff
+      { 2 add walkelem }0 /walk deff
+
+    _ code [ {
+      indent [ "\"" -102 "\"\n" ] |out each
+    } {
+      indent _ sym _ out
+                     "{" streq { 0 =cont |lol } { - } ? *
+      "\n" out
+    } {
+      blk |walk each
+    } ] * *
+  } * } loop
+} /codewalk defq
+
+{ f "t" g h { a b { c d } e } codewalk } *

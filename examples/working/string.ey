@@ -1,0 +1,4 @@
+"test" dump
+"a\nb" dump
+"a\\b" dump
+"a\"b" dump

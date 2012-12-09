@@ -52,22 +52,24 @@ our $global = {
       if($quoted) {
         push @$data, [sub {
           my ($data, $scope) = @_;
-          my $createdSub;
-          push @$data, [$createdSub = sub {
+          push @$data, [sub {
             my ($data) = @_;
             my $lscope = \{ ' parent' => $$scope };
             interpretCode(\@code, $data, $lscope);
           }, ['func', Dumper(\@code)]];
         }, ['func', 'func-quoted'], \@code];
       } else {
-        my $createdSub;
-        push @$data, [$createdSub = sub {
+        push @$data, [sub {
           my ($data) = @_;
           my $lscope = \{ ' parent' => $$scope };
           interpretCode(\@code, $data, $lscope);
         }, ['func', Dumper(\@code)]];
       }
     }, ['func', '}'], 'quote'],
+  'quoted' => [sub {
+      my ($data, $scope) = @_;
+      push @$data, [$quoted? 1: 0, 'int'];
+    }, ['func', 'quoted'], 'active'],
   ';' => [sub {
       my ($data, $scope) = @_;
 
@@ -97,7 +99,10 @@ our $global = {
         last if($t->[1] eq 'tok' and $t->[0] eq '[');
 
         if($type) {
-          die "mismatched types in array" if($type ne $t->[1]);
+          # FIXME: This is a hack until function types work
+          if(ref($type) ne 'ARRAY' or $type->[0] ne 'func') {
+            die "mismatched types in array: " . Dumper($type) if($type ne $t->[1]);
+          }
         } else {
           $type = $t->[1];
         }
@@ -136,9 +141,8 @@ our $global = {
   '.|' => [sub {
       my ($data, $scope) = @_;
 
-      my $member = pop @$data;
+      my $member = popString($data);
       my $struct = pop @$data;
-      $member = $member->[0];
 
       die "not a struct during member dereference in $struct" unless $struct->[1]->[0] eq 'struct';
       die "requested member $member is not in fact existent in " . Dumper($struct, $member) unless exists $struct->[1]->[1]->{$member};
@@ -221,8 +225,8 @@ our $global = {
   'rep' => [sub {
       my ($data, $scope) = @_;
 
-      my $c = pop @$data or die "Stack underflow";
       my $f = pop @$data or die "Stack underflow";
+      my $c = pop @$data or die "Stack underflow";
 
       die "Not numeric: " . Dumper($c) unless $c->[1] eq 'int';
 
@@ -397,6 +401,18 @@ sub installGlobal2IntFunction {
     }, ['func', $name, ['int', 'int'], ['int']], 'active'];
 }
 
+sub installGlobal2StrFunction {
+  my ($name, $code) = @_;
+
+  $global->{$name} = [sub {
+      my ($data, $scope) = @_;
+
+      my $b = popString($data);
+      my $a = popString($data);
+      push @$data, &$code($a, $b);
+    }, ['func', $name, ['int', 'int'], ['int']], 'active'];
+}
+
 # math and logic stuff
 installGlobal2IntFunction('add', sub { return $_[0] + $_[1] });
 installGlobal2IntFunction('sub', sub { return $_[0] - $_[1] });
@@ -431,6 +447,9 @@ installGlobal1IntFunction('neg', sub { return -$_[0] });
 installGlobal1IntFunction('not', sub { return not $_[0] });
 installGlobal1IntFunction('bnot', sub { return ~ $_[0] });
 installGlobal1IntFunction('abs', sub { return abs $_[0] });
+
+# FIXME: this API is ugly
+installGlobal2StrFunction('streq', sub { return [($_[0] eq $_[1])? 1: 0, 'int'] });
 
 # J comparison (http://www.jsoftware.com/docs/help701/dictionary/vocabul.htm)
 # = Self-Classify • Equal              -> <TODO redundant> / eq

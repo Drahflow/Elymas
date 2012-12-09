@@ -489,7 +489,7 @@ sub resolve {
 }
 
 sub applyResolvedName {
-  my ($t, $meaning, $data, $scope) = @_;
+  my ($t, $meaning, $data, $scope, $quoted) = @_;
 
   if(not defined $meaning) {
     if($quoted) {
@@ -497,7 +497,7 @@ sub applyResolvedName {
           my ($data, $scope) = @_;
 
           my $meaning = resolve($$scope, $data, $t->[0]);
-          applyResolvedName($t, $meaning, $data, $scope);
+          applyResolvedName($t, $meaning, $data, $scope, 0);
         }, ['func', 'quoted late-resolve of ' . $t->[0]], $t->[0]];
     } else {
       die "could not resolve '$t->[0]'";
@@ -519,7 +519,7 @@ sub applyResolvedName {
     push @$data, [$meaning->[0], $meaning->[1]];
     execute($data, $scope);
   } else {
-    die "unknown scope entry meaning for '$t->[0]'";
+    die "unknown scope entry meaning for '$t->[0]': " . $meaning->[2];
   }
 }
 
@@ -530,7 +530,7 @@ sub interpretTokens {
     eval {
       if($t->[1] eq 'tok') {
         my $meaning = resolve($$scope, $data, $t->[0]);
-        applyResolvedName($t, $meaning, $data, $scope);
+        applyResolvedName($t, $meaning, $data, $scope, $quoted);
       } elsif(ref($t->[1]) eq 'ARRAY' and $t->[1]->[0] eq 'func') {
         die "function pointer in interpretTokens";
       } else {
@@ -582,9 +582,34 @@ sub tokenize {
     } elsif($line =~ /^(\d+) +(.*)/s) {
       $line = $2;
       push @t, [$1, 'int'];
-    } elsif($line =~ /^"([^"]+)" +(.*)/s) {
-      $line = $2;
-      push @t, [$1, 'string'];
+    } elsif($line =~ /^"(.*)/s) {
+      $line = $1;
+
+      my $str = "";
+      while(1) {
+        if($line =~ /^"(.*)/s) {
+          $line = $1;
+          last;
+        } elsif($line =~ /^\\(.)(.*)/s) {
+          if($1 eq '\\') {
+            $str .= '\\';
+          } elsif($1 eq 'n') {
+            $str .= "\n";
+          } elsif($1 eq '"') {
+            $str .= "\"";
+          } else {
+            die "invalid \\-char in string: '$1', '$line'";
+          }
+          $line = $2;
+        } elsif($line =~ /^([^"\\])(.*)/s) {
+          $str .= $1;
+          $line = $2;
+        } else {
+          die "cannot tokenize string-like: '$line'";
+        }
+      }
+
+      push @t, [$str, 'string'];
     } elsif($line =~ /^([^a-zA-Z ]+)([a-zA-Z]+) +(.*)/s) {
       $line = "$1 $3";
       push @t, [$2, 'string'];

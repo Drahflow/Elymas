@@ -117,7 +117,21 @@ sub createFile {
           die "write failed: $!" unless defined $ret;
           $buf = substr($buf, $ret);
         }
-      }, ['func', 'sys .file .write'], 'active'],
+      }, ['func', 'sys .file .writeall'], 'active'],
+    'writestr' => [sub {
+        # FIXME: give the file an encoding and respect it here
+        my ($data) = @_;
+
+        die "file not open" if $$scope->{' fd'}->[0] == -1;
+
+        my $buf = popString($data);
+
+        while($buf) {
+          my $ret = POSIX::write($$scope->{' fd'}->[0], $buf, length $buf);
+          die "write failed: $!" unless defined $ret;
+          $buf = substr($buf, $ret);
+        }
+      }, ['func', 'sys .file .writestr'], 'active'],
   };
 
   return $$scope;

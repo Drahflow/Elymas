@@ -1,4 +1,4 @@
 #!/usr/bin/env elymas
 
 1 1 |dump *0 add dump
-4 { 1 add } 3 rep dump
+4 3 { 1 add } rep dump
