@@ -7,7 +7,7 @@ require Exporter;
 our @ISA = qw(Exporter);
 our @EXPORT = qw(
   popInt popString popArray enstruct arrayAccess $quoted @globalCallStack
-  interpretCode execute executeString executeFile resolve
+  interpretCode execute executeString executeFile resolve canCastTo
 );
 
 use Data::Dumper;

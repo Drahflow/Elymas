@@ -1,0 +1,7 @@
+#!/usr/bin/env elymas
+
+1 { } {
+  4096 sys .in .read
+  _ sys .out .writeall
+    len
+} loop

@@ -1,0 +1,23 @@
+[ 23 3 43 37 89 11 21 4 35 94 28 36 96 95 51 7 59 57 48 68 85 73 6 67 71 92 76 14 31 18 64 30 9 41 34 86 33 75 70 81 27 93 8 100 55 39 1 61 42 45 29 5 17 79 13 90 49 99 91 69 46 54 16 53 40 62 60 20 88 97 12 74 15 65 72 80 50 44 47 24 25 2 58 52 78 83 10 84 98 19 56 87 26 32 22 63 82 77 0 38 66 ] /data defv
+
+{ "=[]" | -31*21*310*210* } /swap deff
+
+{ /a defv /end defv /start defv
+  end a * /pivot defv
+  start /store defv
+
+  start end 1 sub range { /i defv
+    i a * pivot lt {
+      store _ i a swap
+              1 add =store
+    } rep
+  } each
+
+  store _ end a swap
+        _ 1 sub start -0101 lt { a qsort } { -- } ? *
+          1 add end   -1010 lt { a qsort } { -- } ? *
+} /qsort deff
+
+{ _ len _ 0 gt { 1 sub 0 -012 qsort } rep } /sort deff
+
+data _ sort dump
