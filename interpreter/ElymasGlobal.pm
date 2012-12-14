@@ -99,9 +99,8 @@ our $global = {
         last if($t->[1] eq 'tok' and $t->[0] eq '[');
 
         if($type) {
-          # FIXME: This is a hack until function types work
           if(ref($type) ne 'ARRAY' or $type->[0] ne 'func') {
-            die "mismatched types in array: " . Dumper($type) if($type ne $t->[1]);
+            die "mismatched types in array: " . Dumper($type) unless typeEqual($type, $t->[1]);
           }
         } else {
           $type = $t->[1];
@@ -244,6 +243,56 @@ our $global = {
 
       push @$data, ($p->[1] eq 'int' and $p->[0] == 0? $b: $a);
     }, ['func', '?'], 'active'],
+  'include' => [sub {
+      my ($data, $scope) = @_;
+
+      my $s = popString($data);
+
+      executeFile($s, $data, $scope);
+    }, ['func', 'include'], 'active'],
+  'regex' => [sub {
+      my ($data, $scope) = @_;
+
+      my $rx = popString($data);
+      my $s = popString($data);
+
+      my @result = $s =~ qr($rx)s;
+      if(not @result) {
+        push @$data, [0, 'int'];
+      } elsif(($result[0] & ~ $result[0]) eq "0") {
+        push @$data, [1, 'int'];
+      } else {
+        foreach my $m (reverse @result) {
+          push @$data, [$m, 'string'];
+        }
+        push @$data, [1, 'int'];
+      }
+    }, ['func', 'regex'], 'active'],
+  'cat' => [sub {
+      my ($data, $scope) = @_;
+
+      my $b = pop @$data or die "Stack underflow";
+      my $a = pop @$data or die "Stack underflow";
+
+      if(ref($a->[1]) eq 'ARRAY' and $a->[1]->[0] eq 'array') {
+        if(ref($b->[1]) eq 'ARRAY' and $b->[1]->[0] eq 'array') {
+          die "Array types don't match in cat: " . Dumper($a->[1]->[3], $b->[1]->[3])
+            unless typeEqual($a->[1]->[3], $b->[1]->[3]);
+          my @res = (@$a, @$b);
+          push @$data, [\@res, ['array', 'from cat', [['range', 0, $#res]], [$a->[1]->[3]]]];
+        } else {
+          die "Mismatch between string and array in cat";
+        }
+      } elsif($a->[1] eq 'string') {
+        if($b->[1] eq 'string') {
+          push @$data, [$a->[0] . $b->[0], 'string'];
+        } else {
+          die "Mismatch between string and array in cat";
+        }
+      } else {
+        die "Neither string nor array: " . Dumper($a);
+      }
+    }, ['func', 'cat'], 'active'],
 
 # not really part of the spec, this is just for debugging
   'dump' => [sub {
@@ -274,9 +323,13 @@ our $global = {
       my ($data, $scope) = @_;
 
       my $a = pop @$data or die "Stack underflow";
-      die "Not array: " . Dumper($a) unless ref($a->[1]) eq 'ARRAY' and $a->[1]->[0] eq 'array';
-
-      push @$data, [scalar @{$a->[0]}, 'int'];
+      if(ref($a->[1]) eq 'ARRAY' and $a->[1]->[0] eq 'array') {
+        push @$data, [scalar @{$a->[0]}, 'int'];
+      } elsif(ref($a->[1]) eq 'ARRAY' and $a->[1]->[0] eq 'string') {
+        push @$data, [length $a->[0], 'int'];
+      } else {
+        die "Neither string nor array: " . Dumper($a);
+      }
     }, ['func', 'len'], 'active'],
   '=[]' => [sub {
       my ($data, $scope) = @_;

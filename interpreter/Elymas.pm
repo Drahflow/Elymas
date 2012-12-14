@@ -7,7 +7,7 @@ require Exporter;
 our @ISA = qw(Exporter);
 our @EXPORT = qw(
   popInt popString popArray enstruct arrayAccess $quoted @globalCallStack
-  interpretCode execute executeString executeFile resolve canCastTo
+  interpretCode execute executeString executeFile resolve canCastTo typeEqual
 );
 
 use Data::Dumper;
@@ -114,8 +114,21 @@ sub typeEqual {
       return 0 unless @{$a->[2]} == grep { typeEqual($a->[2]->[$_], $b->[2]->[$_]) } 0 .. $#{$a->[2]};
       return 0 unless @{$a->[3]} == grep { typeEqual($a->[3]->[$_], $b->[3]->[$_]) } 0 .. $#{$a->[3]};
       return 1;
+    } elsif($a->[0] eq 'struct') {
+      return 0 unless $b->[0] eq 'struct';
+
+      my @aKeys = sort keys %{$a->[1]};
+      my @bKeys = sort keys %{$b->[1]};
+
+      return 0 unless @aKeys == @bKeys;
+      foreach my $i (0 .. $#aKeys) {
+        return 0 unless $aKeys[$i] eq $bKeys[$i];
+        return 0 unless typeEqual($a->[1]->{$aKeys[$i]}->[0], $b->[1]->{$bKeys[$i]}->[0]);
+      }
+
+      return 1;
     } else {
-      die "not yet implemented";
+      die "not yet implemented" . Dumper($a);
     }
   }
 

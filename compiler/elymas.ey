@@ -1,0 +1,9 @@
+#!/home/drahflow/elymas/interpreter/elymas
+
+"standard.ey" include
+"elymasGlobal.ey" include
+
+0 sys .argv _ len not { "Usage: ./elymas <input file.ey>" die } rep
+              * sys .file -010 .open executeFile
+
+# vim: syn=elymas

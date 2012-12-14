@@ -1,0 +1,7 @@
+{ "}" | *
+  { /f deff /x defv
+    { x f }
+  } quoted { } { * } ? *
+} "}0" defq
+
+# vim: syn=elymas

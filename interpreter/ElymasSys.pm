@@ -18,6 +18,7 @@ our $sys = {
   'in' => [enstruct(createFile(0, &POSIX::O_RDONLY)), 'passive'],
   'out' => [enstruct(createFile(1, &POSIX::O_WRONLY)), 'passive'],
   'err' => [enstruct(createFile(2, &POSIX::O_WRONLY)), 'passive'],
+  'argv' => [[map { [$_, 'string'] } @ARGV[1 .. $#ARGV]], ['array', 'sys .argv', ['range', 0, $#ARGV - 1], ['string']], 'passive'],
 };
 
 sub createFile {
@@ -91,6 +92,20 @@ sub createFile {
 
         push @$data, [$buf, ['array', '[]', [['range', 0, $#{$buf}]], ['int']]];
       }, ['func', 'sys .file .read'], 'active'],
+    'readstr' => [sub {
+        # FIXME: give the file an encoding and respect it here, buffering half-characters if needed
+        my ($data) = @_;
+
+        die "file not open" if $$scope->{' fd'}->[0] == -1;
+
+        my $count = popInt($data);
+
+        my $buf;
+        my $ret = POSIX::read($$scope->{' fd'}->[0], $buf, $count);
+        die "read failed: $!" unless defined $ret;
+
+        push @$data, [$buf, 'string'];
+      }, ['func', 'sys .file .writestr'], 'active'],
     'write' => [sub {
         my ($data) = @_;
 
