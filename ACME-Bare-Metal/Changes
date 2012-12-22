@@ -1,0 +1,6 @@
+Revision history for Perl extension ACME::Bare::Metal.
+
+0.01  Sat Dec 22 18:15:04 2012
+	- original version; created by h2xs 1.23 with options
+		-A -n ACME::Bare::Metal
+

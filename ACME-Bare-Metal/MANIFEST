@@ -1,0 +1,8 @@
+Changes
+Makefile.PL
+MANIFEST
+Metal.xs
+ppport.h
+README
+t/ACME-Bare-Metal.t
+lib/ACME/Bare/Metal.pm
