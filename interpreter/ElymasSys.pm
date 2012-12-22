@@ -4,6 +4,7 @@ use strict;
 use warnings;
 
 use Elymas;
+use ElymasX86;
 use POSIX;
 
 my $rwmask = &POSIX::O_RDONLY | &POSIX::O_WRONLY | &POSIX::O_RDWR;
@@ -19,6 +20,7 @@ our $sys = {
   'out' => [enstruct(createFile(1, &POSIX::O_WRONLY)), 'passive'],
   'err' => [enstruct(createFile(2, &POSIX::O_WRONLY)), 'passive'],
   'argv' => [[map { [$_, 'string'] } @ARGV[1 .. $#ARGV]], ['array', 'sys .argv', ['range', 0, $#ARGV - 1], ['string']], 'passive'],
+  'x86' => [enstruct($ElymasX86::x86), 'passive'],
 };
 
 sub createFile {
