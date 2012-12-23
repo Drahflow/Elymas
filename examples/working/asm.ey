@@ -1,0 +1,8 @@
+sys .asm /asm defv
+
+4096 asm .alloc /e defv
+
+195 e .base asm .poke
+
+e .base asm .execute
+e .free
