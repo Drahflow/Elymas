@@ -21,7 +21,7 @@
         "^\\\\n(.*)" { str "\n" cat =str } strparse
         "^\\\\\"(.*)" { str "\"" cat =str } strparse
         "^([^\"\\\\])(.*)" { str -01 cat =str } strparse
-        strany not { "Tokenization of string-liked failed" die } rep
+        strany not { "Tokenization of string-like failed" die } rep
       } loop
       str TOKSTR token -01
     } parse
