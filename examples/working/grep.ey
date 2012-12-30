@@ -1,5 +1,5 @@
 { /p deff {
-  [ -01 { _ p { } { - } ? * } each ]
+  [ -01 { _ p { } { -- } ? * } each ]
 } } /engrep deff
 
 { engrep * } /grep deff
@@ -13,7 +13,7 @@
   } {
     _ a p { _ =r } { } ? *
       1 add
-  } loop -
+  } loop --
   r
 } /index deff
 

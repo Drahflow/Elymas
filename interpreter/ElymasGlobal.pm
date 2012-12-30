@@ -70,6 +70,45 @@ our $global = {
       my ($data, $scope) = @_;
       push @$data, [$quoted? 1: 0, 'int'];
     }, ['func', 'quoted'], 'active'],
+  '--' => [sub {
+      my ($data, $scope) = @_;
+      pop @$data;
+    }, ['func', '-'], 'active'],
+  '-' => [sub {
+      my ($data, $scope) = @_;
+
+      my $spec = popString($data);
+      my $max = 0;
+
+      my @spec = split //, $spec;
+      $max = $_ > $max? $_: $max foreach grep { $_ ne '*' } @spec;
+
+      my @buffer;
+      foreach (0 .. $max) {
+        die "Stack underflow" unless @$data;
+        push @buffer, pop @$data;
+      }
+
+      foreach my $i (@spec) {
+        if($i eq '*') {
+          execute($data, $scope);
+        } else {
+          push @$data, $buffer[$i];
+        }
+      }
+    }, ['func', '-'], 'active'],
+  '_' => [sub {
+      my ($data, $scope) = @_;
+
+      my $x = pop @$data or die "Stack underflow";
+      push @$data, $x;
+      push @$data, $x;
+    }, ['func', '_'], 'active'],
+  '*' => [sub {
+      my ($data, $scope) = @_;
+
+      execute($data, $scope);
+    }, ['func', '*'], 'active'],
   ';' => [sub {
       my ($data, $scope) = @_;
 

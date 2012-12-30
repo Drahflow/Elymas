@@ -23,7 +23,7 @@
   -00
   0 -01 * 7 eq test
   1 -01 * 10 eq test
-[ 1 2 3 ] _0 add
+[ 1 2 3 ] _ add
   -000
   0 -01 * 2 eq test
   1 -01 * 4 eq test

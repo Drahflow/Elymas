@@ -6,19 +6,19 @@
   { /f deff /x defv
     { x f }
   } quoted { } { * } ? *
-} "}0" defq
+} "}_" defq
 
-5 { { dump }0 } * /dumpfive deff
-5 { dump }0 /dumpfivetwo deff
+5 { { dump }_ } * /dumpfive deff
+5 { dump }_ /dumpfivetwo deff
 
-7 dumpfive -
-7 dumpfivetwo -
+7 dumpfive --
+7 dumpfivetwo --
 
 
 # import members of other objects into local scope
 
 {
-  "_" | "-021" | ".|" | "-01" | |deff
+  "_" | "021" | "-" | ".|" | "01" | "-" | |deff
 } /usef defq
 
 
@@ -33,14 +33,14 @@
     exe /walkelem deff
     { sys .out .writestr } /out deff
 
-    _ { { " " out } rep }0 /indent deff
-      { 2 add walkelem }0 /walk deff
+    _ { { " " out } rep }_ /indent deff
+      { 2 add walkelem }_ /walk deff
 
     _ code [ {
       indent [ "\"" -102 "\"\n" ] |out each
     } {
       indent _ sym _ out
-                     "{" streq { 0 =cont |lol } { - } ? *
+                     "{" streq { 0 =cont |lol } { -- } ? *
       "\n" out
     } {
       blk |walk each

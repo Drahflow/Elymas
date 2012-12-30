@@ -3,10 +3,10 @@
 { ? * } /if deff
 
 {
-  _0 0 eq _1 1 eq add
-    { - 1 }
+  _ 0 eq -101 1 eq add
+    { -- 1 }
     {
-      _0  1 sub "fib" | *
+      _   1 sub "fib" | *
       -01 2 sub "fib" | *
       add
     }

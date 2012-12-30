@@ -6,13 +6,13 @@
   { "yes" dump } /c deff
 >
 
-_00 .a dump
-    .b dump
-    .c
+-000 .a dump
+     .b dump
+     .c
 
 < <
   "closure" /x defv
   { x }
-> - /get deff >
+> -- /get deff >
 
 .get dump

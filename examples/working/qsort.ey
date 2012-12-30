@@ -14,8 +14,8 @@
   } each
 
   store _ end a swap
-        _ 1 sub start -0101 lt { a qsort } { -- } ? *
-          1 add end   -1010 lt { a qsort } { -- } ? *
+        _ 1 sub start -0101 lt { a qsort } { -2 } ? *
+          1 add end   -1010 lt { a qsort } { -2 } ? *
 } /qsort deff
 
 { _ len _ 0 gt { 1 sub 0 -012 qsort } rep } /sort deff

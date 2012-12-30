@@ -445,59 +445,6 @@ sub resolve {
 
   return $scope->{$name} if(exists $scope->{$name});
   return resolve($scope->{' parent'}, $data, $name) if(exists $scope->{' parent'});
-
-  if($name =~ /^(_+)(\d*)$/s) {
-    my @spec = split //, $2;
-    @spec = (0) unless @spec;
-
-    return [sub {
-      my ($data, $scope) = @_;
-
-      my @new;
-      foreach my $i (@spec) {
-        die "Stack underflow" if @$data < $i + 1;
-        push @new, $data->[-$i - 1];
-      }
-      push @$data, @new;
-    }, ['func', 'auto-created of ' . $name], 'active'];
-  } elsif($name =~ /^(-+)([0-9*]*)$/s) {
-    my $max = length($1) - 1;
-    my @spec = split //, $2;
-    $max = $_ > $max? $_: $max foreach grep { $_ ne '*' } @spec;
-
-    return [sub {
-      my ($data, $scope) = @_;
-
-      my @buffer;
-      foreach (0 .. $max) {
-        die "Stack underflow" unless @$data;
-        push @buffer, pop @$data;
-      }
-
-      foreach my $i (@spec) {
-        if($i eq '*') {
-          execute($data, $scope);
-        } else {
-          push @$data, $buffer[$i];
-        }
-      }
-    }, ['func', 'auto-created of ' . $name], 'active'];
-  } elsif($name =~ /^\*(\d*)$/s) {
-    my @spec = split //, $1;
-
-    return [sub {
-      my ($data, $scope) = @_;
-
-      my @buffer;
-      foreach my $i (@spec) {
-        die "Stack underflow" if @$data < $i + 2;
-        push @buffer, $data->[-$i - 2];
-      }
-      execute($data, $scope);
-      push @$data, @buffer;
-    }, ['func', 'auto-created of ' . $name], 'active'];
-  }
-
   return undef;
 }
 
@@ -623,10 +570,10 @@ sub tokenize {
       }
 
       push @t, [$str, 'string'];
-    } elsif($line =~ /^([^a-zA-Z ]+)([a-zA-Z]+) +(.*)/s) {
+    } elsif($line =~ /^([^a-zA-Z0-9 ]+)([a-zA-Z0-9][^ ]*) +(.*)/s) {
       $line = "$1 $3";
       push @t, [$2, 'string'];
-    } elsif($line =~ /^([a-zA-Z]+|[^a-zA-Z ]+) +(.*)/s) {
+    } elsif($line =~ /^([a-zA-Z0-9]+|[^a-zA-Z0-9 ]+) +(.*)/s) {
       $line = $2;
       push @t, [$1, 'tok'];
     } else {
