@@ -1,1 +1,1 @@
-{ =i i dump } [ 1 2 3 ] each
+[ 1 2 3 ] { =i i dump } each
