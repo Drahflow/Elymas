@@ -1,7 +1,44 @@
+|defv "==" deff
+|deff "=*" deff
+
 { "}" | *
   { /f deff /x defv
     { x f }
   } quoted { } { * } ? *
-} "}0" defq
+} "}_" defq
+
+{ ==f _ ==a len ==l
+  l {
+    0 a *
+    1 l 1 sub range { a * f * } each
+    } { "fold on empty array" die }
+  ? *
+} /fold deff
+
+{ |or fold } /any deff
+{ |and fold } /all deff
+
+{ =*p {
+  [ -01 { _ p { } { -- } ? * } each ]
+} } /engrep deff
+
+{ engrep * } /grep deff
+{ -110 ; engrep |dom -20*1* } /indices deff
+
+{ =*p _ =*a len ==l
+  1 neg ==r
+
+  0 {
+    _ l lt 1 neg r eq and
+  } {
+    _ a p { _ =r } { } ? *
+      1 add
+  } loop --
+  r
+} /index deff
+
+{
+  not { "Assertion failure" die } rep
+} /assert deff
 
 # vim: syn=elymas

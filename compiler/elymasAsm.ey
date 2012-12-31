@@ -1,0 +1,134 @@
+<
+  4096 ==PAGESIZE
+  16777216 ==STACKSIZE
+  128 ==STACKSTART
+
+  STACKSIZE sys .asm .alloc ==mainStack
+
+  # global stack layout
+  # 0 - STACKSTART  : global variables
+  #               0 : current stack pointer
+  # STACKSTART - ...: real stack
+
+  # hex decoding
+  {
+    "(.)(.)" regex { } { "not a valid hex-string" die } ? *
+    { { streq }_ [ "0" "1" "2" "3" "4" "5" "6" "7" "8" "9" "A" "B" "C" "D" "E" "F" ] -01 index }
+    -20*10* 16 mul add
+  } "%" defq
+
+  # registers
+  { [ /rax /rcx /rdx /rbx /rsp /rbp /rsi /rdi /r8 /r9 /r10 /r11 /r12 /r13 /r14 /r15 ] streq any } /bit64 deff
+  { [ /eax /ecx /edx /ebx /esp /ebp /esi /edi /r8d /r9d /r10d /r11d /r12d /r13d /r14d /r15d ] streq any } /bit32 deff
+  { [ /ax /cx /dx /bx /sp /bp /si /di /r8w /r9w /r10w /r11w /r12w /r13w /r14w /r15w ] streq any } /bit16 deff
+  { [ /al /cl /dl /bl /spl /ah /bpl /ch /sil /dh /dil /bh /r8b /r9b /r10b /r11b /r12b /r13b /r14b /r15b ] streq any } /bit8 deff
+  
+  { { streq any }_ ==reg
+    [
+      [ /al /ax /eax /rax /none ]
+      [ /cl /cx /ecx /rcx ]
+      [ /dl /dx /edx /rdx ]
+      [ /bl /bx /ebx /rbx ]
+      [ /spl /ah /sp /esp /rsp ]
+      [ /bpl /ch /bp /ebp /rbp ]
+      [ /sil /si /esi /rsi ]
+      [ /dil /di /edi /rdi ]
+      [ /r8b /r8w /r8d /r8 ]
+      [ /r9b /r9w /r9d /r9 ]
+      [ /r10b /r10w /r10d /r10 ]
+      [ /r11b /r11w /r11d /r11 ]
+      [ /r12b /r12w /r12d /r12 ]
+      [ /r13b /r13w /r13d /r13 ]
+      [ /r14b /r14w /r14d /r14 ]
+      [ /r15b /r15w /r15d /r15 ]
+    ] reg index
+    _ 1 neg gt assert
+  } /regno deff
+
+  # encoding a REX prefix
+  { ==b ==x ==r ==w
+                          %40
+    w                0 gt %08 mul add
+    r regno %08 band 0 gt %04 mul add
+    x regno %08 band 0 gt %02 mul add
+    b regno %08 band 0 gt %01 mul add
+  } /rex deff
+
+  { =mem =reg
+    mem [ /spl /sp /esp /rsp /bpl /bp /ebp /rbp ] streq any not assert
+
+                    %00
+    mem regno       %07 band add
+    reg regno 8 mul %38 band add
+  } /modrm00 deff
+
+  { 8 { _ 256 mod -01 256 div } rep -- } /imm64 deff
+  { 4 { _ 256 mod -01 256 div } rep -- } /imm32 deff
+  { 2 { _ 256 mod -01 256 div } rep -- } /imm16 deff
+  { } /imm8 deff
+
+  # instructions
+  { ==reg ==i
+    reg bit64 assert
+
+    1 /none /none reg rex
+    %B8 reg regno %07 band add
+    i imm64
+  } /movqImmReg deff
+
+  { ==reg ==mem
+    reg bit64 assert
+    mem bit64 assert
+
+    1 reg /none mem rex
+    %89
+    reg mem modrm00
+  } /movqMemReg deff
+
+  { ==mem ==reg
+    reg bit64 assert
+    mem bit64 assert
+
+    1 reg /none mem rex
+    %8B
+    reg mem modrm00
+  } /movqRegMem deff
+
+  { =reg
+    reg regno %07 gt { 1 /none /none reg rex } rep
+    %58 reg regno %07 band add
+  } /popq deff
+
+  { =reg
+    reg regno %07 gt { 1 /none /none reg rex } rep
+    %50 reg regno %07 band add
+  } /pushq deff
+
+  {
+    %C3
+  } /retn deff
+
+  # take an array of instruction bytes and execute it on the given stack
+  { ==stack ==opcodes
+    [
+      /rbx pushq
+      stack /rbx movqImmReg
+      /rbx /rsp movqMemReg
+    ] opcodes [
+      stack /rbx movqImmReg
+      /rsp /rbx movqRegMem
+      /rbx popq
+      retn
+    ] cat cat =opcodes
+
+    opcodes len 1 sub PAGESIZE div 1 add PAGESIZE mul sys .asm .alloc /codearea defv
+    codearea .base ==i
+    opcodes { i sys .asm .poke i 1 add =i } each
+    codearea .base sys .asm .execute
+    codearea .free
+  } /executeOn deff
+
+  { mainStack .base executeOn } /execute deff
+> /assembler defv
+
+# vim: syn=elymas

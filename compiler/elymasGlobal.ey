@@ -1,38 +1,42 @@
+"elymasAsm.ey" include
+
 0 /TOKINT defv
 1 /TOKSTR defv
 2 /TOKID defv
 
-{ /f deff _1 /s defv regex { f } { s } ? * } /rxparse deff
+{ /f deff -101 /s defv regex { f } { s } ? * } /rxparse deff
 
 { " " cat
   { < /type defv /value defv > } /token deff
   [ -01 { _ "" streq not } {
-    0 /any defv { /f deff any { - } { { 1 =any f } rxparse } ? * } /parse deff
+    0 /matched defv { /f deff matched { -- } { { 1 =matched f } rxparse } ? * } /parse deff
 
     "^ (.*)" { } parse
     "^#" { "" } parse
     "^(\\d+) +(.*)" { TOKINT token -01 } parse
     "\"(.*)" {
       "" /str defv
-      { _ "^\"(.*)" regex { --0 0 } { 1 } ? * } {
-        0 /strany defv { /f deff strany { - } { { 1 =strany f } rxparse } ? * } /strparse deff
+      { _ "^\"(.*)" regex { -01 -- 0 } { 1 } ? * } {
+        0 /strmatched defv { /f deff strmatched { -- } { { 1 =strmatched f } rxparse } ? * } /strparse deff
 
         "^\\\\\\\\(.*)" { str "\\" cat =str } strparse
         "^\\\\n(.*)" { str "\n" cat =str } strparse
         "^\\\\\"(.*)" { str "\"" cat =str } strparse
         "^([^\"\\\\])(.*)" { str -01 cat =str } strparse
-        strany not { "Tokenization of string-like failed" die } rep
+        strmatched not { "Tokenization of string-like failed" die } rep
       } loop
       str TOKSTR token -01
     } parse
-    "^([^a-zA-Z ]+)([a-zA-Z]+) +(.*)" { -201 TOKSTR token " " -1203 cat cat } parse
-    "^([a-zA-Z]+|[^a-zA-Z ]+) +(.*)" { TOKID token -01 } parse
-    any not { "Tokenization failed" die } rep
-  } loop - ]
+    "^([^a-zA-Z0-9 ]+)([a-zA-Z0-9][^ ]*) +(.*)" { -201 TOKSTR token " " -1203 cat cat } parse
+    "^([a-zA-Z0-9]+|[^a-zA-Z0-9 ]+) +(.*)" { TOKID token -01 } parse
+
+    matched not { "Tokenization failed: " -01 cat die } rep
+  } loop -- ]
 } /tokenize deff
 
 {
   dump
+  [ ] assembler .execute
 } /interpretToken deff
 
 { /input defv
@@ -40,7 +44,7 @@
     4096 input .readstr cat
     _ "" streq not
   } {
-    { _ "([^\\n]*)\\n(.*)" regex } { ---10 tokenize |interpretToken each } loop
+    { _ "([^\\n]*)\\n(.*)" regex } { -102 -- tokenize |interpretToken each } loop
   } loop
 } /executeFile deff
 
