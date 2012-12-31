@@ -138,7 +138,11 @@ our $global = {
         last if($t->[1] eq 'tok' and $t->[0] eq '[');
 
         if($type) {
-          if(ref($type) ne 'ARRAY' or $type->[0] ne 'func') {
+          if(ref($type) eq 'ARRAY' and $type->[0] eq 'func') {
+            # TODO permitted for now
+          } elsif(ref($type) eq 'ARRAY' and $type->[0] eq 'array') {
+            # TODO permitted for now
+          } else {
             die "mismatched types in array: " . Dumper($type) unless typeEqual($type, $t->[1]);
           }
         } else {
@@ -315,10 +319,22 @@ our $global = {
 
       if(ref($a->[1]) eq 'ARRAY' and $a->[1]->[0] eq 'array') {
         if(ref($b->[1]) eq 'ARRAY' and $b->[1]->[0] eq 'array') {
-          die "Array types don't match in cat: " . Dumper($a->[1]->[3], $b->[1]->[3])
-            unless typeEqual($a->[1]->[3], $b->[1]->[3]);
-          my @res = (@$a, @$b);
-          push @$data, [\@res, ['array', 'from cat', [['range', 0, $#res]], [$a->[1]->[3]]]];
+          my $commonType;
+
+          if(not typeEqual($a->[1]->[3]->[0], $b->[1]->[3]->[0])) {
+            if(not @{$a->[0]}) {
+              $commonType = $b->[1]->[3]->[0];
+            } elsif(not @{$b->[0]}) {
+              $commonType = $a->[1]->[3]->[0];
+            } else {
+              die "Array types don't match in cat: " . Dumper($a->[1]->[3]->[0], $b->[1]->[3]->[0]);
+            }
+          } else {
+            $commonType = $a->[1]->[3]->[0];
+          }
+
+          my @res = (@{$a->[0]}, @{$b->[0]});
+          push @$data, [\@res, ['array', 'from cat', [['range', 0, $#res]], [$commonType]]];
         } else {
           die "Mismatch between string and array in cat";
         }
@@ -364,7 +380,7 @@ our $global = {
       my $a = pop @$data or die "Stack underflow";
       if(ref($a->[1]) eq 'ARRAY' and $a->[1]->[0] eq 'array') {
         push @$data, [scalar @{$a->[0]}, 'int'];
-      } elsif(ref($a->[1]) eq 'ARRAY' and $a->[1]->[0] eq 'string') {
+      } elsif($a->[1] eq 'string') {
         push @$data, [length $a->[0], 'int'];
       } else {
         die "Neither string nor array: " . Dumper($a);
@@ -519,12 +535,12 @@ installGlobal2IntFunction('xor', sub { return ($_[0] xor $_[1])? 1: 0 });
 installGlobal2IntFunction('nxor', sub { return (not ($_[0] xor $_[1]))? 1: 0 });
 installGlobal2IntFunction('nor', sub { return (not ($_[0] or $_[1]))? 1: 0 });
 
-installGlobal2IntFunction('band', sub { return ($_[0] & $_[1])? 1: 0 });
-installGlobal2IntFunction('bnand', sub { return (~ ($_[0] & $_[1]))? 1: 0 });
-installGlobal2IntFunction('bor', sub { return ($_[0] | $_[1])? 1: 0 });
-installGlobal2IntFunction('bxor', sub { return ($_[0] ^ $_[1])? 1: 0 });
-installGlobal2IntFunction('bnxor', sub { return (~ ($_[0] ^ $_[1]))? 1: 0 });
-installGlobal2IntFunction('bnor', sub { return (~ ($_[0] | $_[1]))? 1: 0 });
+installGlobal2IntFunction('band', sub { return $_[0] & $_[1] });
+installGlobal2IntFunction('bnand', sub { return ~($_[0] & $_[1]) });
+installGlobal2IntFunction('bor', sub { return $_[0] | $_[1] });
+installGlobal2IntFunction('bxor', sub { return $_[0] ^ $_[1] });
+installGlobal2IntFunction('bnxor', sub { return ~($_[0] ^ $_[1]) });
+installGlobal2IntFunction('bnor', sub { return ~($_[0] | $_[1]) });
 
 installGlobal2IntFunction('eq', sub { return ($_[0] == $_[1])? 1: 0 });
 installGlobal2IntFunction('neq', sub { return ($_[0] != $_[1])? 1: 0 });
@@ -537,7 +553,7 @@ installGlobal2IntFunction('gcd', sub { my ($a, $b) = @_; ($a, $b) = ($b, $a % $b
 
 installGlobal1IntFunction('neg', sub { return -$_[0] });
 installGlobal1IntFunction('not', sub { return not $_[0] });
-installGlobal1IntFunction('bnot', sub { return ~ $_[0] });
+installGlobal1IntFunction('bnot', sub { return ~$_[0] });
 installGlobal1IntFunction('abs', sub { return abs $_[0] });
 
 # FIXME: this API is ugly

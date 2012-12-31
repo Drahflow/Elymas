@@ -102,6 +102,7 @@ sub typeEqual {
   my ($a, $b) = @_;
 
   return 0 if(ref($a) xor ref($b));
+  return 0 if(defined $a xor defined $b);
   if(ref($a) and ref($b)) {
     return 0 if($a->[0] ne $b->[0]);
 
@@ -128,7 +129,7 @@ sub typeEqual {
 
       return 1;
     } else {
-      die "not yet implemented" . Dumper($a);
+      die "not yet implemented (typeEqual): " . Dumper($a, $b);
     }
   }
 
