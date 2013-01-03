@@ -7,13 +7,17 @@
   } quoted { } { * } ? *
 } "}_" defq
 
-{ ==f _ ==a len ==l
+{ =*f _ =*a len ==l
   l {
-    0 a *
-    1 l 1 sub range { a * f * } each
+    0 a
+    1 l 1 sub range { a f } each
     } { "fold on empty array" die }
   ? *
 } /fold deff
+
+{ _ =*a len ==l
+  [ 1 l range { l -01 sub a } each ]
+} /reverse deff
 
 { |or fold } /any deff
 { |and fold } /all deff
@@ -40,5 +44,9 @@
 {
   not { "Assertion failure" die } rep
 } /assert deff
+
+{ ==s
+  [ s keys { s -01 . } each ]
+} /values deff
 
 # vim: syn=elymas

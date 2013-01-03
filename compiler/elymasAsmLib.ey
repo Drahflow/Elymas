@@ -1,0 +1,81 @@
+"elymasAsm.ey" include
+
+<
+  { assembler -01 . } ":" deff
+  "%" _ : -01 deff
+
+  <
+    1 ==PROT_READ
+    2 ==PROT_WRITE
+    4 ==PROT_EXEC
+
+    2 ==MAP_PRIVATE
+    16 ==MAP_FIXED
+    32 ==MAP_ANONYMOUS
+  > ==MMAP
+
+  <
+    9 ==mmap
+  > ==SYSCALL
+
+  { =*def ==struct
+    struct values |cat fold :arrayToCode .base ==address
+    struct keys { address -101 def struct -01 . len address add =address } each
+  } /allocateOffsetStruct deff
+
+  # global data
+  <
+    # current end of heap memory (grows upwards)
+    [ %00 %00 %00 %00 %00 %60 %00 %00 ] ==heapEnd
+
+    # next free byte at end of heap
+    [ %00 %00 %00 %00 %00 %60 %00 %00 ] ==unusedHeapStart
+  > { defv }' allocateOffsetStruct
+
+  # internal functions, ABI follows SysV standards
+
+  <
+  # allocate a chunk of memory
+  # rdi -> size of chunk in bytes
+  # rax <- address of allocated chunk
+  #        chunk will have GC length header initialized correctly
+  # FIXME put a real allocator here
+    [
+      /rbx :pushqReg
+      /rdi :pushqReg
+      unusedHeapStart /rax :movqImmReg
+      /rax /rcx :movqMemReg
+      /rcx /rbx :movqRegReg
+      /rcx /rdx :movqRegReg
+      /rdi /rcx :addqRegReg
+      /rcx /rax :movqRegMem
+      heapEnd /rax :movqImmReg
+      /rax /rdi :movqMemReg
+      /rdi /rcx :cmpqRegReg
+      [
+        4096 4096 mul /rsi :movqImmReg
+        /rsi /rdi :addqRegReg
+        /rdi /rax :movqRegMem
+        /rsi /rdi :subqRegReg
+
+        SYSCALL .mmap /rax :movqImmReg
+        # /rdi already fine
+        # /rsi already fine
+        < { MMAP -01 . } "!" deff
+          !PROT_READ !PROT_WRITE !PROT_EXEC bor bor /rdx :movqImmReg
+          !MAP_PRIVATE !MAP_FIXED !MAP_ANONYMOUS bor bor /r10 :movqImmReg
+        > --
+        /r8 :movqImmOOBReg %FF %FF %FF %FF %FF %FF %FF %FF
+        0 /r9 :movqImmReg
+        :syscall
+      ] |len { :jbeRel8 } -21*0*221* dearray
+      /rbx /rax :movqRegReg
+      /rdi :popqReg
+      /rdi /rax :movqRegMem
+      /rbx :popqReg
+      :retn
+    ] /internalAllocate defv
+  > { defv }' allocateOffsetStruct
+> /assemblerLibrary defv
+
+# vim: syn=elymas

@@ -17,6 +17,16 @@ allocate(length)
     OUTPUT:
       RETVAL
 
+void *
+allocateAt(length, addr)
+    int length
+    void *addr
+  CODE:
+    RETVAL = mmap(addr, length, PROT_EXEC | PROT_READ | PROT_WRITE,
+      MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
+    OUTPUT:
+      RETVAL
+
 void
 deallocate(block, length)
     void *block

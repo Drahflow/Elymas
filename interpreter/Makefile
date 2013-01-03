@@ -20,3 +20,11 @@ generate-test:
 	    2> "test/$$f.err.correct" | tee "test/$$f.correct"; \
 	  sleep 1; \
 	done
+
+generate-test-fast:
+	mkdir -p test
+	for f in $$(ls ../examples/working); do \
+	  echo $$f; \
+	  echo Input | ( cd ../examples/working; ../../interpreter/elymas "$$f"; echo ) \
+	    2> "test/$$f.err.correct" | tee "test/$$f.correct"; \
+	done

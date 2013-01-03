@@ -52,7 +52,7 @@ sub arrayAccess {
   my $i = pop @$data or die "Stack underflow";
   die "array index must be int" unless $i->[1] eq 'int';
 
-  push @$data, $array->[0]->[$i->[0]];
+  push @$data, $array->[0]->[$i->[0] % @{$array->[0]}];
 }
 
 sub interpretCode {
@@ -109,6 +109,7 @@ sub typeEqual {
     if($a->[0] eq 'range') {
       return $a->[1] == $b->[1] && $a->[2] == $b->[2];
     } elsif($a->[0] eq 'array' or $a->[0] eq 'func') {
+      return 0 if(not defined $a->[2] or not defined $b->[2]);
       return 0 if(@{$a->[2]} != @{$b->[2]});
       return 0 if(@{$a->[3]} != @{$b->[3]});
 

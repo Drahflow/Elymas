@@ -3,13 +3,6 @@
   16777216 ==STACKSIZE
   128 ==STACKSTART
 
-  STACKSIZE sys .asm .alloc ==mainStack
-
-  # global stack layout
-  # 0 - STACKSTART  : global variables
-  #               0 : current stack pointer
-  # STACKSTART - ...: real stack
-
   # hex decoding
   {
     "(.)(.)" regex { } { "not a valid hex-string" die } ? *
@@ -25,14 +18,14 @@
   
   { { streq any }_ ==reg
     [
-      [ /al /ax /eax /rax /none ]
-      [ /cl /cx /ecx /rcx ]
-      [ /dl /dx /edx /rdx ]
-      [ /bl /bx /ebx /rbx ]
-      [ /spl /ah /sp /esp /rsp ]
-      [ /bpl /ch /bp /ebp /rbp ]
-      [ /sil /si /esi /rsi ]
-      [ /dil /di /edi /rdi ]
+      [ /zero /al /ax /eax /rax /none ]
+      [ /one /cl /cx /ecx /rcx ]
+      [ /two /dl /dx /edx /rdx ]
+      [ /three /bl /bx /ebx /rbx ]
+      [ /four /spl /ah /sp /esp /rsp ]
+      [ /five /bpl /ch /bp /ebp /rbp ]
+      [ /six /sil /si /esi /rsi ]
+      [ /seven /dil /di /edi /rdi ]
       [ /r8b /r8w /r8d /r8 ]
       [ /r9b /r9w /r9d /r9 ]
       [ /r10b /r10w /r10d /r10 ]
@@ -62,12 +55,68 @@
     reg regno 8 mul %38 band add
   } /modrm00 deff
 
-  { 8 { _ 256 mod -01 256 div } rep -- } /imm64 deff
-  { 4 { _ 256 mod -01 256 div } rep -- } /imm32 deff
-  { 2 { _ 256 mod -01 256 div } rep -- } /imm16 deff
-  { } /imm8 deff
+  { =mem =reg
+                    %C0
+    mem regno       %07 band add
+    reg regno 8 mul %38 band add
+  } /modrm11 deff
+
+  { _ 0 ge assert 8 { _ 256 mod -01 256 div } rep -- } /imm64 deff
+  { _ 0 ge assert 4 { _ 256 mod -01 256 div } rep -- } /imm32 deff
+  { _ 0 ge assert 2 { _ 256 mod -01 256 div } rep -- } /imm16 deff
+  { _ 0 ge assert 255 band } /imm8 deff
 
   # instructions
+  { ==reg ==i
+    reg bit64 assert
+    i 256 lt assert
+
+    1 /none /none reg rex
+    %83
+    /zero reg modrm11
+    i imm8
+  } /addqImm8Reg deff
+
+  { ==dst ==src
+    dst bit64 assert
+    src bit64 assert
+
+    1 src /none dst rex
+    %01
+    src dst modrm11
+  } /addqRegReg deff
+
+  { ==reg
+    reg bit64 assert
+
+    reg regno %07 gt { 1 /none /none reg rex } rep
+    %FF
+    /two reg modrm11
+  } /callqReg deff
+
+  { ==dst ==src
+    dst bit64 assert
+    src bit64 assert
+
+    1 src /none dst rex
+    %39
+    src dst modrm11
+  } /cmpqRegReg deff
+
+  { ==offset
+    offset 128 lt assert
+
+    %76
+    offset imm8
+  } /jbeRel8 deff
+
+  { ==offset
+    offset 128 lt assert
+
+    %7E
+    offset imm8
+  } /jleRel8 deff
+
   { ==reg ==i
     reg bit64 assert
 
@@ -76,12 +125,19 @@
     i imm64
   } /movqImmReg deff
 
+  { ==reg
+    reg bit64 assert
+
+    1 /none /none reg rex
+    %B8 reg regno %07 band add
+  } /movqImmOOBReg deff
+
   { ==reg ==mem
     reg bit64 assert
     mem bit64 assert
 
     1 reg /none mem rex
-    %89
+    %8B
     reg mem modrm00
   } /movqMemReg deff
 
@@ -90,42 +146,195 @@
     mem bit64 assert
 
     1 reg /none mem rex
-    %8B
+    %89
     reg mem modrm00
   } /movqRegMem deff
 
-  { =reg
+  { ==dst ==src
+    src bit64 assert
+    dst bit64 assert
+
+    1 src /none dst rex
+    %89
+    src dst modrm11
+  } /movqRegReg deff
+
+  { ==mem ==i
+    mem bit64 assert
+    i 256 lt assert
+
+    %80
+    /one mem modrm00
+    i imm8
+  } /orbImmMem64 deff
+
+  { ==reg
     reg regno %07 gt { 1 /none /none reg rex } rep
     %58 reg regno %07 band add
-  } /popq deff
+  } /popqReg deff
 
-  { =reg
+  { ==reg
     reg regno %07 gt { 1 /none /none reg rex } rep
     %50 reg regno %07 band add
-  } /pushq deff
+  } /pushqReg deff
+
+  { ==imm
+    %68
+    imm imm32
+  } /pushqImm32 deff
 
   {
     %C3
   } /retn deff
 
-  # take an array of instruction bytes and execute it on the given stack
-  { ==stack ==opcodes
-    [
-      /rbx pushq
-      stack /rbx movqImmReg
-      /rbx /rsp movqMemReg
-    ] opcodes [
-      stack /rbx movqImmReg
-      /rsp /rbx movqRegMem
-      /rbx popq
-      retn
-    ] cat cat =opcodes
+  { ==dst ==src
+    dst bit64 assert
+    src bit64 assert
 
+    1 src /none dst rex
+    %29
+    src dst modrm11
+  } /subqRegReg deff
+
+  {
+    %0F %05
+  } /syscall deff
+
+  { ==reg ==mem
+    reg bit64 assert
+    mem bit64 assert
+
+    1 reg /none mem rex
+    %33
+    reg mem modrm00
+  } /xorqMemReg deff
+
+  { ==mem ==reg
+    reg bit64 assert
+    mem bit64 assert
+
+    1 reg /none mem rex
+    %31
+    reg mem modrm00
+  } /xorqRegMem deff
+
+  { ==dst ==src
+    dst bit64 assert
+    src bit64 assert
+
+    1 src /none dst rex
+    %31
+    src dst modrm11
+  } /xorqRegReg deff
+
+  # data manipulation functions
+  { # ==addr
+    [ -01 8 { _ sys .asm .peek -01 1 add } rep -- ] reverse { -01 256 mul add } fold
+  } /peekImm64 deff
+
+  { # ==addr
+    [ -01 4 { _ sys .asm .peek -01 1 add } rep -- ] reverse { -01 256 mul add } fold
+  } /peekImm32 deff
+
+  # global stack layout
+  # 0 - STACKSTART  : global variables
+  #              %0 : current stack pointer
+  #              %8 : current scope
+  #             %10 : currently quoted
+  # STACKSTART - ...: real stack
+  STACKSIZE sys .asm .alloc ==mainStack
+  <
+    mainStack .base ==i
+    [
+      mainStack .base STACKSIZE add imm64
+    ] { i sys .asm .poke i 1 add =i } each
+  > --
+
+  {
+    [ -01 16 { _ 16 mod -01 16 div } rep -- ]
+    [ /0 /1 /2 /3 /4 /5 /6 /7 /8 /9 /A /B /C /D /E /F ] *
+    reverse |cat fold
+  } /base16encode64 deff
+
+  {
+    [ -01 8 { _ 16 mod -01 16 div } rep -- ]
+    [ /0 /1 /2 /3 /4 /5 /6 /7 /8 /9 /A /B /C /D /E /F ] *
+    reverse |cat fold
+  } /base16encode32 deff
+
+  <
+    [
+      32 { "." } rep
+      " " "!" "\"" "#" "$" "%" "&" "´" "(" ")" "*" "+" "," "-" "." "/"
+      /0 /1 /2 /3 /4 /5 /6 /7 /8 /9 ":" ";" "<" "=" ">" "?"
+      "@" /A /B /C /D /E /F /G /H /I /J /K /L /M /N /O /P
+      /Q /R /S /T /U /V /W /X /Y /Z "[" "\\" "]" "^" "_"
+      "`" /a /b /c /d /e /f /g /h /i /j /k /l /m /n /o /p
+      /q /r /s /t /u /v /w /x /y /z "{" "|" "}" "~" "."
+      128 { "." } rep
+    ] /ASCII defv
+
+    {
+      mainStack .base STACKSIZE add ==stackEnd
+      "Stack ------------\n" sys .out .writestr
+      mainStack .base peekImm64 ==addr
+      addr stackEnd gt { [ -01 stackEnd ] die } rep # Stack corrupted
+
+      { addr stackEnd lt } {
+        [
+          addr base16encode64 ": "
+          addr peekImm64 ==value
+          value base16encode64
+          value 105553116266496 ge value 123145302310912 lt and {
+            value       peekImm32
+            value 4 add peekImm32 16777215 band 4294967296 mul
+              add 8 div ==length
+            0 length 1 sub range {
+              8 mul value add ==heapAddr
+              "\n  "
+              heapAddr base16encode64
+              ": "
+              # the perl interpreter does not like full 64bit numbers and converts them into floats
+              heapAddr 4 add peekImm32 _ ==heapValueB base16encode32
+              heapAddr       peekImm32 _ ==heapValueA base16encode32
+              " "
+              [ [ heapValueA heapValueB ] { 4 { _ 256 mod -01 256 div } rep -- } each ] ASCII * 8 dearray
+            } each
+          } rep
+          "\n"
+        ] |cat fold sys .out .writestr
+        addr 8 add =addr
+      } loop
+      "^^^^^^^^^^^^^^^^^^\n" sys .out .writestr
+    }
+  > -- /stackDump deff
+
+  { ==opcodes
     opcodes len 1 sub PAGESIZE div 1 add PAGESIZE mul sys .asm .alloc /codearea defv
     codearea .base ==i
     opcodes { i sys .asm .poke i 1 add =i } each
-    codearea .base sys .asm .execute
-    codearea .free
+    codearea
+  } /arrayToCode deff
+
+  # take an array of instruction bytes and execute it on the given stack
+  { ==stack ==opcodes
+    [
+      /rbx pushqReg
+      stack /rbx movqImmReg
+      /rbx /rsp xorqMemReg
+      /rsp /rbx xorqRegMem
+      /rbx /rsp xorqMemReg
+    ] opcodes [
+      stack /rbx movqImmReg
+      /rbx /rsp xorqMemReg
+      /rsp /rbx xorqRegMem
+      /rbx /rsp xorqMemReg
+      /rbx popqReg
+      retn
+    ] cat cat =opcodes
+
+    opcodes arrayToCode _ .base sys .asm .execute
+                          .free
   } /executeOn deff
 
   { mainStack .base executeOn } /execute deff

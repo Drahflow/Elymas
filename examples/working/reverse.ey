@@ -1,0 +1,5 @@
+{ _ /a deff len /l defv
+  [ 1 l range { l -01 sub a } each ]
+} /reverse deff
+
+[ 3 2 1 ] reverse dump

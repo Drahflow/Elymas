@@ -66,6 +66,34 @@ our $global = {
         }, ['func', Dumper(\@code)]];
       }
     }, ['func', '}'], 'quote'],
+  "}'" => [sub {
+      my ($data, $scope) = @_;
+
+      --$quoted;
+
+      my @code;
+      while(1) {
+        my $t = pop @$data or die "Stack underflow";
+        last if($t->[1] eq 'tok' and $t->[0] eq '{');
+
+        unshift @code, $t;
+      };
+
+      if($quoted) {
+        push @$data, [sub {
+          my ($data, $scope) = @_;
+          push @$data, [sub {
+            my ($data) = @_;
+            interpretCode(\@code, $data, $scope);
+          }, ['func', Dumper(\@code)]];
+        }, ['func', 'func-quoted'], \@code];
+      } else {
+        push @$data, [sub {
+          my ($data) = @_;
+          interpretCode(\@code, $data, $scope);
+        }, ['func', Dumper(\@code)]];
+      }
+    }, ['func', '}'], 'quote'],
   'quoted' => [sub {
       my ($data, $scope) = @_;
       push @$data, [$quoted? 1: 0, 'int'];
@@ -142,6 +170,8 @@ our $global = {
             # TODO permitted for now
           } elsif(ref($type) eq 'ARRAY' and $type->[0] eq 'array') {
             # TODO permitted for now
+          } elsif(ref($type) eq 'ARRAY' and $type->[0] eq 'struct') {
+            # TODO permitted for now
           } else {
             die "mismatched types in array: " . Dumper($type) unless typeEqual($type, $t->[1]);
           }
@@ -175,7 +205,7 @@ our $global = {
       $member = $member->[0];
 
       die "not a struct during member dereference in $struct" unless $struct->[1]->[0] eq 'struct';
-      die "requested member $member is not in fact existent in " . Dumper($struct, $member) unless exists $struct->[1]->[1]->{$member};
+      die Dumper($struct, $member) . "Cannot resolve requested member $member" unless exists $struct->[1]->[1]->{$member};
 
       push @$data, $struct->[0]->{$member};
       execute($data, $scope) if($data->[-1]->[2] eq 'active');
@@ -187,7 +217,7 @@ our $global = {
       my $struct = pop @$data;
 
       die "not a struct during member dereference in $struct" unless $struct->[1]->[0] eq 'struct';
-      die "requested member $member is not in fact existent in " . Dumper($struct, $member) unless exists $struct->[1]->[1]->{$member};
+      die Dumper($struct, $member) . "Cannot resolve requested member $member" unless exists $struct->[1]->[1]->{$member};
 
       push @$data, $struct->[0]->{$member};
     }, ['func', '.|'], 'active'],
@@ -362,6 +392,27 @@ our $global = {
       my $d = pop @$data or die "Stack underflow";
       die Dumper($d); # , $scope);
     }, ['func', 'die'], 'active'],
+  'keys' => [sub {
+      my ($data, $scope) = @_;
+
+      my $s = pop @$data or die "Stack underflow";
+
+      if(ref($s->[1]) eq 'ARRAY' and $s->[1]->[0] eq 'struct') {
+        my @keys = keys %{$s->[1]->[1]};
+
+        push @$data, [[map { [$_, 'string'] } @keys], ['array', '[]', [['range', 0, $#keys]], ['string']]];
+      } else {
+        die "keys not supported on this value: " . Dumper($s);
+      }
+    }, ['func', 'keys'], 'active'],
+  'strToUTF8Bytes' => [sub {
+      my ($data, $scope) = @_;
+
+      my $str = popString($data);
+
+      my @res = map { [ord, 'int'] } split //, $str;
+      push @$data, [\@res, ['array', 'from strToUTF8Bytes', [['range', 0, $#res]], ['int']]];
+    }, ['func', 'strToUTF8Bytes'], 'active'],
 
 # stuff from J
   'sig' => [sub {
@@ -474,7 +525,7 @@ our $global = {
         push @$data, $a->[0]->{'dom'};
         execute($data, $scope) if($data->[-1]->[2] eq 'active');
       } else {
-        die "dom not supportde on this value: " . Dumper($a);
+        die "dom not supported on this value: " . Dumper($a);
       }
     }, ['func', 'dom'], 'active'],
   'exe' => [sub {
@@ -535,12 +586,12 @@ installGlobal2IntFunction('xor', sub { return ($_[0] xor $_[1])? 1: 0 });
 installGlobal2IntFunction('nxor', sub { return (not ($_[0] xor $_[1]))? 1: 0 });
 installGlobal2IntFunction('nor', sub { return (not ($_[0] or $_[1]))? 1: 0 });
 
-installGlobal2IntFunction('band', sub { return $_[0] & $_[1] });
-installGlobal2IntFunction('bnand', sub { return ~($_[0] & $_[1]) });
-installGlobal2IntFunction('bor', sub { return $_[0] | $_[1] });
-installGlobal2IntFunction('bxor', sub { return $_[0] ^ $_[1] });
-installGlobal2IntFunction('bnxor', sub { return ~($_[0] ^ $_[1]) });
-installGlobal2IntFunction('bnor', sub { return ~($_[0] | $_[1]) });
+installGlobal2IntFunction('band', sub { return (0 + $_[0]) & (0 + $_[1]) });
+installGlobal2IntFunction('bnand', sub { return ~((0 + $_[0]) & (0 + $_[1])) });
+installGlobal2IntFunction('bor', sub { return (0 + $_[0]) | (0 + $_[1]) });
+installGlobal2IntFunction('bxor', sub { return (0 + $_[0]) ^ (0 + $_[1]) });
+installGlobal2IntFunction('bnxor', sub { return ~((0 + $_[0]) ^ (0 + $_[1])) });
+installGlobal2IntFunction('bnor', sub { return ~((0 + $_[0]) | (0 + $_[1])) });
 
 installGlobal2IntFunction('eq', sub { return ($_[0] == $_[1])? 1: 0 });
 installGlobal2IntFunction('neq', sub { return ($_[0] != $_[1])? 1: 0 });
@@ -553,7 +604,7 @@ installGlobal2IntFunction('gcd', sub { my ($a, $b) = @_; ($a, $b) = ($b, $a % $b
 
 installGlobal1IntFunction('neg', sub { return -$_[0] });
 installGlobal1IntFunction('not', sub { return not $_[0] });
-installGlobal1IntFunction('bnot', sub { return ~$_[0] });
+installGlobal1IntFunction('bnot', sub { return ~(0 + $_[0]) });
 installGlobal1IntFunction('abs', sub { return abs $_[0] });
 
 # FIXME: this API is ugly

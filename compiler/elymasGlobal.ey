@@ -1,13 +1,89 @@
-"elymasAsm.ey" include
+"elymasAsmLib.ey" include
 
-0 /TOKINT defv
-1 /TOKSTR defv
-2 /TOKID defv
+<
+  [ /0 /1 /2 /3 /4 /5 /6 /7 /8 /9 ] ==digits
+
+  { 0 ==result
+    { "(.)(.*)" regex } {
+      { streq }_ digits -01 index result 10 mul add =result
+    } loop
+    result
+  }
+> -- /base10decode deff
+
+<
+  { assembler -01 . } ":" deff
+  { assemblerLibrary -01 . } "::" deff
+  "%" _ : -01 deff
+
+  { .value base10decode ==v
+    [
+      # allocate int
+      16 /rdi :movqImmReg
+      ::internalAllocate /rax :movqImmReg
+      /rax :callqReg
+
+      # push int address on program stack
+      /rax :pushqReg
+
+      # type zero does not need to be changed
+
+      # load value
+      8 /rax :addqImm8Reg
+      v /rdx :movqImmReg
+      /rdx /rax :movqRegMem
+    ] :execute
+  } /TOKINT
+
+  { .value strToUTF8Bytes _ =*v len _ ==exactLength
+    1 sub 8 div 4 add 8 mul ==memoryLength
+
+    memoryLength 2147483648 lt assert
+
+    [
+      # allocate string
+      memoryLength /rdi :movqImmReg
+      ::internalAllocate /rax :movqImmReg
+      /rax :callqReg
+
+      # push string address on program stack
+      /rax :pushqReg
+
+      # set type
+      7 /rax :addqImm8Reg
+      %10 /rax :orbImmMem64
+
+      # clear hash value
+      1 /rax :addqImm8Reg
+      /rdx /rdx :xorqRegReg
+      /rdx /rax :movqRegMem 
+
+      # load exact length
+      8 /rax :addqImm8Reg
+      exactLength /rdx :movqImmReg
+      /rdx /rax :movqRegMem 
+
+      # load string contents
+      0 exactLength 8 div range { 8 mul ==i
+        8 /rax :addqImm8Reg
+        /rdx :movqImmOOBReg i _ 7 add range v 8 dearray
+        /rdx /rax :movqRegMem
+      } each
+    ] :execute
+  } /TOKSTR -1010 deff
+
+  { ==token
+    # string value
+    token TOKSTR
+    # scope resolution
+    # FIXME
+  } /TOKID
+> -- 3 |defv rep
 
 { /f deff -101 /s defv regex { f } { s } ? * } /rxparse deff
 
 { " " cat
-  { < /type defv /value defv > } /token deff
+  { < /handle deff /value defv > } /token deff
   [ -01 { _ "" streq not } {
     0 /matched defv { /f deff matched { -- } { { 1 =matched f } rxparse } ? * } /parse deff
 
@@ -34,17 +110,12 @@
   } loop -- ]
 } /tokenize deff
 
-{
-  dump
-  [ ] assembler .execute
-} /interpretToken deff
-
 { /input defv
   "" {
     4096 input .readstr cat
     _ "" streq not
   } {
-    { _ "([^\\n]*)\\n(.*)" regex } { -102 -- tokenize |interpretToken each } loop
+    { _ "([^\\n]*)\\n(.*)" regex } { -102 -- tokenize { _ .handle assembler .stackDump } each } loop
   } loop
 } /executeFile deff
 

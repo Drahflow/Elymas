@@ -107,7 +107,7 @@ sub createFile {
         die "read failed: $!" unless defined $ret;
 
         push @$data, [$buf, 'string'];
-      }, ['func', 'sys .file .writestr'], 'active'],
+      }, ['func', 'sys .file .readstr'], 'active'],
     'write' => [sub {
         my ($data) = @_;
 
