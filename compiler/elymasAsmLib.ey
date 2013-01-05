@@ -30,16 +30,19 @@
 
     # next free byte at end of heap
     [ %00 %00 %00 %00 %00 %60 %00 %00 ] ==unusedHeapStart
+    
+    # current parser scope
+    [ %00 %00 %00 %00 %00 %00 %00 %00 ] ==currentScope
   > { defv }' allocateOffsetStruct
 
-  # internal functions, ABI follows SysV standards
-
   <
-  # allocate a chunk of memory
-  # rdi -> size of chunk in bytes
-  # rax <- address of allocated chunk
-  #        chunk will have GC length header initialized correctly
-  # FIXME put a real allocator here
+    # internal functions, ABI follows SysV standards
+
+    # allocate a chunk of memory
+    # rdi -> size of chunk in bytes
+    # rax <- address of allocated chunk
+    #        chunk will have GC length header initialized correctly
+    # FIXME put a real allocator here
     [
       /rbx :pushqReg
       /rdi :pushqReg
@@ -75,6 +78,99 @@
       /rbx :popqReg
       :retn
     ] /internalAllocate defv
+
+    # compare two strings
+    # rdi -> address of first string
+    # rsi -> address of second string
+    # rax <- 1 if both strings are equal
+    [
+      /rax /rax :xorqRegReg
+      :cmpsq # ignore memory length header
+      :cmpsq # ignore hash
+      /rsi /rdx :movqMemReg # load exact length
+      :cmpsq # same exact length
+      /fail :labelRel8 :jnzRel8
+      /rdx /rcx :movqRegReg
+      :repz :cmpsb
+      /fail :labelRel8 :jnzRel8
+      /rax :incqReg
+      /fail :label
+    ] :labelResolve /internalStringEqualsCode defv
+
+    internalStringEqualsCode [
+      :retn
+    ] cat /internalStringEquals defv
+
+    # resolve element from scope
+    # rdi -> address of scope on the heap
+    # rsi -> address of element name on the heap
+    # rax <- address of element on the heap (0 if nonexistant)
+    # rdx <- 0 if element is passive
+    #        1 if element is active
+    #        2 if element is quote-active
+    [
+      8 /rdi /rcx :movqMemDisp8Reg # load name table
+      /rcx /rdx :movqRegReg
+      16 /rdx :addqImm8Reg # rdx will iterate over entries
+      8 /rcx /rcx :addqMemDisp8Reg # compute name table effective end
+
+      /loop :label
+      /rdx /rcx :cmpqRegReg
+      /end :labelRel8 :jnbRel8
+      # TODO this is ridiculous
+      /rdi :pushqReg
+      /rsi :pushqReg
+      /rdx :pushqReg
+      /rcx :pushqReg
+      /rdx /rdi :movqMemReg
+    ] internalStringEqualsCode [
+      /rcx :popReg
+      /rdx :popReg
+      /rsi :popReg
+      /rdi :popReg
+
+      /rax /rax :testqRegReg
+      /found :labelRel8 :jnzRel8
+
+      16 /rdx :addqImm8Reg
+      /loop :labelRel8 :jmpRel8
+      /end :label
+
+      # not found at all, retry with parent
+      /rax /rax :xorqRegReg
+      /rdx /rdx :xorqRegReg
+      :retn
+
+      /found :label
+      8 /rdx /rax :movqMemDisp8Reg # load default activation
+      8 /rdi /rdx :subqMemDisp8Reg # substract name table start
+      16 /rdx :subqImm8Reg # substract name table header size
+      /rdx :shrq1Reg # divide by 2 to get offset within scope
+
+      # rdx == entry index * 8 in scope
+      # rax == entry default activation
+
+      32 /rdx :addqImm8Reg # add scope header size
+      /edx /rdi :cmplRegMem # TODO this fails for > 4 GB scopes
+      /inDataArea :labelRel8 :jbRel8
+
+      /rdi /edx :sublMemReg # substract scope length
+      8 /rdx :addqImm8Reg # add extension area header length
+      24 /rdi /rdi :movqMemDisp8Reg # load extension area pointer
+
+      /inDataArea :label
+      /rdx /rdi /rdx :movqMemIndexReg # load entry pointer
+      /rax /rdx :xchgqRegReg
+      :retn
+    ] cat cat :labelResolve /internalResolve defv
+
+    # elymas functions, stack based ABI
+
+    # execute top element of the stack
+    [
+# FIXME
+      :retn
+    ] /ey* defv
   > { defv }' allocateOffsetStruct
 > /assemblerLibrary defv
 

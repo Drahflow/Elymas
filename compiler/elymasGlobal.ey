@@ -69,14 +69,26 @@
         /rdx :movqImmOOBReg i _ 7 add range v 8 dearray
         /rdx /rax :movqRegMem
       } each
-    ] :execute
-  } /TOKSTR -1010 deff
+    ]
+  } /TOKSTRcode deff
 
-  { ==token
-    # string value
-    token TOKSTR
-    # scope resolution
-    # FIXME
+  { TOKSTRcode :execute } /TOKSTR
+
+  { TOKSTRcode
+    [
+      # scope resolution
+      ::currentScope /rdi :movqImmReg
+      /rsi :popqReg
+      ::internalResolve /rax :movqImmReg
+      /rax :callqReg
+      /rax :pushqReg
+
+      /rdx /rdx :testqRegReg
+      [
+        ::ey* /rax :movqImmReg
+        /rax :callqReg
+      ] |len { :jzRel8 } -21*0*221* dearray
+    ] cat :execute
   } /TOKID
 > -- 3 |defv rep
 

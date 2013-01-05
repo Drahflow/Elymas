@@ -56,6 +56,22 @@
   } /modrm00 deff
 
   { =mem =reg
+    mem [ /spl /sp /esp /rsp ] streq any not assert
+
+                    %40
+    mem regno       %07 band add
+    reg regno 8 mul %38 band add
+  } /modrm01 deff
+
+  { =mem =reg
+    mem [ /spl /sp /esp /rsp ] streq any not assert
+
+                    %80
+    mem regno       %07 band add
+    reg regno 8 mul %38 band add
+  } /modrm10 deff
+
+  { =mem =reg
                     %C0
     mem regno       %07 band add
     reg regno 8 mul %38 band add
@@ -77,6 +93,17 @@
     i imm8
   } /addqImm8Reg deff
 
+  { ==reg ==mem ==disp
+    reg bit64 assert
+    mem bit64 assert
+    disp 128 lt assert
+
+    1 reg /none mem rex
+    %03
+    reg mem modrm01
+    disp imm8
+  } /addqMemDisp8Reg deff
+
   { ==dst ==src
     dst bit64 assert
     src bit64 assert
@@ -93,6 +120,15 @@
     %FF
     /two reg modrm11
   } /callqReg deff
+
+  {
+    %A6
+  } /cmpsb deff
+
+  {
+    1 /none /none /none rex
+    %A7
+  } /cmpsq deff
 
   { ==dst ==src
     dst bit64 assert
@@ -117,6 +153,27 @@
     offset imm8
   } /jleRel8 deff
 
+  { ==offset
+    offset 128 lt assert
+
+    %73
+    offset imm8
+  } /jnbRel8 deff
+
+  { ==offset
+    offset 128 lt assert
+
+    %75
+    offset imm8
+  } /jnzRel8 deff
+
+  { ==offset
+    offset 128 lt assert
+
+    %74
+    offset imm8
+  } /jzRel8 deff
+
   { ==reg ==i
     reg bit64 assert
 
@@ -131,6 +188,17 @@
     1 /none /none reg rex
     %B8 reg regno %07 band add
   } /movqImmOOBReg deff
+
+  { ==reg ==mem ==disp
+    reg bit64 assert
+    mem bit64 assert
+    disp 128 lt assert
+
+    1 reg /none mem rex
+    %8B
+    reg mem modrm01
+    disp imm8
+  } /movqMemDisp8Reg deff
 
   { ==reg ==mem
     reg bit64 assert
@@ -184,6 +252,10 @@
   } /pushqImm32 deff
 
   {
+    %F3
+  } /repz deff
+
+  {
     %C3
   } /retn deff
 
@@ -199,6 +271,24 @@
   {
     %0F %05
   } /syscall deff
+
+  { ==dst ==src
+    dst bit64 assert
+    src bit64 assert
+
+    1 src /none dst rex
+    %85
+    src dst modrm11
+  } /testqRegReg deff
+
+  { ==mem ==reg
+    reg bit64 assert
+    mem bit64 assert
+
+    1 reg /none mem rex
+    %87
+    reg mem modrm00
+  } /xchgqRegMem deff
 
   { ==reg ==mem
     reg bit64 assert
@@ -227,6 +317,27 @@
     src dst modrm11
   } /xorqRegReg deff
 
+  # label handling
+  < { defv }' /put deff > ==labels
+  < { defv }' /put deff > ==labelHoles
+
+  { ==l
+    ] _ len l labels .put [ -011 len dearray
+  } /label deff
+
+  { ==l
+    ] _ len ==offset
+    { offset labels .l sub imm8 offset -102 =[] } l labelHoles .put
+    [ -011 len dearray %00
+  } /labelRel8 deff
+
+  { ==opcodes
+    labelHoles { opcodes * } each
+
+    < { defv }' /put deff > =labels
+    < { defv }' /put deff > =labelHoles
+  } /labelResolve deff
+
   # data manipulation functions
   { # ==addr
     [ -01 8 { _ sys .asm .peek -01 1 add } rep -- ] reverse { -01 256 mul add } fold
@@ -239,8 +350,6 @@
   # global stack layout
   # 0 - STACKSTART  : global variables
   #              %0 : current stack pointer
-  #              %8 : current scope
-  #             %10 : currently quoted
   # STACKSTART - ...: real stack
   STACKSIZE sys .asm .alloc ==mainStack
   <
@@ -321,14 +430,10 @@
     [
       /rbx pushqReg
       stack /rbx movqImmReg
-      /rbx /rsp xorqMemReg
-      /rsp /rbx xorqRegMem
-      /rbx /rsp xorqMemReg
+      /rsp /rbx xchgqRegMem
     ] opcodes [
       stack /rbx movqImmReg
-      /rbx /rsp xorqMemReg
-      /rsp /rbx xorqRegMem
-      /rbx /rsp xorqMemReg
+      /rsp /rbx xchgqRegMem
       /rbx popqReg
       retn
     ] cat cat =opcodes
