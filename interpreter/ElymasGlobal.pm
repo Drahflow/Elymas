@@ -56,14 +56,14 @@ our $global = {
             my ($data) = @_;
             my $lscope = \{ ' parent' => $$scope };
             interpretCode(\@code, $data, $lscope);
-          }, ['func', Dumper(\@code)]];
+          }, ['func', 'Dumper(\@code)']];
         }, ['func', 'func-quoted'], \@code];
       } else {
         push @$data, [sub {
           my ($data) = @_;
           my $lscope = \{ ' parent' => $$scope };
           interpretCode(\@code, $data, $lscope);
-        }, ['func', Dumper(\@code)]];
+        }, ['func', 'Dumper(\@code)']];
       }
     }, ['func', '}'], 'quote'],
   "}'" => [sub {
@@ -85,13 +85,13 @@ our $global = {
           push @$data, [sub {
             my ($data) = @_;
             interpretCode(\@code, $data, $scope);
-          }, ['func', Dumper(\@code)]];
+          }, ['func', 'Dumper(\@code)']];
         }, ['func', 'func-quoted'], \@code];
       } else {
         push @$data, [sub {
           my ($data) = @_;
           interpretCode(\@code, $data, $scope);
-        }, ['func', Dumper(\@code)]];
+        }, ['func', 'Dumper(\@code)']];
       }
     }, ['func', '}'], 'quote'],
   'quoted' => [sub {
@@ -204,7 +204,7 @@ our $global = {
       my $struct = pop @$data;
       $member = $member->[0];
 
-      die "not a struct during member dereference in $struct" unless $struct->[1]->[0] eq 'struct';
+      die "not a struct during member dereference in " . Dumper($struct) unless ref($struct->[1]) eq 'ARRAY' and $struct->[1]->[0] eq 'struct';
       die Dumper($struct, $member) . "Cannot resolve requested member $member" unless exists $struct->[1]->[1]->{$member};
 
       push @$data, $struct->[0]->{$member};
