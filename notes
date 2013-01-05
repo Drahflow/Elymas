@@ -143,13 +143,32 @@ Small set in between
 * Exact length
 * data (UTF-8)
 
-=== Struct ===
+=== Struct / Scope ===
 * Length in bytes (including header)
   bit 63-60: 0 0 1 0
   bit 59: reserved for GC
-  bit 58: parent pointer exists (for scopes)
-  bit 57: extension area pointer exists
-* hashtable name -> offset including headers
+  bit 58: parent pointer exists (for scopes) (always 1 for now)
+  bit 57: extension area pointer exists (always 1 for now)
+* name table (mapping entry names to offsets)
 * parent scope (0 if no parent)
 * extension area pointer (0 if no extra members (yet))
 * data
+  [ <reference> ]*
+
+=== Name Table ===
+( TODO: create a hash-table based implementation here )
+* Length in bytes (including header)
+  bit 63-60: 0 0 1 1
+  bit 59: reserved for GC
+* End of fill in bytes (i.e. if this field == length, table is full)
+* data
+  [ <string reference>, <execution mode> ]*
+  ( TODO: Oh, the performance... )
+  The 0th string maps to 0 and so on.
+
+=== Extension Area ===
+* Length in bytes (including header)
+  bit 63-60: 0 0 1 1
+  bit 59: reserved for GC
+* data
+  [ <reference> ]*
