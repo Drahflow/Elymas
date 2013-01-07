@@ -14,13 +14,13 @@ our $sys = {
       my ($data, $scope) = @_;
 
       my $file = createFile(-1, &POSIX::O_RDONLY);
-      push @$data, [enstruct($file)];
+      push @$data, [$file, ['struct']];
     }, ['func', 'sys .file'], 'active'],
-  'in' => [enstruct(createFile(0, &POSIX::O_RDONLY)), 'passive'],
-  'out' => [enstruct(createFile(1, &POSIX::O_WRONLY)), 'passive'],
-  'err' => [enstruct(createFile(2, &POSIX::O_WRONLY)), 'passive'],
+  'in' => [createFile(0, &POSIX::O_RDONLY), ['struct'], 'passive'],
+  'out' => [createFile(1, &POSIX::O_WRONLY), ['struct'], 'passive'],
+  'err' => [createFile(2, &POSIX::O_WRONLY), ['struct'], 'passive'],
   'argv' => [[map { [$_, 'string'] } @ARGV[1 .. $#ARGV]], ['array', 'sys .argv', ['range', 0, $#ARGV - 1], ['string']], 'passive'],
-  'asm' => [enstruct($ElymasAsm::asm), 'passive'],
+  'asm' => [$ElymasAsm::asm, ['struct'], 'passive'],
 };
 
 sub createFile {

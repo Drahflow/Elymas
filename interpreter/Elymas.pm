@@ -6,7 +6,7 @@ use warnings;
 require Exporter;
 our @ISA = qw(Exporter);
 our @EXPORT = qw(
-  popInt popString popArray enstruct arrayAccess $quoted @globalCallStack
+  popInt popString popArray arrayAccess $quoted @globalCallStack
   interpretCode execute executeString executeFile resolve canCastTo typeEqual
 );
 
@@ -38,12 +38,6 @@ sub popArray {
   die "Not array: " . Dumper($a) unless ref($a->[1]) eq 'ARRAY' and $a->[1]->[0] eq 'array';
 
   return $a->[0];
-}
-
-sub enstruct {
-  my ($struct) = @_;
-
-  return ($struct, ['struct', { map { my @e = ($_, [@{$struct->{$_}}]); shift @{$e[1]}; @e } keys %$struct }]);
 }
 
 sub arrayAccess {
@@ -119,13 +113,13 @@ sub typeEqual {
     } elsif($a->[0] eq 'struct') {
       return 0 unless $b->[0] eq 'struct';
 
-      my @aKeys = sort keys %{$a->[1]};
-      my @bKeys = sort keys %{$b->[1]};
+      my @aKeys = sort keys %{$a->[0]};
+      my @bKeys = sort keys %{$b->[0]};
 
       return 0 unless @aKeys == @bKeys;
       foreach my $i (0 .. $#aKeys) {
         return 0 unless $aKeys[$i] eq $bKeys[$i];
-        return 0 unless typeEqual($a->[1]->{$aKeys[$i]}->[0], $b->[1]->{$bKeys[$i]}->[0]);
+        return 0 unless typeEqual($a->[0]->{$aKeys[$i]}->[1], $b->[0]->{$bKeys[$i]}->[1]);
       }
 
       return 1;

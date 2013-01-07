@@ -192,11 +192,8 @@ our $global = {
     }, ['func', '<'], 'active'],
   '>' => [sub {
       my ($data, $scope) = @_;
-      my %struct = %$$scope;
 
-      delete $struct{' parent'};
-
-      push @$data, [enstruct(\%struct)];
+      push @$data, [$$scope, ['struct']];
       $$scope = $$scope->{' parent'};
     }, ['func', '>'], 'active'],
   '.' => [sub {
@@ -207,7 +204,7 @@ our $global = {
       $member = $member->[0];
 
       die "not a struct during member dereference in " . Dumper($struct) unless ref($struct->[1]) eq 'ARRAY' and $struct->[1]->[0] eq 'struct';
-      die Dumper($struct, $member) . "Cannot resolve requested member $member" unless exists $struct->[1]->[1]->{$member};
+      die Dumper($struct, $member) . "Cannot resolve requested member $member" unless exists $struct->[0]->{$member};
 
       push @$data, $struct->[0]->{$member};
       execute($data, $scope) if($data->[-1]->[2] eq 'active');
@@ -219,7 +216,7 @@ our $global = {
       my $struct = pop @$data;
 
       die "not a struct during member dereference in $struct" unless $struct->[1]->[0] eq 'struct';
-      die Dumper($struct, $member) . "Cannot resolve requested member $member" unless exists $struct->[1]->[1]->{$member};
+      die Dumper($struct, $member) . "Cannot resolve requested member $member" unless exists $struct->[0]->{$member};
 
       push @$data, $struct->[0]->{$member};
     }, ['func', '.|'], 'active'],
@@ -358,6 +355,8 @@ our $global = {
               $commonType = $b->[1]->[3]->[0];
             } elsif(not @{$b->[0]}) {
               $commonType = $a->[1]->[3]->[0];
+            } elsif($a->[1]->[3]->[0]->[0] eq 'func') {
+              # FIXME allowed
             } else {
               die "Array types don't match in cat: " . Dumper($a->[1]->[3]->[0], $b->[1]->[3]->[0]);
             }
@@ -400,7 +399,7 @@ our $global = {
       my $s = pop @$data or die "Stack underflow";
 
       if(ref($s->[1]) eq 'ARRAY' and $s->[1]->[0] eq 'struct') {
-        my @keys = keys %{$s->[1]->[1]};
+        my @keys = keys %{$s->[0]};
 
         push @$data, [[map { [$_, 'string'] } @keys], ['array', '[]', [['range', 0, $#keys]], ['string']]];
       } else {
@@ -522,7 +521,7 @@ our $global = {
 
         push @$data, [[map { [$_, 'int'] } 0 .. $l - 1], ['array', '[]', [['range', 0, $l - 1]], ['int']]];
       } elsif(ref($a->[1]) eq 'ARRAY' and $a->[1]->[0] eq 'struct') {
-        die "no supporting dom member in struct" . Dumper($a) unless exists $a->[1]->[1]->{'dom'};
+        die "no supporting dom member in struct" . Dumper($a) unless exists $a->[0]->{'dom'};
 
         push @$data, $a->[0]->{'dom'};
         execute($data, $scope) if($data->[-1]->[2] eq 'active');
@@ -535,8 +534,7 @@ our $global = {
 
       push @$data, $globalCallStack[-2];
     }, ['func', 'rec'], 'active'],
-  # 'linux' => [enstruct($ElymasLinux::linux), 'passive'],
-  'sys' => [enstruct($ElymasSys::sys), 'passive'],
+  'sys' => [$ElymasSys::sys, ['struct'], 'passive'],
 };
 
 sub installGlobal1IntFunction {

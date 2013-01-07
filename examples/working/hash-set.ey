@@ -1,0 +1,8 @@
+< { defv }' /put deff > =hashSet
+
+1 /one hashSet .put
+2 /two hashSet .put
+
+hashSet .one dump
+hashSet .two dump
+hashSet keys dump

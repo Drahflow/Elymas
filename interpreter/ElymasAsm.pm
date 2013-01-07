@@ -29,7 +29,7 @@ our $asm = {
     my $size = popInt($data);
     my $block = ACME::Bare::Metal::allocate($size);
 
-    push @$data, [enstruct(constructBlock($block, $size))];
+    push @$data, [constructBlock($block, $size), ['struct']];
   }, ['func', 'sys .asm .alloc'], 'active'],
   'allocAt' => [sub {
     my ($data) = @_;
@@ -38,7 +38,7 @@ our $asm = {
     my $size = popInt($data);
     my $block = ACME::Bare::Metal::allocateAt($size, $addr);
 
-    push @$data, [enstruct(constructBlock($block, $size))];
+    push @$data, [constructBlock($block, $size), ['struct']];
   }, ['func', 'sys .asm .alloc'], 'active'],
   'poke' => [sub {
     my ($data, $scope) = @_;
