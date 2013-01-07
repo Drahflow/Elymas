@@ -1,0 +1,19 @@
+<
+  [ 0 1 2 ] /list defv
+
+  {
+    list [ -102 ] cat =list
+  }
+
+  {
+    list dump
+  }
+> -- /dumpAll deff /append deff
+
+"here" dump
+
+3 append
+4 append
+5 append
+
+dumpAll

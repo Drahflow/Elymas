@@ -37,7 +37,8 @@ our $global = {
       push @$data, ['{', 'tok', '{'];
     }, ['func', '{'], 'quote'],
   '}' => [sub {
-      my ($data, $scope) = @_;
+      my ($data, $refScope) = @_;
+      my $scope = $$refScope;
 
       --$quoted;
 
@@ -61,13 +62,14 @@ our $global = {
       } else {
         push @$data, [sub {
           my ($data) = @_;
-          my $lscope = \{ ' parent' => $$scope };
+          my $lscope = \{ ' parent' => $scope };
           interpretCode(\@code, $data, $lscope);
         }, ['func', 'Dumper(\@code)']];
       }
     }, ['func', '}'], 'quote'],
   "}'" => [sub {
-      my ($data, $scope) = @_;
+      my ($data, $refScope) = @_;
+      my $scope = $$refScope;
 
       --$quoted;
 
@@ -90,7 +92,7 @@ our $global = {
       } else {
         push @$data, [sub {
           my ($data) = @_;
-          interpretCode(\@code, $data, $scope);
+          interpretCode(\@code, $data, \$scope);
         }, ['func', 'Dumper(\@code)']];
       }
     }, ['func', '}'], 'quote'],
