@@ -205,6 +205,7 @@ our $global = {
 
       die "not a struct during member dereference in " . Dumper($struct) unless ref($struct->[1]) eq 'ARRAY' and $struct->[1]->[0] eq 'struct';
       die Dumper($struct, $member) . "Cannot resolve requested member $member" unless exists $struct->[0]->{$member};
+      die "Resolved member $member was incorrectly stored as something non-arrayish" unless ref($struct->[0]->{$member}) eq 'ARRAY';
 
       push @$data, $struct->[0]->{$member};
       execute($data, $scope) if($data->[-1]->[2] eq 'active');
@@ -399,7 +400,7 @@ our $global = {
       my $s = pop @$data or die "Stack underflow";
 
       if(ref($s->[1]) eq 'ARRAY' and $s->[1]->[0] eq 'struct') {
-        my @keys = keys %{$s->[0]};
+        my @keys = grep { /^[^ ]/ } keys %{$s->[0]};
 
         push @$data, [[map { [$_, 'string'] } @keys], ['array', '[]', [['range', 0, $#keys]], ['string']]];
       } else {
