@@ -6,3 +6,14 @@
 hashSet .one dump
 hashSet .two dump
 hashSet keys dump
+
+{
+  < { defv }' /put deff > =hashSetB
+
+  1 /one hashSetB .put
+  2 /two hashSetB .put
+
+  hashSetB .one dump
+  hashSetB .two dump
+  hashSetB keys dump
+} *

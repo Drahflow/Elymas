@@ -52,10 +52,12 @@ our $global = {
 
       if($quoted) {
         push @$data, [sub {
-          my ($data, $scope) = @_;
+          my ($data, $refScope) = @_;
+          my $scope = $$refScope;
+
           push @$data, [sub {
             my ($data) = @_;
-            my $lscope = \{ ' parent' => $$scope };
+            my $lscope = \{ ' parent' => $scope };
             interpretCode(\@code, $data, $lscope);
           }, ['func', 'Dumper(\@code)']];
         }, ['func', 'func-quoted'], \@code];
@@ -83,10 +85,12 @@ our $global = {
 
       if($quoted) {
         push @$data, [sub {
-          my ($data, $scope) = @_;
+          my ($data, $refScope) = @_;
+          my $scope = $$refScope;
+
           push @$data, [sub {
             my ($data) = @_;
-            interpretCode(\@code, $data, $scope);
+            interpretCode(\@code, $data, \$scope);
           }, ['func', 'Dumper(\@code)']];
         }, ['func', 'func-quoted'], \@code];
       } else {
@@ -204,7 +208,7 @@ our $global = {
       $member = $member->[0];
 
       die "not a struct during member dereference in " . Dumper($struct) unless ref($struct->[1]) eq 'ARRAY' and $struct->[1]->[0] eq 'struct';
-      die Dumper($struct, $member) . "Cannot resolve requested member $member" unless exists $struct->[0]->{$member};
+      die Dumper($struct, [keys $struct->[0]], $member) . "Cannot resolve requested member $member" unless exists $struct->[0]->{$member};
       die "Resolved member $member was incorrectly stored as something non-arrayish" unless ref($struct->[0]->{$member}) eq 'ARRAY';
 
       push @$data, $struct->[0]->{$member};
@@ -356,17 +360,25 @@ our $global = {
               $commonType = $b->[1]->[3]->[0];
             } elsif(not @{$b->[0]}) {
               $commonType = $a->[1]->[3]->[0];
-            } elsif($a->[1]->[3]->[0]->[0] eq 'func') {
-              # FIXME allowed
+            } elsif(not exists $a->[1]->[3]->[0]) {
+              $commonType = $b->[1]->[3]->[0];
+            } elsif(not exists $b->[1]->[3]->[0]) {
+              $commonType = $a->[1]->[3]->[0];
+            } elsif($a->[1]->[3]->[0]->[0] eq 'func' and $b->[1]->[3]->[0]->[0] eq 'func') {
+              # TODO: compare the function types maybe
             } else {
-              die "Array types don't match in cat: " . Dumper($a->[1]->[3]->[0], $b->[1]->[3]->[0]);
+              die "Array types don't match in cat: " . Dumper($a, $b);
             }
           } else {
             $commonType = $a->[1]->[3]->[0];
           }
 
           my @res = (@{$a->[0]}, @{$b->[0]});
-          push @$data, [\@res, ['array', 'from cat', [['range', 0, $#res]], [$commonType]]];
+          if(defined $commonType) {
+            push @$data, [\@res, ['array', 'from cat', [['range', 0, $#res]], [$commonType]]];
+          } else {
+            push @$data, [\@res, ['array', 'from cat', [['range', 0, $#res]]]];
+          }
         } else {
           die "Mismatch between string and array in cat";
         }
