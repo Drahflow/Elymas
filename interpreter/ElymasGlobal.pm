@@ -179,7 +179,7 @@ our $global = {
           } elsif(ref($type) eq 'ARRAY' and $type->[0] eq 'struct') {
             # TODO permitted for now
           } else {
-            die "mismatched types in array: " . Dumper($type) unless typeEqual($type, $t->[1]);
+            die "mismatched types in array: " . Dumper($type, $t) unless typeEqual($type, $t->[1]);
           }
         } else {
           $type = $t->[1];
@@ -208,7 +208,7 @@ our $global = {
       $member = $member->[0];
 
       die "not a struct during member dereference in " . Dumper($struct) unless ref($struct->[1]) eq 'ARRAY' and $struct->[1]->[0] eq 'struct';
-      die Dumper($struct, [keys $struct->[0]], $member) . "Cannot resolve requested member $member" unless exists $struct->[0]->{$member};
+      die Dumper($struct, [sort keys $struct->[0]], $member) . "Cannot resolve requested member $member" unless exists $struct->[0]->{$member};
       die "Resolved member $member was incorrectly stored as something non-arrayish" unless ref($struct->[0]->{$member}) eq 'ARRAY';
 
       push @$data, $struct->[0]->{$member};
