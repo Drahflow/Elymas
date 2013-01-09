@@ -22,7 +22,7 @@
       [ /one /cl /cx /ecx /rcx ]
       [ /two /dl /dx /edx /rdx ]
       [ /three /bl /bx /ebx /rbx ]
-      [ /four /spl /ah /sp /esp /rsp ]
+      [ /four /sib /spl /ah /sp /esp /rsp ]
       [ /five /bpl /ch /bp /ebp /rbp ]
       [ /six /sil /si /esi /rsi ]
       [ /seven /dil /di /edi /rdi ]
@@ -77,12 +77,30 @@
     reg regno 8 mul %38 band add
   } /modrm11 deff
 
+  { ==base ==idx ==scale
+    idx [ /spl /sp /esp /rsp ] streq any not assert
+    base [ /bpl /bp /ebp /rbp ] streq any not assert
+
+    %C0 scale %40 mul band add
+    %38 idx regno 8 mul band add
+    %07 base regno band add
+  } /sib deff
+
   { _ 0 ge assert 8 { _ 256 mod -01 256 div } rep -- } /imm64 deff
   { _ 0 ge assert 4 { _ 256 mod -01 256 div } rep -- } /imm32 deff
   { _ 0 ge assert 2 { _ 256 mod -01 256 div } rep -- } /imm16 deff
-  { _ 0 ge assert 255 band } /imm8 deff
+  { _ 0 lt { 256 add } rep 255 band } /imm8 deff
 
   # instructions
+  { ==reg ==mem
+    reg bit32 assert
+    mem bit64 assert
+
+    0 reg /none mem rex
+    %03
+    reg mem modrm00
+  } /addlMemReg deff
+
   { ==reg ==i
     reg bit64 assert
     i 256 lt assert
@@ -130,6 +148,24 @@
     %A7
   } /cmpsq deff
 
+  { ==mem ==reg
+    reg bit32 assert
+    mem bit64 assert
+
+    reg regno %07 gt mem regno %07 gt or { 0 reg /none mem rex } rep
+    %39
+    reg mem modrm00
+  } /cmplRegMem deff
+
+  { ==mem ==reg
+    reg bit64 assert
+    mem bit64 assert
+
+    1 reg /none mem rex
+    %39
+    reg mem modrm00
+  } /cmpqRegMem deff
+
   { ==dst ==src
     dst bit64 assert
     src bit64 assert
@@ -139,40 +175,33 @@
     src dst modrm11
   } /cmpqRegReg deff
 
-  { ==offset
-    offset 128 lt assert
+  { ==reg
+    reg bit64 assert
 
-    %76
-    offset imm8
-  } /jbeRel8 deff
+    1 /none /none reg rex
+    %FF
+    /zero reg modrm11
+  } /incqReg deff
 
-  { ==offset
-    offset 128 lt assert
+  { ==name ==opcode
+    {
+      ==offset
+      offset 128 neg ge assert
+      offset 128 lt assert
 
-    %7E
-    offset imm8
-  } /jleRel8 deff
+      opcode
+      offset imm8
+    } name deff
+  }' /defRel8Jmp deff
 
-  { ==offset
-    offset 128 lt assert
+  %EB /jmpRel8 defRel8Jmp
 
-    %73
-    offset imm8
-  } /jnbRel8 deff
-
-  { ==offset
-    offset 128 lt assert
-
-    %75
-    offset imm8
-  } /jnzRel8 deff
-
-  { ==offset
-    offset 128 lt assert
-
-    %74
-    offset imm8
-  } /jzRel8 deff
+  %72 /jbRel8 defRel8Jmp
+  %76 /jbeRel8 defRel8Jmp
+  %7E /jleRel8 defRel8Jmp
+  %73 /jnbRel8 defRel8Jmp
+  %75 /jnzRel8 defRel8Jmp
+  %74 /jzRel8 defRel8Jmp
 
   { ==reg ==i
     reg bit64 assert
@@ -200,6 +229,17 @@
     disp imm8
   } /movqMemDisp8Reg deff
 
+  { ==reg ==mem ==idx
+    reg bit64 assert
+    mem bit64 assert
+    idx bit64 assert
+
+    1 reg idx mem rex
+    %8B
+    reg /sib modrm00
+    1 idx mem sib
+  } /movqMemIndexReg deff
+
   { ==reg ==mem
     reg bit64 assert
     mem bit64 assert
@@ -218,6 +258,28 @@
     reg mem modrm00
   } /movqRegMem deff
 
+  { ==mem ==disp ==reg
+    reg bit64 assert
+    mem bit64 assert
+    disp 128 lt assert
+
+    1 reg /none mem rex
+    %89
+    reg mem modrm01
+    disp imm8
+  } /movqRegMemDisp8 deff
+
+  { ==mem ==idx ==reg
+    reg bit64 assert
+    mem bit64 assert
+    idx bit64 assert
+
+    1 reg idx mem rex
+    %89
+    reg /sib modrm00
+    1 idx mem sib
+  } /movqRegMemIndex deff
+
   { ==dst ==src
     src bit64 assert
     dst bit64 assert
@@ -234,7 +296,18 @@
     %80
     /one mem modrm00
     i imm8
-  } /orbImmMem64 deff
+  } /orbImmMem deff
+
+  { ==mem ==disp ==i
+    mem bit64 assert
+    i 256 lt assert
+    disp 128 lt assert
+
+    %80
+    /one mem modrm01
+    disp imm8
+    i imm8
+  } /orbImmMemDisp8 deff
 
   { ==reg
     reg regno %07 gt { 1 /none /none reg rex } rep
@@ -259,6 +332,65 @@
     %C3
   } /retn deff
 
+  { ==reg ==i
+    reg bit64 assert
+    i 64 lt assert
+
+    1 /none /none reg rex
+    %C1
+    /four reg modrm11
+    i imm8
+  } /shlqImm8Reg deff
+
+  { ==reg ==i
+    reg bit64 assert
+    i 256 lt assert
+
+    1 /none /none reg rex
+    %D1
+    /five reg modrm11
+    i imm8
+  } /shrq1Reg deff
+
+  { ==reg ==i
+    reg bit64 assert
+    i 256 lt assert
+
+    1 /none /none reg rex
+    %83
+    /five reg modrm11
+    i imm8
+  } /subqImm8Reg deff
+
+  { ==reg ==mem ==disp
+    reg bit64 assert
+    mem bit64 assert
+    disp 128 lt assert
+
+    1 reg /none mem rex
+    %29
+    reg mem modrm01
+    disp imm8
+  } /subqMemDisp8Reg deff
+
+  { ==reg ==mem
+    reg bit32 assert
+    mem bit64 assert
+
+    reg regno %07 gt mem regno %07 gt or { 0 reg /none mem rex } rep
+    %29
+    reg mem modrm00
+  } /sublMemReg deff
+
+  { ==reg ==mem
+    reg bit64 assert
+    mem bit64 assert
+
+    1 reg /none mem rex
+    %29
+    reg mem modrm00
+  } /subqMemReg deff
+
   { ==dst ==src
     dst bit64 assert
     src bit64 assert
@@ -281,6 +413,11 @@
     src dst modrm11
   } /testqRegReg deff
 
+  {
+    %0F
+    %0B
+  } /ud2 deff
+
   { ==mem ==reg
     reg bit64 assert
     mem bit64 assert
@@ -289,6 +426,15 @@
     %87
     reg mem modrm00
   } /xchgqRegMem deff
+
+  { ==dst ==src
+    dst bit64 assert
+    src bit64 assert
+
+    1 src /none dst rex
+    %87
+    src dst modrm11
+  } /xchgqRegReg deff
 
   { ==reg ==mem
     reg bit64 assert
@@ -319,7 +465,7 @@
 
   # label handling
   < { defv }' /put deff > ==labels
-  < { defv }' /put deff > ==labelHoles
+  [ ] ==labelHoles
 
   { ==l
     ] _ len l labels .put [ -011 len dearray
@@ -327,15 +473,17 @@
 
   { ==l
     ] _ len ==offset
-    { offset labels .l sub imm8 offset -102 =[] } l labelHoles .put
+    labelHoles [ { offset labels l . sub imm8 offset -102 =[] } ] cat =labelHoles
     [ -011 len dearray %00
   } /labelRel8 deff
 
   { ==opcodes
-    labelHoles { opcodes * } each
+    labelHoles { opcodes -01 * } each
 
     < { defv }' /put deff > =labels
-    < { defv }' /put deff > =labelHoles
+    [ ] =labelHoles
+
+    opcodes
   } /labelResolve deff
 
   # data manipulation functions

@@ -35,9 +35,27 @@
     [ %00 %00 %00 %00 %00 %00 %00 %00 ] ==currentScope
   > { defv }' allocateOffsetStruct
 
-  <
-    # internal functions, ABI follows SysV standards
+  # internal functions, ABI follows SysV standards
 
+  # compare two strings
+  # rdi -> address of first string
+  # rsi -> address of second string
+  # rax <- 1 if both strings are equal, 0 otherwise
+  [
+    /rax /rax :xorqRegReg
+    :cmpsq # ignore memory length header
+    :cmpsq # ignore hash
+    /rsi /rdx :movqMemReg # load exact length
+    :cmpsq # same exact length
+    /fail :labelRel8 :jnzRel8
+    /rdx /rcx :movqRegReg
+    :repz :cmpsb
+    /fail :labelRel8 :jnzRel8
+    /rax :incqReg
+    /fail :label
+  ] :labelResolve /internalStringEqualsCode defv
+
+  <
     # allocate a chunk of memory
     # rdi -> size of chunk in bytes
     # rax <- address of allocated chunk
@@ -82,21 +100,7 @@
     # compare two strings
     # rdi -> address of first string
     # rsi -> address of second string
-    # rax <- 1 if both strings are equal
-    [
-      /rax /rax :xorqRegReg
-      :cmpsq # ignore memory length header
-      :cmpsq # ignore hash
-      /rsi /rdx :movqMemReg # load exact length
-      :cmpsq # same exact length
-      /fail :labelRel8 :jnzRel8
-      /rdx /rcx :movqRegReg
-      :repz :cmpsb
-      /fail :labelRel8 :jnzRel8
-      /rax :incqReg
-      /fail :label
-    ] :labelResolve /internalStringEqualsCode defv
-
+    # rax <- 1 if both strings are equal, 0 otherwise
     internalStringEqualsCode [
       :retn
     ] cat /internalStringEquals defv
@@ -124,10 +128,10 @@
       /rcx :pushqReg
       /rdx /rdi :movqMemReg
     ] internalStringEqualsCode [
-      /rcx :popReg
-      /rdx :popReg
-      /rsi :popReg
-      /rdi :popReg
+      /rcx :popqReg
+      /rdx :popqReg
+      /rsi :popqReg
+      /rdi :popqReg
 
       /rax /rax :testqRegReg
       /found :labelRel8 :jnzRel8
@@ -137,6 +141,7 @@
       /end :label
 
       # not found at all, retry with parent
+      # FIXME: Actually try with parent
       /rax /rax :xorqRegReg
       /rdx /rdx :xorqRegReg
       :retn
@@ -155,8 +160,8 @@
       /inDataArea :labelRel8 :jbRel8
 
       /rdi /edx :sublMemReg # substract scope length
-      8 /rdx :addqImm8Reg # add extension area header length
       24 /rdi /rdi :movqMemDisp8Reg # load extension area pointer
+      8 /rdx :addqImm8Reg # add extension area header length
 
       /inDataArea :label
       /rdx /rdi /rdx :movqMemIndexReg # load entry pointer
@@ -164,14 +169,228 @@
       :retn
     ] cat cat :labelResolve /internalResolve defv
 
+  > { defv }' allocateOffsetStruct
+
+  # TODO: link internal functions statically with relative calls
+  <
+    # allocate scope, expecting rdi entries
+    # rdi -> expected number of entries
+    # rsi -> parent scope
+    # rax <- address of scope on the heap
+    [
+      /rdi :pushqReg
+      
+      # allocate name table
+      4 /rdi :shlqImm8Reg
+      16 /rdi :addqImm8Reg
+      internalAllocate /rax :movqImmReg
+      /rax :callqReg
+
+      # set type
+      %30 7 /rax :orbImmMemDisp8
+      /rdi /rdi :xorqRegReg
+
+      # zero fill
+      /rdi 8 /rax :movqRegMemDisp8
+      /rax /rcx :movqRegReg
+
+      /rdi :popqReg
+      3 /rdi :shlqImm8Reg
+      32 /rdi :addqImm8Reg
+      internalAllocate /rax :movqImmReg
+      /rax :callqReg
+
+      # set type and existence of all pointers
+      %26 7 /rax :orbImmMemDisp8
+      # reference name table
+      /rcx 8 /rax :movqRegMemDisp8
+      # zero parent and extension
+      /rdi /rdi :xorqRegReg
+      /rdi 16 /rax :movqRegMemDisp8
+      /rdi 24 /rax :movqRegMemDisp8
+
+      :retn
+    ] /internalAllocateScope defv
+
+    # allocate function
+    # rdi -> code pointer
+    # rsi -> scope pointer
+    # rdx -> type pointer
+    # rax <- address of function on the heap
+    [
+      /rdi /rcx :movqRegReg
+
+      32 /rdi :movqImmReg
+      internalAllocate /rax :movqImmReg
+      /rax :callqReg
+
+      # set type
+      %90 7 /rax :orbImmMemDisp8
+
+      /rsi 8 /rax :movqRegMemDisp8
+      /rdx 16 /rax :movqRegMemDisp8
+      /rcx 24 /rax :movqRegMemDisp8
+
+      :retn
+    ] /internalAllocateFunction defv
+  > { defv }' allocateOffsetStruct
+
+  <
     # elymas functions, stack based ABI
 
-    # execute top element of the stack
+    # 0 -> integer
+    # 1 -> integer
+    # 0 <- sum of the above
     [
-# FIXME
+      /rcx :popqReg
+      /rax :popqReg
+      8 /rax /rax :movqMemDisp8Reg
+      /rbx :popqReg
+      8 /rbx /rbx :movqMemDisp8Reg
+      /rax /rbx :addqRegReg
+
+      # allocate int
+      16 /rdi :movqImmReg
+      internalAllocate /rax :movqImmReg
+      /rax :callqReg
+
+      # push int address on program stack
+      /rax :pushqReg
+
+      # type zero does not need to be changed
+
+      # load value
+      /rbx 8 /rax :movqRegMemDisp8
+      /rcx :pushqReg
+    ] /eyadd defv
+
+    # create a new entry in the current scope for the given name
+    # mark that entry as default-active
+    # 0 -> name, string
+    # 1 -> object
+    [
+      /rcx :popqReg
+      /rdi :popqReg
+
+      # search for name in nametable
+      currentScope /rax :movqImmReg
+      /rax /rbx :movqMemReg # rbx == start of scope in heap
+      8 /rbx /rdx :movqRegReg # rdx == start of nametable in heap
+      8 /rbx /rsi :movqMemDisp8Reg # rsi == start of nametable in heap
+      16 /rdx /rsi :addqMemDisp8Reg # rsi == end of nametable in heap (according to fill)
+
+      /nameSearch :label
+      16 /rdx :addqImm8Reg
+
+      # rsi: end of nametable
+      # rdx: current element of nametable
+
+      /rdx /rsi :cmpqRegReg
+      /nameUndefined :labelRel8 :jnbRel8
+
+      /rdx :pushqReg
+      /rsi :pushqReg
+      /rdi :pushqReg
+      /rcx :pushqReg
+      /rsi /rsi :movqMemReg
+    ] internalStringEqualsCode [
+      /rcx :popqReg
+      /rdi :popqReg
+      /rsi :popqReg
+      /rdx :popqReg
+      /rax /rax :testqRegReg
+      /nameSearch :labelRel8 :jzRel8
+
+      8 /rbx /rdx :subqMemDisp8Reg
+      16 /rdx :subqImm8Reg # substract name table header size
+      /rdx :shrq1Reg # divide by 2 to get offset within scope
+      /nameIndexKnown :labelRel8 :jmpRel8
+
+      # if not exists, insert
+      /nameUndefined :label
+      8 /rbx /rdx :movqRegReg # rdx == start of nametable in heap
+      /rdx /edx :addlMemReg # add memory length to obtain memory end
+
+      /rsi /rdx :cmpqRegReg
+      /enlargeNameTable :labelRel8 :jnbRel8
+
+      # insert into name table
+      /rdi /rsi :movqRegMem
+      1 /rax :movqImmReg
+      /rax 8 /rsi :movqRegMemDisp8 # set default activation mode to execute
+      /rsi /rdx :movqRegReg
+      /nameIndexKnown :labelRel8 :jmpRel8
+
+      /enlargeNameTable :label
+      # if name table is already full, double size
+      # FIXME
+      :ud2
+      
+      /nameIndexKnown :label
+
+      # rdx == offset in scope
+      # top of stack: the object to store
+
+      # update 
+      # if fits within main area, fine
+      32 /rdx :addqImm8Reg # add scope header size
+      /edx /rbx :cmplRegMem # TODO this fails for > 4 GB scopes
+      /inDataArea :labelRel8 :jbRel8
+
+      # update within extension area
+      /rbx /edx :sublMemReg # substract scope length
+      24 /rbx /rbx :movqMemDisp8Reg # load extension area pointer
+      8 /rdx :addqImm8Reg # add extension area header length
+
+      # if extension area is full, double size
+      /edx /rbx :cmplRegMem
+      /inExtensionArea :labelRel8 :jbRel8
+
+      # FIXME
+      :ud2
+
+      /inExtensionArea :label
+      /inDataArea :label
+
+      /rax :popqReg
+      /rax /rbx /rdx :movqRegMemIndex # save entry pointer
+
+      /rcx :pushqReg
+    ] cat cat :labelResolve /eydeff defv
+
+    # execute top element on the stack
+    [
+      # FIXME
       :retn
     ] /ey* defv
-  > { defv }' allocateOffsetStruct
+  > _ ==globalFunctions { defv }' allocateOffsetStruct
+
+  [
+    globalFunctions keys len /rdi :movqImmReg
+    internalAllocateScope /rax :movqImmReg
+    /rax :callqReg
+
+    currentScope /rdi :movqImmReg
+    /rax /rdi :movqRegMem
+
+    globalFunctions keys { ==name
+      # create function
+      name | 8 sub /rdi :movqImmReg
+      currentScope /rsi :movqImmReg
+      # TODO: put a type here where applicable
+      /rdx /rdx :xorqRegReg
+
+      internalAllocateFunction /rax :movqImmReg
+      /rax :callqReg
+      /rax :pushqReg
+
+      # create string
+
+      # enter into current (i.e. global) scope
+      eydeff /rax :movqImmReg
+      /rax :callqReg
+    } each
+  ] :execute
 > /assemblerLibrary defv
 
 # vim: syn=elymas

@@ -78,17 +78,18 @@
     [
       # scope resolution
       ::currentScope /rdi :movqImmReg
+      /rdi /rdi :movqMemReg
       /rsi :popqReg
       ::internalResolve /rax :movqImmReg
       /rax :callqReg
       /rax :pushqReg
 
       /rdx /rdx :testqRegReg
-      [
-        ::ey* /rax :movqImmReg
-        /rax :callqReg
-      ] |len { :jzRel8 } -21*0*221* dearray
-    ] cat :execute
+      /inactive :labelRel8 /jzRel8
+      ::ey* /rax :movqImmReg
+      /rax :callqReg
+      /inactive :label
+    ] :labelResolve :execute
   } /TOKID
 > -- 3 |defv rep
 
