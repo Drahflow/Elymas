@@ -168,7 +168,21 @@ Small set in between
 
 === Extension Area ===
 * Length in bytes (including header)
-  bit 63-60: 0 0 1 1
+  bit 63-60: 0 1 0 0
   bit 59: reserved for GC
 * data
   [ <reference> ]*
+
+=== Function ===
+* Length in bytes (including header)
+  bit 63-60: 0 1 0 1
+  bit 59: reserved for GC
+* scope pointer
+* type pointer (0 if untyped)
+* code pointer
+
+=== Function Code ===
+* Length in bytes (including header)
+  bit 63-60: 0 1 1 0
+  bit 59: reserved for GC
+* [ <opcode> ]*
