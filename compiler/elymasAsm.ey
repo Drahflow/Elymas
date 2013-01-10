@@ -379,10 +379,22 @@
     i imm8
   } /orbImmMemDisp8 deff
 
+  { ==mem
+    mem regno %07 gt { 1 /none /none mem rex } rep
+    %8F
+    /zero mem modrm00
+  } /popqMem deff
+
   { ==reg
     reg regno %07 gt { 1 /none /none reg rex } rep
     %58 reg regno %07 band add
   } /popqReg deff
+
+  { ==mem
+    mem regno %07 gt { 1 /none /none mem rex } rep
+    %FF
+    /six mem modrm00
+  } /pushqMem deff
 
   { ==reg
     reg regno %07 gt { 1 /none /none reg rex } rep
@@ -535,13 +547,18 @@
   # 0 - STACKSTART  : global variables
   #              %0 : current stack pointer
   # STACKSTART - ...: real stack
-  STACKSIZE sys .asm .alloc ==mainStack
-  <
-    mainStack .base ==i
-    [
-      mainStack .base STACKSIZE add imm64
-    ] { i sys .asm .poke i 1 add =i } each
-  > --
+  [ /mainStack /mainCallStack ] {
+    <
+      STACKSIZE sys .asm .alloc ==stack
+
+      stack .base ==i
+      [
+        stack .base STACKSIZE add imm64
+      ] { i sys .asm .poke i 1 add =i } each
+
+      stack
+    > -12 ==
+  }' each
 
   { ==opcodes
     opcodes len 1 sub PAGESIZE div 1 add PAGESIZE mul sys .asm .alloc /codearea defv
@@ -551,14 +568,20 @@
   } /arrayToCode deff
 
   # take an array of instruction bytes and execute it on the given stack
-  { ==stack ==opcodes
+  { ==callStack ==valueStack ==opcodes
     [
       /rbx pushqReg
-      stack /rbx movqImmReg
+      /r15 pushqReg
+      valueStack /rbx movqImmReg
       /rsp /rbx xchgqRegMem
+      callStack /rbx movqImmReg
+      /r15 /rbx xchgqRegMem
     ] opcodes [
-      stack /rbx movqImmReg
+      callStack /rbx movqImmReg
+      /r15 /rbx xchgqRegMem
+      valueStack /rbx movqImmReg
       /rsp /rbx xchgqRegMem
+      /r15 popqReg
       /rbx popqReg
       retn
     ] cat cat =opcodes
@@ -567,7 +590,7 @@
                           .free
   } /executeOn deff
 
-  { mainStack .base executeOn } /execute deff
+  { mainStack .base mainCallStack .base executeOn } /execute deff
 > /assembler defv
 
 # vim: syn=elymas

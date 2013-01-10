@@ -177,7 +177,7 @@ Small set in between
 * Length in bytes (including header)
   bit 63-60: 0 1 0 1
   bit 59: reserved for GC
-* scope pointer
+* scope pointer (0 if non-capturing function)
 * type pointer (0 if untyped)
 * code pointer
 

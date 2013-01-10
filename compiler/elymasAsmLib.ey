@@ -23,7 +23,6 @@
     struct keys { address -101 def struct -01 . len address add =address } each
   } /allocateOffsetStruct deff
 
-  # global data
   <
     # current end of heap memory (grows upwards)
     [ %00 %00 %00 %00 %00 %60 %00 %00 ] ==heapEnd
@@ -247,26 +246,29 @@
     # 1 -> integer
     # 0 <- sum of the above
     [
-      /rcx :popqReg
-      /rax :popqReg
-      8 /rax /rax :movqMemDisp8Reg
       /rbx :popqReg
-      8 /rbx /rbx :movqMemDisp8Reg
-      /rax /rbx :addqRegReg
 
-      # allocate int
+      # allocate result int
       16 /rdi :movqImmReg
       internalAllocate /rax :movqImmReg
       /rax :callqReg
 
-      # push int address on program stack
-      /rax :pushqReg
-
       # type zero does not need to be changed
 
-      # load value
-      /rbx 8 /rax :movqRegMemDisp8
-      /rcx :pushqReg
+      # actual calculation
+      /rcx :popqReg
+      8 /rcx /rcx :movqMemDisp8Reg
+
+      /rdx :popqReg
+      8 /rdx /rdx :movqMemDisp8Reg
+
+      /rcx /rdx :addqRegReg
+      /rdx 8 /rax :movqRegMemDisp8
+
+      # push int address on program stack
+      /rax :pushqReg
+      /rbx :pushqReg
+      :retn
     ] /eyadd defv
 
     # create a new entry in the current scope for the given name
@@ -366,8 +368,43 @@
 
     # execute top stack element
     [
-      :retn # FIXME: implement this
-    ] /ey* defv
+      8 /r15 :subqImm8Reg
+      /r15 :popqMem
+
+      /rdx :popqReg
+
+      # enter scope
+      8 /rdx /rcx :movqMemDisp8Reg
+      /rcx /rcx :testqRegReg
+      /scoped :jnzLbl8
+      currentScope /rax :movqImmReg
+      /rax /rcx :movqMemReg
+      /scoped :label
+      8 /r15 :subqImm8Reg
+      /rcx /r15 :movqRegMem
+
+      # handle typed function
+      16 /rdx /rcx :movqMemDisp8Reg
+      /rcx /rcx :testqRegReg
+      /typed :jnzLbl8
+
+      24 /rdx /rax :movqMemDisp8Reg
+      8 /rax :addqImm8Reg
+      /rax :callqReg
+      /done :jmpLbl8
+
+      /typed :label
+      :ud2 # TODO handle typed functions and autolooping
+
+      /done :label
+      /r15 /rcx :movqMemReg
+      currentScope /rax :movqImmReg
+      /rcx /rax :movqRegMem
+      8 /r15 :addqImm8Reg
+      /r15 :pushqMem
+      8 /r15 :addqImm8Reg
+      :retn
+    ] :labelResolve /ey* defv
   > _ ==globalFunctions { defv }' allocateOffsetStruct
 
   { strToUTF8Bytes _ =*v len _ ==exactLength
@@ -419,6 +456,7 @@
       # create function
       name | 8 sub /rdi :movqImmReg
       currentScope /rsi :movqImmReg
+      /rsi /rsi :movqMemReg
       # TODO: put a type here where applicable
       /rdx /rdx :xorqRegReg
 
