@@ -91,7 +91,11 @@
     4096 input .readstr cat
     _ "" streq not
   } {
-    { _ "([^\\n]*)\\n(.*)" regex } { -102 -- tokenize { _ .handle assemblerLibrary .stackDump } each } loop
+    { _ "([^\\n]*)\\n(.*)" regex } { -102 -- tokenize {
+      _ .handle
+      assemblerLibrary .stackDump
+      assemblerLibrary .globalScopeDump
+    } each } loop
   } loop
 } /executeFile deff
 
