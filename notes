@@ -143,7 +143,7 @@ Small set in between
 * Exact length
 * data (UTF-8)
 
-=== Struct / Scope ===
+=== Scope ===
 * Length in bytes (including header)
   bit 63-60: 0 0 1 0
   bit 59: reserved for GC
