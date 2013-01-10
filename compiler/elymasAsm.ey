@@ -576,7 +576,9 @@
       /rsp /rbx xchgqRegMem
       callStack /rbx movqImmReg
       /r15 /rbx xchgqRegMem
-    ] opcodes [
+
+      opcodes _ len dearray
+
       callStack /rbx movqImmReg
       /r15 /rbx xchgqRegMem
       valueStack /rbx movqImmReg
@@ -584,13 +586,17 @@
       /r15 popqReg
       /rbx popqReg
       retn
-    ] cat cat =opcodes
+    ]
+  } /compileOn deff
 
-    opcodes arrayToCode _ .base sys .asm .execute
-                          .free
+  {
+    compileOn arrayToCode _ .base sys .asm .execute
+                            .free
   } /executeOn deff
 
   { mainStack .base mainCallStack .base executeOn } /execute deff
+
+  { mainStack .base mainCallStack .base compileOn } /compile deff
 > /assembler defv
 
 # vim: syn=elymas

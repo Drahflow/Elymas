@@ -497,15 +497,18 @@
       sys .asm .peek
     } /peekImm8 deff
 
+    [ /0 /1 /2 /3 /4 /5 /6 /7 /8 /9 /A /B /C /D /E /F ] ==base16singleDigits
+    [ base16singleDigits { ==first base16singleDigits { first -01 cat } each } each ] ==base16digits
+
     {
-      [ -01 16 { _ 16 mod -01 16 div } rep -- ]
-      [ /0 /1 /2 /3 /4 /5 /6 /7 /8 /9 /A /B /C /D /E /F ] *
+      [ -01 8 { _ 256 mod -01 256 div } rep -- ]
+      base16digits *
       reverse |cat fold
     } /base16encode64 deff
 
     {
-      [ -01 8 { _ 16 mod -01 16 div } rep -- ]
-      [ /0 /1 /2 /3 /4 /5 /6 /7 /8 /9 /A /B /C /D /E /F ] *
+      [ -01 4 { _ 256 mod -01 256 div } rep -- ]
+      base16digits *
       reverse |cat fold
     } /base16encode32 deff
 

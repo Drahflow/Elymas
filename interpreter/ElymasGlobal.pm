@@ -567,9 +567,15 @@ sub installGlobal2IntFunction {
   $global->{$name} = [sub {
       my ($data, $scope) = @_;
 
-      my $b = popInt($data);
-      my $a = popInt($data);
-      push @$data, [&$code($a, $b), 'int'];
+      my $b = pop @$data;
+      unless($b->[1] eq 'int' and $data->[-1]->[1] eq 'int') {
+        die "Not int-typed arguments: " . Dumper($data->[-1], $b);
+      }
+      $data->[-1] = [&$code($data->[-1]->[0], $b->[0]), 'int'];
+
+#      my $b = popInt($data);
+#      my $a = popInt($data);
+#      push @$data, [&$code($a, $b), 'int'];
     }, ['func', $name, ['int', 'int'], ['int']], 'active'];
 }
 
@@ -753,5 +759,38 @@ installGlobal2StrFunction('streq', sub { return [($_[0] eq $_[1])? 1: 0, 'int'] 
 # u: Unicode                           -> <TODO: think about encoding>
 # x: Extended Precision                -> <TODO: arbitrary precision lib>
 # _9: to 9: Constant Functions         -> { 9 neg } ... { 9 }
+
+use Time::HiRes qw(time);
+
+my %timings;
+
+sub takeTimings {
+  my ($scope) = @_;
+
+  foreach my $key (keys %$scope) {
+    next if not ref($scope->{$key}->[1]);
+
+    if($scope->{$key}->[1]->[0] eq 'func') {
+      my $sub = $scope->{$key}->[0];
+      my $name = $scope->{$key}->[1]->[1];
+
+      $scope->{$key}->[0] = sub {
+        my $start = time;
+        &$sub(@_);
+        $timings{$name} += time - $start;
+      }
+    } elsif($scope->{$key}->[1]->[0] eq 'struct') {
+      takeTimings($scope->{$key}->[0]);
+    }
+  }
+}
+
+# takeTimings($global);
+
+END {
+  foreach my $key (sort { $timings{$a} <=> $timings{$b} } keys %timings) {
+    printf "%s: %.6f\n", $key, $timings{$key};
+  }
+}
 
 1;

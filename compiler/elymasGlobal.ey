@@ -94,7 +94,7 @@
     { _ "([^\\n]*)\\n(.*)" regex } { -102 -- tokenize {
       _ .handle
       assemblerLibrary .stackDump
-      assemblerLibrary .globalScopeDump
+      # assemblerLibrary .globalScopeDump
     } each } loop
   } loop
 } /executeFile deff
