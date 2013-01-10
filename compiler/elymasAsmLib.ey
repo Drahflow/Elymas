@@ -47,10 +47,10 @@
     :cmpsq # ignore hash
     /rsi /rdx :movqMemReg # load exact length
     :cmpsq # same exact length
-    /fail :labelRel8 :jnzRel8
+    /fail :jnzLbl8
     /rdx /rcx :movqRegReg
     :repz :cmpsb
-    /fail :labelRel8 :jnzRel8
+    /fail :jnzLbl8
     /rax :incqReg
     /fail :label
   ] :labelResolve /internalStringEqualsCode defv
@@ -101,9 +101,10 @@
     # rdi -> address of first string
     # rsi -> address of second string
     # rax <- 1 if both strings are equal, 0 otherwise
-    internalStringEqualsCode [
+    [
+      internalStringEqualsCode _ len dearray
       :retn
-    ] cat /internalStringEquals defv
+    ] /internalStringEquals defv
 
     # resolve element from scope
     # rdi -> address of scope on the heap
@@ -120,24 +121,24 @@
 
       /loop :label
       /rdx /rcx :cmpqRegReg
-      /end :labelRel8 :jnbRel8
+      /end :jbeLbl8
       # TODO this is ridiculous
       /rdi :pushqReg
       /rsi :pushqReg
       /rdx :pushqReg
       /rcx :pushqReg
       /rdx /rdi :movqMemReg
-    ] internalStringEqualsCode [
+      internalStringEqualsCode _ len dearray
       /rcx :popqReg
       /rdx :popqReg
       /rsi :popqReg
       /rdi :popqReg
 
       /rax /rax :testqRegReg
-      /found :labelRel8 :jnzRel8
+      /found :jnzLbl8
 
       16 /rdx :addqImm8Reg
-      /loop :labelRel8 :jmpRel8
+      /loop :jmpLbl8
       /end :label
 
       # not found at all, retry with parent
@@ -157,7 +158,7 @@
 
       32 /rdx :addqImm8Reg # add scope header size
       /edx /rdi :cmplRegMem # TODO this fails for > 4 GB scopes
-      /inDataArea :labelRel8 :jbRel8
+      /inDataArea :jnbLbl8
 
       /rdi /edx :sublMemReg # substract scope length
       24 /rdi /rdi :movqMemDisp8Reg # load extension area pointer
@@ -167,7 +168,7 @@
       /rdx /rdi /rdx :movqMemIndexReg # load entry pointer
       /rax /rdx :xchgqRegReg
       :retn
-    ] cat cat :labelResolve /internalResolve defv
+    ] :labelResolve /internalResolve defv
 
   > { defv }' allocateOffsetStruct
 
@@ -188,13 +189,13 @@
 
       # set type
       %30 7 /rax :orbImmMemDisp8
-      /rdi /rdi :xorqRegReg
 
-      # zero fill
-      /rdi 8 /rax :movqRegMemDisp8
-      /rax /rcx :movqRegReg
+      # set fill to header size
+      16 8 /rax :movqImm32MemDisp8
 
       /rdi :popqReg
+      /rax :pushqReg # save name table on the stack
+
       3 /rdi :shlqImm8Reg
       32 /rdi :addqImm8Reg
       internalAllocate /rax :movqImmReg
@@ -203,6 +204,7 @@
       # set type and existence of all pointers
       %26 7 /rax :orbImmMemDisp8
       # reference name table
+      /rcx :popqReg
       /rcx 8 /rax :movqRegMemDisp8
       # zero parent and extension
       /rdi /rdi :xorqRegReg
@@ -275,9 +277,9 @@
       # search for name in nametable
       currentScope /rax :movqImmReg
       /rax /rbx :movqMemReg # rbx == start of scope in heap
-      8 /rbx /rdx :movqRegReg # rdx == start of nametable in heap
+      8 /rbx /rdx :movqMemDisp8Reg # rdx == start of nametable in heap
       8 /rbx /rsi :movqMemDisp8Reg # rsi == start of nametable in heap
-      16 /rdx /rsi :addqMemDisp8Reg # rsi == end of nametable in heap (according to fill)
+      8 /rsi /rsi :addqMemDisp8Reg # rsi == end of nametable in heap (according to fill)
 
       /nameSearch :label
       16 /rdx :addqImm8Reg
@@ -286,47 +288,47 @@
       # rdx: current element of nametable
 
       /rdx /rsi :cmpqRegReg
-      /nameUndefined :labelRel8 :jnbRel8
+      /nameUndefined :jbeLbl8
 
       /rdx :pushqReg
       /rsi :pushqReg
       /rdi :pushqReg
       /rcx :pushqReg
-      /rsi /rsi :movqMemReg
-    ] internalStringEqualsCode [
+      /rdx /rsi :movqMemReg
+      internalStringEqualsCode _ len dearray
       /rcx :popqReg
       /rdi :popqReg
       /rsi :popqReg
       /rdx :popqReg
       /rax /rax :testqRegReg
-      /nameSearch :labelRel8 :jzRel8
-
-      8 /rbx /rdx :subqMemDisp8Reg
-      16 /rdx :subqImm8Reg # substract name table header size
-      /rdx :shrq1Reg # divide by 2 to get offset within scope
-      /nameIndexKnown :labelRel8 :jmpRel8
+      /nameOffsetKnown :jnzLbl8
 
       # if not exists, insert
       /nameUndefined :label
-      8 /rbx /rdx :movqRegReg # rdx == start of nametable in heap
-      /rdx /edx :addlMemReg # add memory length to obtain memory end
+      8 /rbx /rdx :movqMemDisp8Reg # rdx == start of nametable in heap
+      /rdx /eax :movlMemReg # add memory length to obtain memory end
+      /rax /rdx :addqRegReg
 
       /rsi /rdx :cmpqRegReg
-      /enlargeNameTable :labelRel8 :jnbRel8
+      /enlargeNameTable :jbeLbl8
 
       # insert into name table
       /rdi /rsi :movqRegMem
-      1 /rax :movqImmReg
-      /rax 8 /rsi :movqRegMemDisp8 # set default activation mode to execute
+      1 8 /rsi :movqImm32MemDisp8 # set default activation mode to execute
+      8 /rbx /rdx :movqMemDisp8Reg # rdx == start of nametable in heap
+      16 8 /rdx :addqImm8MemDisp8 # increment fill
       /rsi /rdx :movqRegReg
-      /nameIndexKnown :labelRel8 :jmpRel8
+      /nameOffsetKnown :jmpLbl8
 
       /enlargeNameTable :label
       # if name table is already full, double size
       # FIXME
       :ud2
       
-      /nameIndexKnown :label
+      /nameOffsetKnown :label
+      8 /rbx /rdx :subqMemDisp8Reg # substract name table address
+      16 /rdx :subqImm8Reg # substract name table header size
+      /rdx :shrq1Reg # divide by 2 to get offset within scope
 
       # rdx == offset in scope
       # top of stack: the object to store
@@ -335,7 +337,7 @@
       # if fits within main area, fine
       32 /rdx :addqImm8Reg # add scope header size
       /edx /rbx :cmplRegMem # TODO this fails for > 4 GB scopes
-      /inDataArea :labelRel8 :jbRel8
+      /inDataArea :jnbLbl8
 
       # update within extension area
       /rbx /edx :sublMemReg # substract scope length
@@ -344,7 +346,7 @@
 
       # if extension area is full, double size
       /edx /rbx :cmplRegMem
-      /inExtensionArea :labelRel8 :jbRel8
+      /inExtensionArea :jnbLbl8
 
       # FIXME
       :ud2
@@ -356,7 +358,8 @@
       /rax /rbx /rdx :movqRegMemIndex # save entry pointer
 
       /rcx :pushqReg
-    ] cat cat :labelResolve /eydeff defv
+      :retn
+    ] :labelResolve /eydeff defv
 
     # execute top element on the stack
     [
@@ -364,6 +367,43 @@
       :retn
     ] /ey* defv
   > _ ==globalFunctions { defv }' allocateOffsetStruct
+
+  { strToUTF8Bytes _ =*v len _ ==exactLength
+    1 sub 8 div 4 add 8 mul ==memoryLength
+
+    memoryLength 2147483648 lt assert
+
+    [
+      # allocate string
+      memoryLength /rdi :movqImmReg
+      internalAllocate /rax :movqImmReg
+      /rax :callqReg
+
+      # push string address on program stack
+      /rax :pushqReg
+
+      # set type
+      7 /rax :addqImm8Reg
+      %10 /rax :orbImmMem
+
+      # clear hash value
+      1 /rax :addqImm8Reg
+      /rdx /rdx :xorqRegReg
+      /rdx /rax :movqRegMem 
+
+      # load exact length
+      8 /rax :addqImm8Reg
+      exactLength /rdx :movqImmReg
+      /rdx /rax :movqRegMem 
+
+      # load string contents
+      0 exactLength 8 div range { 8 mul ==i
+        8 /rax :addqImm8Reg
+        /rdx :movqImmOOBReg i _ 7 add range v 8 dearray
+        /rdx /rax :movqRegMem
+      } each
+    ]
+  } /constStringCode deff
 
   [
     globalFunctions keys len /rdi :movqImmReg
@@ -385,12 +425,80 @@
       /rax :pushqReg
 
       # create string
+      name constStringCode _ len dearray
 
       # enter into current (i.e. global) scope
       eydeff /rax :movqImmReg
       /rax :callqReg
     } each
   ] :execute
+
+  <
+    [
+      32 { "." } rep
+      " " "!" "\"" "#" "$" "%" "&" "´" "(" ")" "*" "+" "," "-" "." "/"
+      /0 /1 /2 /3 /4 /5 /6 /7 /8 /9 ":" ";" "<" "=" ">" "?"
+      "@" /A /B /C /D /E /F /G /H /I /J /K /L /M /N /O /P
+      /Q /R /S /T /U /V /W /X /Y /Z "[" "\\" "]" "^" "_"
+      "`" /a /b /c /d /e /f /g /h /i /j /k /l /m /n /o /p
+      /q /r /s /t /u /v /w /x /y /z "{" "|" "}" "~" "."
+      128 { "." } rep
+    ] /ASCII defv
+
+    { # ==addr
+      [ -01 8 { _ sys .asm .peek -01 1 add } rep -- ] reverse { -01 256 mul add } fold
+    } /peekImm64 deff
+
+    { # ==addr
+      [ -01 4 { _ sys .asm .peek -01 1 add } rep -- ] reverse { -01 256 mul add } fold
+    } /peekImm32 deff
+
+    {
+      [ -01 16 { _ 16 mod -01 16 div } rep -- ]
+      [ /0 /1 /2 /3 /4 /5 /6 /7 /8 /9 /A /B /C /D /E /F ] *
+      reverse |cat fold
+    } /base16encode64 deff
+
+    {
+      [ -01 8 { _ 16 mod -01 16 div } rep -- ]
+      [ /0 /1 /2 /3 /4 /5 /6 /7 /8 /9 /A /B /C /D /E /F ] *
+      reverse |cat fold
+    } /base16encode32 deff
+
+    {
+      :mainStack .base :STACKSIZE add ==stackEnd
+      "Stack ------------\n" sys .out .writestr
+      :mainStack .base peekImm64 ==addr
+      addr stackEnd gt { [ -01 stackEnd ] die } rep # Stack corrupted
+
+      { addr stackEnd lt } {
+        [
+          addr base16encode64 ": "
+          addr peekImm64 ==value
+          value base16encode64
+          value 105553116266496 ge value 123145302310912 lt and {
+            value       peekImm32
+            value 4 add peekImm32 16777215 band 4294967296 mul
+              add 8 div ==length
+            0 length 1 sub range {
+              8 mul value add ==heapAddr
+              "\n  "
+              heapAddr base16encode64
+              ": "
+              # the perl interpreter does not like full 64bit numbers and converts them into floats
+              heapAddr 4 add peekImm32 _ ==heapValueB base16encode32
+              heapAddr       peekImm32 _ ==heapValueA base16encode32
+              " "
+              [ [ heapValueA heapValueB ] { 4 { _ 256 mod -01 256 div } rep -- } each ] ASCII * 8 dearray
+            } each
+          } rep
+          "\n"
+        ] |cat fold sys .out .writestr
+        addr 8 add =addr
+      } loop
+      "^^^^^^^^^^^^^^^^^^\n" sys .out .writestr
+    }
+  > -- /stackDump deff
 > /assemblerLibrary defv
 
 # vim: syn=elymas

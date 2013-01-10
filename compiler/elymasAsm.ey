@@ -80,8 +80,11 @@
   { ==base ==idx ==scale
     idx [ /spl /sp /esp /rsp ] streq any not assert
     base [ /bpl /bp /ebp /rbp ] streq any not assert
+    scale _ 0 gt assert 8 le assert
 
-    %C0 scale %40 mul band add
+    scale [ 1 %00 %40 1 %80 1 1 1 %C0 ] *
+      _ 1 neq assert
+    %C0 band
     %38 idx regno 8 mul band add
     %07 base regno band add
   } /sib deff
@@ -91,15 +94,53 @@
   { _ 0 ge assert 2 { _ 256 mod -01 256 div } rep -- } /imm16 deff
   { _ 0 lt { 256 add } rep 255 band } /imm8 deff
 
+  # label handling
+  < { defv }' /put deff > ==labels
+  [ ] ==labelHoles
+
+  { ==l
+    ] _ len l labels .put [ -011 len dearray
+  } /label deff
+
+  { ==l
+    ] _ len ==offset
+    labelHoles [ {
+      labels l . offset 1 add sub
+      _ 128 lt assert
+      _ 128 neg ge assert
+      imm8 offset -102 =[] } ] cat =labelHoles
+    [ -011 len dearray %00
+  } /labelRel8 deff
+
+  { ==opcodes
+    labelHoles { opcodes -01 * } each
+
+    < { defv }' /put deff > =labels
+    [ ] =labelHoles
+
+    opcodes
+  } /labelResolve deff
+
   # instructions
   { ==reg ==mem
     reg bit32 assert
     mem bit64 assert
 
-    0 reg /none mem rex
+    reg regno %07 gt mem regno %07 gt or { 0 reg /none mem rex } rep
     %03
     reg mem modrm00
   } /addlMemReg deff
+
+  { ==mem ==disp ==i
+    mem bit64 assert
+    i 256 lt assert
+
+    1 /none /none mem rex
+    %83
+    /zero mem modrm01
+    disp imm8
+    i imm8
+  } /addqImm8MemDisp8 deff
 
   { ==reg ==i
     reg bit64 assert
@@ -183,25 +224,42 @@
     /zero reg modrm11
   } /incqReg deff
 
-  { ==name ==opcode
-    {
-      ==offset
+  { < ==name ==opcode
+    { ==offset
       offset 128 neg ge assert
       offset 128 lt assert
 
       opcode
       offset imm8
-    } name deff
-  }' /defRel8Jmp deff
+    } name "Rel8" cat
 
-  %EB /jmpRel8 defRel8Jmp
+    { ==lbl
 
-  %72 /jbRel8 defRel8Jmp
-  %76 /jbeRel8 defRel8Jmp
-  %7E /jleRel8 defRel8Jmp
-  %73 /jnbRel8 defRel8Jmp
-  %75 /jnzRel8 defRel8Jmp
-  %74 /jzRel8 defRel8Jmp
+      opcode
+      lbl labelRel8
+      _ 128 neg ge assert
+      _ 128 lt assert
+    } name "Lbl8" cat
+    > -- 2 |deff rep
+  }' /defJmp deff
+
+  %EB /jmp defJmp
+
+  %72 /jb defJmp
+  %76 /jbe defJmp
+  %7E /jle defJmp
+  %73 /jnb defJmp
+  %75 /jnz defJmp
+  %74 /jz defJmp
+
+  { ==reg ==mem
+    reg bit32 assert
+    mem bit64 assert
+
+    reg regno %07 gt mem regno %07 gt or { 0 reg /none mem rex } rep
+    %8B
+    reg mem modrm00
+  } /movlMemReg deff
 
   { ==reg ==i
     reg bit64 assert
@@ -210,6 +268,18 @@
     %B8 reg regno %07 band add
     i imm64
   } /movqImmReg deff
+
+  { ==mem ==disp ==i
+    mem bit64 assert
+    i 2147483648 lt assert
+    i 2147483648 neg ge assert
+
+    1 /none /none mem rex
+    %C7
+    /zero mem modrm01
+    disp imm8
+    i imm32
+  } /movqImm32MemDisp8 deff
 
   { ==reg
     reg bit64 assert
@@ -268,7 +338,7 @@
     reg mem modrm01
     disp imm8
   } /movqRegMemDisp8 deff
-
+  
   { ==mem ==idx ==reg
     reg bit64 assert
     mem bit64 assert
@@ -342,14 +412,12 @@
     i imm8
   } /shlqImm8Reg deff
 
-  { ==reg ==i
+  { ==reg
     reg bit64 assert
-    i 256 lt assert
 
     1 /none /none reg rex
     %D1
     /five reg modrm11
-    i imm8
   } /shrq1Reg deff
 
   { ==reg ==i
@@ -368,7 +436,7 @@
     disp 128 lt assert
 
     1 reg /none mem rex
-    %29
+    %2B
     reg mem modrm01
     disp imm8
   } /subqMemDisp8Reg deff
@@ -378,7 +446,7 @@
     mem bit64 assert
 
     reg regno %07 gt mem regno %07 gt or { 0 reg /none mem rex } rep
-    %29
+    %2B
     reg mem modrm00
   } /sublMemReg deff
 
@@ -387,7 +455,7 @@
     mem bit64 assert
 
     1 reg /none mem rex
-    %29
+    %2B
     reg mem modrm00
   } /subqMemReg deff
 
@@ -463,38 +531,6 @@
     src dst modrm11
   } /xorqRegReg deff
 
-  # label handling
-  < { defv }' /put deff > ==labels
-  [ ] ==labelHoles
-
-  { ==l
-    ] _ len l labels .put [ -011 len dearray
-  } /label deff
-
-  { ==l
-    ] _ len ==offset
-    labelHoles [ { offset labels l . sub imm8 offset -102 =[] } ] cat =labelHoles
-    [ -011 len dearray %00
-  } /labelRel8 deff
-
-  { ==opcodes
-    labelHoles { opcodes -01 * } each
-
-    < { defv }' /put deff > =labels
-    [ ] =labelHoles
-
-    opcodes
-  } /labelResolve deff
-
-  # data manipulation functions
-  { # ==addr
-    [ -01 8 { _ sys .asm .peek -01 1 add } rep -- ] reverse { -01 256 mul add } fold
-  } /peekImm64 deff
-
-  { # ==addr
-    [ -01 4 { _ sys .asm .peek -01 1 add } rep -- ] reverse { -01 256 mul add } fold
-  } /peekImm32 deff
-
   # global stack layout
   # 0 - STACKSTART  : global variables
   #              %0 : current stack pointer
@@ -506,65 +542,6 @@
       mainStack .base STACKSIZE add imm64
     ] { i sys .asm .poke i 1 add =i } each
   > --
-
-  {
-    [ -01 16 { _ 16 mod -01 16 div } rep -- ]
-    [ /0 /1 /2 /3 /4 /5 /6 /7 /8 /9 /A /B /C /D /E /F ] *
-    reverse |cat fold
-  } /base16encode64 deff
-
-  {
-    [ -01 8 { _ 16 mod -01 16 div } rep -- ]
-    [ /0 /1 /2 /3 /4 /5 /6 /7 /8 /9 /A /B /C /D /E /F ] *
-    reverse |cat fold
-  } /base16encode32 deff
-
-  <
-    [
-      32 { "." } rep
-      " " "!" "\"" "#" "$" "%" "&" "´" "(" ")" "*" "+" "," "-" "." "/"
-      /0 /1 /2 /3 /4 /5 /6 /7 /8 /9 ":" ";" "<" "=" ">" "?"
-      "@" /A /B /C /D /E /F /G /H /I /J /K /L /M /N /O /P
-      /Q /R /S /T /U /V /W /X /Y /Z "[" "\\" "]" "^" "_"
-      "`" /a /b /c /d /e /f /g /h /i /j /k /l /m /n /o /p
-      /q /r /s /t /u /v /w /x /y /z "{" "|" "}" "~" "."
-      128 { "." } rep
-    ] /ASCII defv
-
-    {
-      mainStack .base STACKSIZE add ==stackEnd
-      "Stack ------------\n" sys .out .writestr
-      mainStack .base peekImm64 ==addr
-      addr stackEnd gt { [ -01 stackEnd ] die } rep # Stack corrupted
-
-      { addr stackEnd lt } {
-        [
-          addr base16encode64 ": "
-          addr peekImm64 ==value
-          value base16encode64
-          value 105553116266496 ge value 123145302310912 lt and {
-            value       peekImm32
-            value 4 add peekImm32 16777215 band 4294967296 mul
-              add 8 div ==length
-            0 length 1 sub range {
-              8 mul value add ==heapAddr
-              "\n  "
-              heapAddr base16encode64
-              ": "
-              # the perl interpreter does not like full 64bit numbers and converts them into floats
-              heapAddr 4 add peekImm32 _ ==heapValueB base16encode32
-              heapAddr       peekImm32 _ ==heapValueA base16encode32
-              " "
-              [ [ heapValueA heapValueB ] { 4 { _ 256 mod -01 256 div } rep -- } each ] ASCII * 8 dearray
-            } each
-          } rep
-          "\n"
-        ] |cat fold sys .out .writestr
-        addr 8 add =addr
-      } loop
-      "^^^^^^^^^^^^^^^^^^\n" sys .out .writestr
-    }
-  > -- /stackDump deff
 
   { ==opcodes
     opcodes len 1 sub PAGESIZE div 1 add PAGESIZE mul sys .asm .alloc /codearea defv

@@ -35,46 +35,9 @@
     ] :execute
   } /TOKINT
 
-  { .value strToUTF8Bytes _ =*v len _ ==exactLength
-    1 sub 8 div 4 add 8 mul ==memoryLength
+  { .value ::constStringCode :execute } /TOKSTR
 
-    memoryLength 2147483648 lt assert
-
-    [
-      # allocate string
-      memoryLength /rdi :movqImmReg
-      ::internalAllocate /rax :movqImmReg
-      /rax :callqReg
-
-      # push string address on program stack
-      /rax :pushqReg
-
-      # set type
-      7 /rax :addqImm8Reg
-      %10 /rax :orbImmMem64
-
-      # clear hash value
-      1 /rax :addqImm8Reg
-      /rdx /rdx :xorqRegReg
-      /rdx /rax :movqRegMem 
-
-      # load exact length
-      8 /rax :addqImm8Reg
-      exactLength /rdx :movqImmReg
-      /rdx /rax :movqRegMem 
-
-      # load string contents
-      0 exactLength 8 div range { 8 mul ==i
-        8 /rax :addqImm8Reg
-        /rdx :movqImmOOBReg i _ 7 add range v 8 dearray
-        /rdx /rax :movqRegMem
-      } each
-    ]
-  } /TOKSTRcode deff
-
-  { TOKSTRcode :execute } /TOKSTR
-
-  { TOKSTRcode
+  { .value ::constStringCode
     [
       # scope resolution
       ::currentScope /rdi :movqImmReg
@@ -85,11 +48,11 @@
       /rax :pushqReg
 
       /rdx /rdx :testqRegReg
-      /inactive :labelRel8 /jzRel8
+      /inactive :jzLbl8
       ::ey* /rax :movqImmReg
       /rax :callqReg
       /inactive :label
-    ] :labelResolve :execute
+    ] :labelResolve cat :execute
   } /TOKID
 > -- 3 |defv rep
 
@@ -128,7 +91,7 @@
     4096 input .readstr cat
     _ "" streq not
   } {
-    { _ "([^\\n]*)\\n(.*)" regex } { -102 -- tokenize { _ .handle assembler .stackDump } each } loop
+    { _ "([^\\n]*)\\n(.*)" regex } { -102 -- tokenize { _ .handle assemblerLibrary .stackDump } each } loop
   } loop
 } /executeFile deff
 
