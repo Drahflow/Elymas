@@ -51,23 +51,52 @@ our $global = {
 
       die "unexpanded token in quoted code" if grep { $_->[1] eq 'tok' } @code;
 
-      if($quoted) {
-        push @$data, [sub {
-          my ($data, $refScope) = @_;
-          my $scope = $$refScope;
+      # if($quoted) {
+      #   push @$data, [sub {
+      #     my ($data, $refScope) = @_;
+      #     my $scope = $$refScope;
 
-          push @$data, [sub {
+      #     push @$data, [sub {
+      #       my ($data) = @_;
+      #       my $lscope = \{ ' parent' => $scope };
+      #       interpretCode(\@code, $data, $lscope);
+      #     }, ['func', 'Dumper(\@code)']];
+      #   }, ['func', 'func-quoted'], \@code];
+      # } else {
+      #   push @$data, [sub {
+      #     my ($data) = @_;
+      #     my $lscope = \{ ' parent' => $scope };
+      #     interpretCode(\@code, $data, $lscope);
+      #   }, ['func', 'Dumper(\@code)']];
+      # }
+
+      if($quoted) {
+        my $sub = <<'EOPERL' .
+          sub {
+            my ($data, $refScope) = @_;
+            my $scope = $$refScope;
+            my $s = sub {
+                my ($data) = @_;
+                my $lscope = \{ ' parent' => $scope };
+EOPERL
+                compileCode(\@code) . <<'EOPERL';
+              };
+            push @$data, [$s, ['func', 'compiled sub (1)']];
+          }
+EOPERL
+        $sub = eval($sub);
+        push @$data, [$sub, ['func', 'func-quoted'], \@code];
+      } else {
+        my $sub = <<'EOPERL' .
+          sub {
             my ($data) = @_;
             my $lscope = \{ ' parent' => $scope };
-            interpretCode(\@code, $data, $lscope);
-          }, ['func', 'Dumper(\@code)']];
-        }, ['func', 'func-quoted'], \@code];
-      } else {
-        push @$data, [sub {
-          my ($data) = @_;
-          my $lscope = \{ ' parent' => $scope };
-          interpretCode(\@code, $data, $lscope);
-        }, ['func', 'Dumper(\@code)']];
+EOPERL
+            compileCode(\@code) . <<'EOPERL';
+          };
+EOPERL
+        $sub = eval($sub);
+        push @$data, [$sub, ['func', 'compiled sub (2)']];
       }
     }, ['func', '}'], 'quote'],
   "}'" => [sub {

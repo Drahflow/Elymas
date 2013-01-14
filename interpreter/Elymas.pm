@@ -7,7 +7,7 @@ require Exporter;
 our @ISA = qw(Exporter);
 our @EXPORT = qw(
   popInt popString popArray arrayAccess $quoted @globalCallStack
-  interpretCode execute executeString executeFile resolve canCastTo typeEqual
+  interpretCode compileCode execute executeString executeFile resolve canCastTo typeEqual
 );
 
 use Data::Dumper;
@@ -71,6 +71,40 @@ sub interpretCode {
     print "Token: " . Dumper($t);
     die;
   }
+}
+
+sub compileCode {
+  my ($code) = @_;
+
+  my $ret = "my \$i = 0; eval {\n";
+
+  foreach my $i (0 .. $#$code) {
+    my $t = $code->[$i];
+
+    if(ref($t->[1]) eq 'ARRAY' and $t->[1]->[0] eq 'func') {
+      if(not $t->[1]->[2]) {
+        # untyped function, just call, no need to go through execute
+        $ret .= "push \@globalCallStack, \$code[$i];\n";
+        $ret .= "&{\$code[$i]->[0]}(\$data, \$lscope);\n";
+        $ret .= "pop \@globalCallStack;\n";
+      } else {
+        $ret .= "\$i = $i; execute(\$code[$i], \$data, \$lscope);\n";
+      }
+    } else {
+      $ret .= "push \@\$data, \$code[$i];\n";
+    }
+  }
+
+  $ret .= <<'EOPERL';
+  };
+  if($@) {
+    print "Stack: " . Dumper($data);
+    print "Token: " . Dumper($code[$i]);
+    die;
+  }
+EOPERL
+
+  return $ret;
 }
 
 sub typeStack {
