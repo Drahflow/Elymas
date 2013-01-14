@@ -6,7 +6,7 @@ use warnings;
 require Exporter;
 our @ISA = qw(Exporter);
 our @EXPORT = qw(
-  popInt popString popArray arrayAccess $quoted @globalCallStack
+  popInt popString popArray $quoted @globalCallStack
   interpretCode compileCode execute executeString executeFile resolve canCastTo typeEqual
 );
 
@@ -40,15 +40,6 @@ sub popArray {
   return $a->[0];
 }
 
-sub arrayAccess {
-  my ($array, $data, $scope) = @_;
-
-  my $i = pop @$data or die "Stack underflow";
-  die "array index must be int" unless $i->[1] eq 'int';
-
-  push @$data, $array->[0]->[$i->[0] % @{$array->[0]}];
-}
-
 sub interpretCode {
   my ($code, $data, $scope) = @_;
 
@@ -76,24 +67,104 @@ sub interpretCode {
 sub compileCode {
   my ($code) = @_;
 
-  my $ret = "my \$i = 0; eval {\n";
+  my $ret = "";
+  my $popPending = 0;
+  my $popCode = "pop \@globalCallStack;\n";
+  my $hasStackOps = 0;
+  my $skip = 0;
+
+  $ret .= "my \$i = 0; my \$name; my \$meaning; my \$rscope; eval {\n";
 
   foreach my $i (0 .. $#$code) {
+    if($skip) {
+      $skip = 0;
+      next;
+    }
+
     my $t = $code->[$i];
 
     if(ref($t->[1]) eq 'ARRAY' and $t->[1]->[0] eq 'func') {
       if(not $t->[1]->[2]) {
-        # untyped function, just call, no need to go through execute
-        $ret .= "\$i = $i;\n";
-        $ret .= "push \@globalCallStack, \$code[$i];\n";
-        $ret .= "&{\$code[$i]->[0]}(\$data, \$lscope);\n";
-        $ret .= "pop \@globalCallStack;\n";
+        if($t->[1]->[1] =~ /^quoted late-resolve of/) {
+          $ret .= $popCode and $popPending = 0 if $popPending;
+          my $name = $t->[2];
+          # $ret .= "\$name = '$name'; Elymas::applyResolvedName(\$name, resolve(\$\$lscope, \$data, \$name), \$data, \$lscope, 0);\n";
+          # $ret .= "\$meaning = resolve(\$\$lscope, \$data, '$name');\n";
+          $ret .= "\$meaning = undef;\n";
+          $ret .= "\$rscope = \$\$lscope;\n";
+          $ret .= "do {\n";
+          $ret .= "  \$meaning = \$rscope->{'$name'} and \$rscope = undef if exists \$rscope->{'$name'};\n";
+          $ret .= "  \$rscope = \$rscope->{' parent'};\n";
+          $ret .= "} while(defined \$rscope);\n";
+          $ret .= "die 'could not resolve \"$name\"' unless defined \$meaning;\n";
+          $ret .= <<'EOPERL';
+          if($meaning->[2] eq 'passive') {
+            push @$data, [$meaning->[0], $meaning->[1]];
+          } elsif($meaning->[2] eq 'active' or $meaning->[2] eq 'quote') {
+            execute([$meaning->[0], $meaning->[1]], $data, $scope);
+          } else {
+            die "unknown scope entry meaning: " . $meaning->[2];
+          }
+EOPERL
+        } elsif($t->[1]->[1] eq '/') {
+          # nop
+        } elsif($t->[1]->[1] eq '_') {
+          $ret .= "# _\n";
+          $ret .= "push \@\$data, \$data->[-1];\n";
+        } else {
+          # untyped function, just call, no need to go through execute
+          $ret .= "\$i = $i;\n";
+          if($popPending) {
+            $ret .= "\$globalCallStack[-1] = \$code[$i];\n";
+          } else {
+            $ret .= "push \@globalCallStack, \$code[$i];\n";
+          }
+          $ret .= "&{\$code[$i]->[0]}(\$data, \$lscope); # " . $code->[$i]->[1]->[1] . "\n";
+          $popPending = 1;
+        }
       } else {
-        $ret .= "\$i = $i; execute(\$code[$i], \$data, \$lscope);\n";
+        $ret .= $popCode and $popPending = 0 if $popPending;
+        $ret .= "\$i = $i; execute(\$code[$i], \$data, \$lscope); # " . $code->[$i]->[1]->[1] . "\n";
       }
     } else {
-      $ret .= "push \@\$data, \$code[$i];\n";
+      if($i < $#$code and ref($code->[$i + 1]->[1]) eq 'ARRAY' and $code->[$i + 1]->[1]->[1] eq '-') {
+        # inline stack operation
+
+        $ret .= "# -" . $code->[$i]->[0] . "\n";
+
+        my $spec = $code->[$i]->[0];
+        my $max = 0;
+
+        my @spec = split //, $spec;
+        $max = $_ > $max? $_: $max foreach grep { $_ ne '*' } @spec;
+
+        $ret .= "die 'Stack underflow in inlined stack-op' unless \@\$data >= $max;\n";
+        $hasStackOps = 1;
+        $ret .= "\@buffer = ();\n";
+
+        foreach (0 .. $max) {
+          $ret .= "push \@buffer, pop \@\$data;\n";
+        }
+
+        foreach my $j (@spec) {
+          if($j eq '*') {
+            $ret .= "\$f = pop \@\$data or die 'Stack underflow in -*';\n";
+            $ret .= "execute(\$f, \$data, \$scope);\n";
+          } else {
+            $ret .= "push \@\$data, \$buffer[$j];\n";
+          }
+        }
+        
+        $skip = 1;
+      } else {
+        $ret .= "push \@\$data, \$code[$i]; # " . $code->[$i]->[0] . "\n";
+      }
     }
+  }
+
+  $ret .= $popCode and $popPending = 0 if $popPending;
+  if($hasStackOps) {
+    $ret = "my \$f; my \@buffer; \n" . $ret;
   }
 
   $ret .= <<'EOPERL';
@@ -275,8 +346,12 @@ sub execute {
   if($f->[1]->[0] eq 'array') {
     my $ff = $f;
     $f = [sub {
-      my ($data, $scope) = @_;
-      arrayAccess($ff, $data, $scope);
+      my ($data) = @_;
+
+      my $i = pop @$data or die "Stack underflow";
+      die "array index must be int" unless $i->[1] eq 'int';
+
+      push @$data, $ff->[0]->[$i->[0] % @{$ff->[0]}];
     }, ['func', 'array-to-func-cast', ['int'], [$ff->[1]->[1]]]];
   } elsif($f->[1]->[0] ne 'func') {
     die "complex type unsuitable for execution";
@@ -291,16 +366,23 @@ sub execute {
   }
 
   # COMMON case optimization (can be removed without any effect on semantics)
-  my $allTrivial = 1;
-  for(my $argI = $#{$f->[1]->[2]}; $argI >= 0; --$argI) {
-    if($data->[-1-$argI]->[1] ne $f->[1]->[2]->[$argI]) {
-      $allTrivial = 0;
-      last;
-    }
-  }
+#  my $allTrivial = 1;
+#  for(my $argI = $#{$f->[1]->[2]}; $argI >= 0; --$argI) {
+#    if($data->[-1-$argI]->[1] ne $f->[1]->[2]->[$argI]) {
+#      $allTrivial = 0;
+#      last;
+#    }
+#  }
+#
+#  # trivial scalar arguments all over the place
+#  if($allTrivial) {
+#    push @globalCallStack, $f;
+#    &{$f->[0]}($data, $scope);
+#    pop @globalCallStack;
+#    return;
+#  }
 
-  # trivial scalar arguments all over the place
-  if($allTrivial) {
+  if(@{$f->[1]->[2]} == grep { $data->[-1-$_]->[1] eq $f->[1]->[2]->[$_] } 0 .. $#{$f->[1]->[2]}) {
     push @globalCallStack, $f;
     &{$f->[0]}($data, $scope);
     pop @globalCallStack;
@@ -493,8 +575,11 @@ sub resolve {
 
   die "resolution for undefined name attempted" unless defined $name;
 
-  return $scope->{$name} if(exists $scope->{$name});
-  return resolve($scope->{' parent'}, $data, $name) if(exists $scope->{' parent'});
+  do {
+    return $scope->{$name} if(exists $scope->{$name});
+    $scope = $scope->{' parent'};
+  } while(defined $scope);
+
   return undef;
 }
 

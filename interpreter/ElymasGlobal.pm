@@ -115,23 +115,52 @@ EOPERL
 
       die "unexpanded token in quoted code" if grep { $_->[1] eq 'tok' } @code;
 
-      if($quoted) {
-        push @$data, [sub {
-          my ($data, $refScope) = @_;
-          my $scope = $$refScope;
+#      if($quoted) {
+#        push @$data, [sub {
+#          my ($data, $refScope) = @_;
+#          my $scope = $$refScope;
+#
+#          push @$data, [sub {
+#            my ($data) = @_;
+#            interpretCode(\@code, $data, \$scope);
+#          }, ['func', 'Dumper(\@code)']];
+#        }, ['func', 'func-quoted'], \@code];
+#      } else {
+#        push @$data, [sub {
+#          my ($data) = @_;
+#          interpretCode(\@code, $data, \$scope);
+#        }, ['func', 'Dumper(\@code)']];
+#      }
 
-          push @$data, [sub {
-            my ($data) = @_;
-            interpretCode(\@code, $data, \$scope);
-          }, ['func', 'Dumper(\@code)']];
-        }, ['func', 'func-quoted'], \@code];
+      if($quoted) {
+        my $sub = <<'EOPERL' .
+          sub {
+            my ($data, $refScope) = @_;
+            my $scope = $$refScope;
+            my $s = sub {
+                my ($data) = @_;
+                my $lscope = \$scope;
+EOPERL
+                compileCode(\@code) . <<'EOPERL';
+              };
+            push @$data, [$s, ['func', 'compiled sub (1)']];
+          }
+EOPERL
+        $sub = eval($sub);
+        push @$data, [$sub, ['func', 'func-quoted'], \@code];
       } else {
-        push @$data, [sub {
-          my ($data) = @_;
-          interpretCode(\@code, $data, \$scope);
-        }, ['func', 'Dumper(\@code)']];
+        my $sub = <<'EOPERL' .
+          sub {
+            my ($data) = @_;
+            my $lscope = \$scope;
+EOPERL
+            compileCode(\@code) . <<'EOPERL';
+          };
+EOPERL
+        $sub = eval($sub);
+        push @$data, [$sub, ['func', 'compiled sub (2)']];
       }
-    }, ['func', '}'], 'quote'],
+    }, ['func', "}'"], 'quote'],
   'quoted' => [sub {
       my ($data, $scope) = @_;
       push @$data, [$quoted? 1: 0, 'int'];
@@ -341,6 +370,17 @@ EOPERL
 
       die "Not numeric: " . Dumper($c) unless $c->[1] eq 'int';
 
+      # COMMON case optimization (can be removed without any effect on semantics)
+      if(ref($f->[1]) eq 'ARRAY' and $f->[1]->[0] eq 'func' and not $f->[1]->[2]) {
+        push @globalCallStack, $f;
+        foreach my $i (1 .. $c->[0]) {
+          &{$f->[0]}($data, $scope);
+        }
+        pop @globalCallStack;
+        return;
+      }
+      # END COMMON
+      
       foreach my $i (1 .. $c->[0]) {
         execute($f, $data, $scope);
       }
@@ -520,7 +560,19 @@ EOPERL
       my $f = pop @$data or die "Stack underflow";
       my $a = pop @$data or die "Stack underflow";
       die "Not array: " . Dumper($a) unless ref($a->[1]) eq 'ARRAY' and $a->[1]->[0] eq 'array';
-
+  
+      # COMMON case optimization (can be removed without any effect on semantics)
+      if(ref($f->[1]) eq 'ARRAY' and $f->[1]->[0] eq 'func' and not $f->[1]->[2]) {
+        push @globalCallStack, $f;
+        foreach my $i (@{$a->[0]}) {
+          push @$data, $i;
+          &{$f->[0]}($data, $scope);
+        }
+        pop @globalCallStack;
+        return;
+      }
+      # END COMMON
+      
       foreach my $i (@{$a->[0]}) {
         push @$data, $i;
         execute($f, $data, $scope);

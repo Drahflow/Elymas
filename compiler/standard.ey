@@ -7,16 +7,16 @@
   } quoted { } { * } ? *
 } "}_" defq
 
-{ =*f _ =*a len ==l
-  l {
+{ -1110 ; ==f =*a len _
+  {
     0 a
-    1 l 1 sub range { a f } each
-    } { "fold on empty array" die }
+    1 -102 1 sub range f each
+    }' { "fold on empty array" die }'
   ? *
 } /fold deff
 
-{ _ =*a len ==l
-  [ 1 l range { l -01 sub a } each ]
+{ _ =*a len
+  [ 1 -1202 range { -110 sub a -01 }' each -- ]
 } /reverse deff
 
 { |or fold } /any deff

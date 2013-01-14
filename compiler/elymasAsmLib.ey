@@ -486,11 +486,11 @@
     ] /ASCII defv
 
     { # ==addr
-      [ -01 8 { _ sys .asm .peek -01 1 add } rep -- ] reverse { -01 256 mul add } fold
+      [ -01 7 add 8 { _ sys .asm .peek -01 1 sub } rep -- ] { -01 256 mul add } fold
     } /peekImm64 deff
 
     { # ==addr
-      [ -01 4 { _ sys .asm .peek -01 1 add } rep -- ] reverse { -01 256 mul add } fold
+      [ -01 3 add 4 { _ sys .asm .peek -01 1 sub } rep -- ] { -01 256 mul add } fold
     } /peekImm32 deff
 
     { # ==addr
