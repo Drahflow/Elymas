@@ -596,19 +596,43 @@ sub installGlobal1IntFunction {
 sub installGlobal2IntFunction {
   my ($name, $code) = @_;
 
-  $global->{$name} = [sub {
-      my ($data, $scope) = @_;
+  my $modifiedCode = $code;
 
-      my $b = pop @$data;
-      unless($b->[1] eq 'int' and $data->[-1]->[1] eq 'int') {
-        die "Not int-typed arguments: " . Dumper($data->[-1], $b);
-      }
-      $data->[-1] = [&$code($data->[-1]->[0], $b->[0]), 'int'];
+  $modifiedCode =~ s/\$a/\$data->[-1]->[0]/;
+  $modifiedCode =~ s/\$b/\$b->[0]/;
 
-#      my $b = popInt($data);
-#      my $a = popInt($data);
-#      push @$data, [&$code($a, $b), 'int'];
-    }, ['func', $name, ['int', 'int'], ['int']], 'active'];
+  my $sub = <<'EOPERL' .
+  sub {
+    my ($data, $scope) = @_;
+
+    my $b = pop @$data;
+    unless($b->[1] eq 'int' and $data->[-1]->[1] eq 'int') {
+      die "Not int-typed arguments: " . Dumper($data->[-1], $b);
+    }
+    $data->[-1] = [
+EOPERL
+    $modifiedCode . <<'EOPERL';
+    , 'int'];
+  };
+EOPERL
+
+  $sub = eval($sub);
+
+  $global->{$name} = [$sub, ['func', $name, ['int', 'int'], ['int']], 'active'];
+
+#  $global->{$name} = [sub {
+#      my ($data, $scope) = @_;
+#
+#      my $b = pop @$data;
+#      unless($b->[1] eq 'int' and $data->[-1]->[1] eq 'int') {
+#        die "Not int-typed arguments: " . Dumper($data->[-1], $b);
+#      }
+#      $data->[-1] = [&$code($data->[-1]->[0], $b->[0]), 'int'];
+#
+##      my $b = popInt($data);
+##      my $a = popInt($data);
+##      push @$data, [&$code($a, $b), 'int'];
+#    }, ['func', $name, ['int', 'int'], ['int']], 'active'];
 }
 
 sub installGlobal2StrFunction {
@@ -617,41 +641,43 @@ sub installGlobal2StrFunction {
   $global->{$name} = [sub {
       my ($data, $scope) = @_;
 
-      my $b = popString($data);
-      my $a = popString($data);
-      push @$data, &$code($a, $b);
-    }, ['func', $name, ['int', 'int'], ['int']], 'active'];
+      my $b = pop @$data;
+      unless($b->[1] eq 'string' and $data->[-1]->[1] eq 'string') {
+        die "Not string-typed arguments: " . Dumper($data->[-1], $b);
+      }
+      $data->[-1] = &$code($data->[-1]->[0], $b->[0]);
+    }, ['func', $name, ['string', 'string'], ['int']], 'active'];
 }
 
 # math and logic stuff
-installGlobal2IntFunction('add', sub { return $_[0] + $_[1] });
-installGlobal2IntFunction('sub', sub { return $_[0] - $_[1] });
-installGlobal2IntFunction('mul', sub { return $_[0] * $_[1] });
-installGlobal2IntFunction('div', sub { return int($_[0] / $_[1]) });
-installGlobal2IntFunction('mod', sub { return $_[0] % $_[1] });
+installGlobal2IntFunction('add', '$a + $b');
+installGlobal2IntFunction('sub', '$a - $b');
+installGlobal2IntFunction('mul', '$a * $b');
+installGlobal2IntFunction('div', 'int($a / $b)');
+installGlobal2IntFunction('mod', '$a % $b');
 
-installGlobal2IntFunction('and', sub { return ($_[0] and $_[1])? 1: 0 });
-installGlobal2IntFunction('nand', sub { return (not ($_[0] and $_[1]))? 1: 0 });
-installGlobal2IntFunction('or', sub { return ($_[0] or $_[1])? 1: 0 });
-installGlobal2IntFunction('xor', sub { return ($_[0] xor $_[1])? 1: 0 });
-installGlobal2IntFunction('nxor', sub { return (not ($_[0] xor $_[1]))? 1: 0 });
-installGlobal2IntFunction('nor', sub { return (not ($_[0] or $_[1]))? 1: 0 });
+installGlobal2IntFunction('and', '($a and $b)? 1: 0');
+installGlobal2IntFunction('nand', '($a and $b)? 0: 1');
+installGlobal2IntFunction('or', '($a or $b)? 1: 0');
+installGlobal2IntFunction('nor', '($a or $b)? 0: 1');
+installGlobal2IntFunction('xor', '($a xor $b)? 1: 0');
+installGlobal2IntFunction('nxor', '($a xor $b)? 0: 1');
 
-installGlobal2IntFunction('band', sub { return (0 + $_[0]) & (0 + $_[1]) });
-installGlobal2IntFunction('bnand', sub { return ~((0 + $_[0]) & (0 + $_[1])) });
-installGlobal2IntFunction('bor', sub { return (0 + $_[0]) | (0 + $_[1]) });
-installGlobal2IntFunction('bxor', sub { return (0 + $_[0]) ^ (0 + $_[1]) });
-installGlobal2IntFunction('bnxor', sub { return ~((0 + $_[0]) ^ (0 + $_[1])) });
-installGlobal2IntFunction('bnor', sub { return ~((0 + $_[0]) | (0 + $_[1])) });
+installGlobal2IntFunction('band', '(0+$a) & (0+$b)');
+installGlobal2IntFunction('bnand', '~((0+$a) & (0+$b))');
+installGlobal2IntFunction('bor', '(0+$a) | (0+$b)');
+installGlobal2IntFunction('bnor', '~((0+$a) | (0+$b))');
+installGlobal2IntFunction('bxor', '(0+$a) ^ (0+$b)');
+installGlobal2IntFunction('bnxor', '~((0+$a) ^ (0+$b))');
 
-installGlobal2IntFunction('eq', sub { return ($_[0] == $_[1])? 1: 0 });
-installGlobal2IntFunction('neq', sub { return ($_[0] != $_[1])? 1: 0 });
-installGlobal2IntFunction('lt', sub { return ($_[0] < $_[1])? 1: 0 });
-installGlobal2IntFunction('le', sub { return ($_[0] <= $_[1])? 1: 0 });
-installGlobal2IntFunction('gt', sub { return ($_[0] > $_[1])? 1: 0 });
-installGlobal2IntFunction('ge', sub { return ($_[0] >= $_[1])? 1: 0 });
+installGlobal2IntFunction('eq', '($a == $b)? 1: 0');
+installGlobal2IntFunction('neq', '($a != $b)? 1: 0');
+installGlobal2IntFunction('lt', '($a < $b)? 1: 0');
+installGlobal2IntFunction('le', '($a <= $b)? 1: 0');
+installGlobal2IntFunction('gt', '($a > $b)? 1: 0');
+installGlobal2IntFunction('ge', '($a >= $b)? 1: 0');
 
-installGlobal2IntFunction('gcd', sub { my ($a, $b) = @_; ($a, $b) = ($b, $a % $b) while($b); return $a; });
+# installGlobal2IntFunction('gcd', sub { my ($a, $b) = @_; ($a, $b) = ($b, $a % $b) while($b); return $a; });
 
 installGlobal1IntFunction('neg', sub { return -$_[0] });
 installGlobal1IntFunction('not', sub { return not $_[0] });

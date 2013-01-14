@@ -84,6 +84,7 @@ sub compileCode {
     if(ref($t->[1]) eq 'ARRAY' and $t->[1]->[0] eq 'func') {
       if(not $t->[1]->[2]) {
         # untyped function, just call, no need to go through execute
+        $ret .= "\$i = $i;\n";
         $ret .= "push \@globalCallStack, \$code[$i];\n";
         $ret .= "&{\$code[$i]->[0]}(\$data, \$lscope);\n";
         $ret .= "pop \@globalCallStack;\n";
