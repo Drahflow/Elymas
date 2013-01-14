@@ -49,6 +49,8 @@ our $global = {
         unshift @code, $t;
       };
 
+      die "unexpanded token in quoted code" if grep { $_->[1] eq 'tok' } @code;
+
       if($quoted) {
         push @$data, [sub {
           my ($data, $refScope) = @_;
@@ -81,6 +83,8 @@ our $global = {
 
         unshift @code, $t;
       };
+
+      die "unexpanded token in quoted code" if grep { $_->[1] eq 'tok' } @code;
 
       if($quoted) {
         push @$data, [sub {

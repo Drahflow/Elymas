@@ -52,23 +52,24 @@ sub arrayAccess {
 sub interpretCode {
   my ($code, $data, $scope) = @_;
 
-  foreach my $t (@$code) {
-    eval {
-      if($t->[1] eq 'tok') {
-        die "unexpanded token in interpretCode";
-      } elsif(ref($t->[1]) eq 'ARRAY' and $t->[1]->[0] eq 'func') {
+  my $t;
+
+  eval {
+    foreach my $tt (@$code) {
+      $t = $tt;
+      if(ref($t->[1]) eq 'ARRAY' and $t->[1]->[0] eq 'func') {
         execute($t, $data, $scope);
       } else {
         push @$data, $t;
       }
-    };
-    if($@) {
-      #print "Code: " . Dumper($tokens);
-      #print "Scope: " . Dumper($scope);
-      print "Stack: " . Dumper($data);
-      print "Token: " . Dumper($t);
-      die;
     }
+  };
+  if($@) {
+    #print "Code: " . Dumper($tokens);
+    #print "Scope: " . Dumper($scope);
+    print "Stack: " . Dumper($data);
+    print "Token: " . Dumper($t);
+    die;
   }
 }
 
