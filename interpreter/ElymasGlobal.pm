@@ -28,8 +28,7 @@ our $global = {
       if(not defined $meaning) {
         die "could not resolve '$n'";
       }
-      push @$data, [$meaning->[0], $meaning->[1]];
-      execute($data, $scope);
+      execute([$meaning->[0], $meaning->[1]], $data, $scope);
     }, ['func', '\\'], 'active'],
   '{' => [sub {
       my ($data, $scope) = @_;
@@ -125,7 +124,8 @@ our $global = {
 
       foreach my $i (@spec) {
         if($i eq '*') {
-          execute($data, $scope);
+          my $f = pop @$data or die "Stack underflow in '-*'";
+          execute($f, $data, $scope);
         } else {
           push @$data, $buffer[$i];
         }
@@ -141,7 +141,8 @@ our $global = {
   '*' => [sub {
       my ($data, $scope) = @_;
 
-      execute($data, $scope);
+      my $f = pop @$data or die "Stack underflow in '*'";
+      execute($f, $data, $scope);
     }, ['func', '*'], 'active'],
   ';' => [sub {
       my ($data, $scope) = @_;
@@ -152,10 +153,8 @@ our $global = {
       push @$data, [sub {
           my ($data, $scope) = @_;
 
-          push @$data, $f;
-          execute($data, $scope);
-          push @$data, $g;
-          execute($data, $scope);
+          execute($f, $data, $scope);
+          execute($g, $data, $scope);
         }, ['func', 'f g ;']];
     }, ['func', ';'], 'active'],
   '[' => [sub {
@@ -211,8 +210,11 @@ our $global = {
       die Dumper($struct, [sort keys $struct->[0]], $member) . "Cannot resolve requested member $member" unless exists $struct->[0]->{$member};
       die "Resolved member $member was incorrectly stored as something non-arrayish" unless ref($struct->[0]->{$member}) eq 'ARRAY';
 
-      push @$data, $struct->[0]->{$member};
-      execute($data, $scope) if($data->[-1]->[2] eq 'active');
+      if($struct->[0]->{$member}->[2] eq 'active') {
+        execute($struct->[0]->{$member}, $data, $scope)
+      } else {
+        push @$data, [$struct->[0]->{$member}->[0], $struct->[0]->{$member}->[1]];
+      }
     }, ['func', '.'], 'active'],
   '.|' => [sub {
       my ($data, $scope) = @_;
@@ -307,8 +309,7 @@ our $global = {
       die "Not numeric: " . Dumper($c) unless $c->[1] eq 'int';
 
       foreach my $i (1 .. $c->[0]) {
-        push @$data, $f;
-        execute($data, $scope);
+        execute($f, $data, $scope);
       }
     }, ['func', 'rep'], 'active'],
   '?' => [sub {
@@ -489,8 +490,7 @@ our $global = {
 
       foreach my $i (@{$a->[0]}) {
         push @$data, $i;
-        push @$data, $f;
-        execute($data, $scope);
+        execute($f, $data, $scope);
       }
     }, ['func', 'each'], 'active'],
   'range' => [sub {
@@ -513,15 +513,13 @@ our $global = {
       my $t = pop @$data or die "Stack underflow";
 
       while(1) {
-        push @$data, $t;
-        execute($data, $scope);
+        execute($t, $data, $scope);
 
         my $c = pop @$data or die "Stack underflow";
         die "Not numeric: " . Dumper($c) unless $c->[1] eq 'int';
         last unless $c->[0];
 
-        push @$data, $b;
-        execute($data, $scope);
+        execute($b, $data, $scope);
       }
     }, ['func', 'loop'], 'active'],
   'dom' => [sub {
@@ -536,8 +534,9 @@ our $global = {
       } elsif(ref($a->[1]) eq 'ARRAY' and $a->[1]->[0] eq 'struct') {
         die "no supporting dom member in struct" . Dumper($a) unless exists $a->[0]->{'dom'};
 
-        push @$data, $a->[0]->{'dom'};
-        execute($data, $scope) if($data->[-1]->[2] eq 'active');
+        if($a->[0]->{'dom'}->[2] eq 'active') {
+          execute($a->[0]->{'dom'}, $data, $scope)
+        }
       } else {
         die "dom not supported on this value: " . Dumper($a);
       }

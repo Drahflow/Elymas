@@ -57,8 +57,7 @@ sub interpretCode {
       if($t->[1] eq 'tok') {
         die "unexpanded token in interpretCode";
       } elsif(ref($t->[1]) eq 'ARRAY' and $t->[1]->[0] eq 'func') {
-        push @$data, $t;
-        execute($data, $scope);
+        execute($t, $data, $scope);
       } else {
         push @$data, $t;
       }
@@ -230,8 +229,7 @@ sub doLoopStep {
 #         Eliminate all matching types via function or loop creation
 
 sub execute {
-  my ($data, $scope) = @_;
-  my $f = pop @$data or die "Stack underflow";
+  my ($f, $data, $scope) = @_;
 
   if(ref($f->[1]) ne 'ARRAY') {
     push @$data, $f;
@@ -244,9 +242,9 @@ sub execute {
       my ($data, $scope) = @_;
       arrayAccess($ff, $data, $scope);
     }, ['func', 'array-to-func-cast', ['int'], [$ff->[1]->[1]]]];
+  } elsif($f->[1]->[0] ne 'func') {
+    die "complex type unsuitable for execution";
   }
-
-  die "complex type unsuitable for execution" if($f->[1]->[0] ne 'func');
 
   if(not $f->[1]->[2]) {
     # untyped function, just call
@@ -255,6 +253,24 @@ sub execute {
     pop @globalCallStack;
     return;
   }
+
+  # COMMON case optimization (can be removed without any effect on semantics)
+  my $allTrivial = 1;
+  for(my $argI = $#{$f->[1]->[2]}; $argI >= 0; --$argI) {
+    if($data->[-1-$argI]->[1] ne $f->[1]->[2]->[$argI]) {
+      $allTrivial = 0;
+      last;
+    }
+  }
+
+  # trivial scalar arguments all over the place
+  if($allTrivial) {
+    push @globalCallStack, $f;
+    &{$f->[0]}($data, $scope);
+    pop @globalCallStack;
+    return;
+  }
+  # END COMMON
 
   my @concreteArgs;
   my @viewPortOffset;
@@ -388,7 +404,8 @@ sub execute {
 
           foreach my $i (@$stage) {
             my @s = ($v, $argCopy[$i]);
-            execute(\@s, $scope);
+            my $func = pop @s or die "Stack underflow in abstraction";
+            execute($func, \@s, $scope);
             $argCopy[$i] = $s[0];
           }
 
@@ -406,7 +423,8 @@ sub execute {
 
           foreach my $j (@$stage) {
             my @s = ($i, $argCopy2[$j]);
-            execute(\@s, $scope);
+            my $func = pop @s or die "Stack underflow in abstraction";
+            execute($func, \@s, $scope);
             $argCopy2[$j] = $s[0];
           }
 
@@ -468,12 +486,10 @@ sub applyResolvedName {
     if($quoted) {
       push @$data, [$meaning->[0], $meaning->[1], $t->[0]];
     } else {
-      push @$data, [$meaning->[0], $meaning->[1]];
-      execute($data, $scope);
+      execute([$meaning->[0], $meaning->[1]], $data, $scope);
     }
   } elsif($meaning->[2] eq 'quote') {
-    push @$data, [$meaning->[0], $meaning->[1]];
-    execute($data, $scope);
+    execute([$meaning->[0], $meaning->[1]], $data, $scope);
   } else {
     die "unknown scope entry meaning for '$t->[0]': " . $meaning->[2];
   }
