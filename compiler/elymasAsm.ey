@@ -124,6 +124,25 @@
     opcodes
   } /labelResolve deff
 
+  { < ==name ==opcode
+    { ==offset
+      offset 128 neg ge assert
+      offset 128 lt assert
+
+      opcode
+      offset imm8
+    } name "Rel8" cat
+
+    { ==lbl
+
+      opcode
+      lbl labelRel8
+      _ 128 neg ge assert
+      _ 128 lt assert
+    } name "Lbl8" cat
+    > -- 2 |deff rep
+  }' /defJmp deff
+
   # instructions
   { ==reg ==mem
     reg bit32assert
@@ -175,6 +194,15 @@
     src dst modrm11
   } /addqRegReg deff
 
+  { ==dst ==src
+    dst bit64assert
+    src bit64assert
+
+    1 src /none dst rex
+    %21
+    src dst modrm11
+  } /andqRegReg deff
+
   { ==reg
     reg bit64assert
 
@@ -182,6 +210,16 @@
     %FF
     /two reg modrm11
   } /callqReg deff
+
+  { ==dst ==src
+    src bit64assert
+    dst bit64assert
+
+    1 dst /none src rex
+    %0F
+    %47
+    dst src modrm11
+  } /cmovaqRegReg deff
 
   {
     %A6
@@ -200,6 +238,16 @@
     %39
     reg mem modrm00
   } /cmplRegMem deff
+
+  { ==reg ==i
+    reg bit64assert
+    i 256 lt assert
+
+    1 /none /none reg rex
+    %83
+    /seven reg modrm11
+    i imm8
+  } /cmpqImm8Reg deff
 
   { ==mem ==reg
     reg bit64assert
@@ -227,33 +275,29 @@
     /zero reg modrm11
   } /incqReg deff
 
-  { < ==name ==opcode
-    { ==offset
-      offset 128 neg ge assert
-      offset 128 lt assert
-
-      opcode
-      offset imm8
-    } name "Rel8" cat
-
-    { ==lbl
-
-      opcode
-      lbl labelRel8
-      _ 128 neg ge assert
-      _ 128 lt assert
-    } name "Lbl8" cat
-    > -- 2 |deff rep
-  }' /defJmp deff
+  %E2 /loop defJmp
 
   %EB /jmp defJmp
 
   %72 /jb defJmp
   %76 /jbe defJmp
+  %74 /je defJmp
   %7E /jle defJmp
   %73 /jnb defJmp
+  %75 /jne defJmp
   %75 /jnz defJmp
   %74 /jz defJmp
+
+  { ==reg ==mem ==disp
+    reg bit64assert
+    mem bit64assert
+    disp 128 lt assert
+
+    1 reg /none mem rex
+    %8D
+    reg mem modrm01
+    disp imm8
+  } /leaqMemDisp8Reg deff
 
   { ==reg ==mem
     reg bit32assert
@@ -362,6 +406,16 @@
     src dst modrm11
   } /movqRegReg deff
 
+  { ==reg ==mem
+    reg bit64assert
+    mem bit64assert
+
+    1 reg /none mem rex
+    %0F
+    %B6
+    reg mem modrm00
+  } /movzxMem8Reg64 deff
+
   { ==mem ==i
     mem bit64assert
     i 256 lt assert
@@ -382,11 +436,27 @@
     i imm8
   } /orbImmMemDisp8 deff
 
+  { ==dst ==src
+    dst bit64assert
+    src bit64assert
+
+    1 src /none dst rex
+    %09
+    src dst modrm11
+  } /orqRegReg deff
+
   { ==mem
     mem regno %07 gt { 1 /none /none mem rex } rep
     %8F
     /zero mem modrm00
   } /popqMem deff
+
+  { ==mem ==idx ==scale
+    mem regno %07 gt idx regno %07 gt or { 1 /none idx mem rex } rep
+    %8F
+    /zero /sib modrm00
+    scale idx mem sib
+  } /popqMemIndexScale deff
 
   { ==reg
     reg regno %07 gt { 1 /none /none reg rex } rep
@@ -398,6 +468,13 @@
     %FF
     /six mem modrm00
   } /pushqMem deff
+
+  { ==mem ==idx ==scale
+    mem regno %07 gt idx regno %07 gt or { 1 /none idx mem rex } rep
+    %FF
+    /six /sib modrm00
+    scale idx mem sib
+  } /pushqMemIndexScale deff
 
   { ==reg
     reg regno %07 gt { 1 /none /none reg rex } rep

@@ -3,3 +3,4 @@
 "a\\b" dump
 "a\"b" dump
 "thisisalongstring" dump
+/bare dump

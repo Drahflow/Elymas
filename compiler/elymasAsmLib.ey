@@ -2,6 +2,7 @@
 
 <
   { assembler -01 . } ":" deff
+  assembler .|label "@" deff
   "%" _ : -01 deff
 
   <
@@ -51,7 +52,7 @@
     :repz :cmpsb
     /fail :jnzLbl8
     /rax :incqReg
-    /fail :label
+    @fail
   ] :labelResolve /internalStringEqualsCode defv
 
   <
@@ -118,7 +119,7 @@
       16 /rdx :addqImm8Reg # rdx will iterate over entries
       8 /rcx /rcx :addqMemDisp8Reg # compute name table effective end
 
-      /loop :label
+      @loop
       /rdx /rcx :cmpqRegReg
       /end :jbeLbl8
       # TODO this is ridiculous
@@ -138,7 +139,7 @@
 
       16 /rdx :addqImm8Reg
       /loop :jmpLbl8
-      /end :label
+      @end
 
       # not found at all, retry with parent
       # FIXME: Actually try with parent
@@ -146,7 +147,7 @@
       /rdx /rdx :xorqRegReg
       :retn
 
-      /found :label
+      @found
       8 /rdx /rax :movqMemDisp8Reg # load default activation
       8 /rdi /rdx :subqMemDisp8Reg # substract name table start
       16 /rdx :subqImm8Reg # substract name table header size
@@ -163,7 +164,7 @@
       24 /rdi /rdi :movqMemDisp8Reg # load extension area pointer
       8 /rdx :addqImm8Reg # add extension area header length
 
-      /inDataArea :label
+      @inDataArea
       /rdx /rdi /rdx :movqMemIndexReg # load entry pointer
       /rax /rdx :xchgqRegReg
       :retn
@@ -239,12 +240,12 @@
     ] /internalAllocateFunction defv
   > { defv }' allocateOffsetStruct
 
-  <
-    # elymas functions, stack based ABI
+  # elymas functions, stack based ABI
 
-    # 0 -> integer
-    # 1 -> integer
-    # 0 <- sum of the above
+  # 0 -> integer
+  # 1 -> integer
+  # 0 <- sum of the above
+  { ==opcodes
     [
       /rbx :popqReg
 
@@ -262,14 +263,48 @@
       /rdx :popqReg
       8 /rdx /rdx :movqMemDisp8Reg
 
-      /rcx /rdx :addqRegReg
+      opcodes _ len dearray
       /rdx 8 /rax :movqRegMemDisp8
 
       # push int address on program stack
       /rax :pushqReg
       /rbx :pushqReg
       :retn
-    ] /eyadd defv
+    ]
+  } /makeArith deff
+
+  <
+    # do nothing
+    [
+      :retn
+    ] /ey/ defv
+
+    # resolve in scope but never execute
+    [
+      /rcx :popqReg
+      /rax :popqReg
+      /rcx :pushqReg
+      /rax :pushqReg
+
+      # scope resolution
+      currentScope /rdi :movqImmReg
+      /rdi /rdi :movqMemReg
+      /rsi :popqReg
+      internalResolve /rax :movqImmReg
+      /rax :callqReg
+
+      /rcx :popqReg
+      /rax :pushqReg
+      /rcx :pushqReg
+      :retn
+    ] /ey| defv
+
+    # arithmetic functions on ints
+    [ /rcx /rdx :addqRegReg ] makeArith /eyadd defv
+    [ /rcx /rdx :subqRegReg ] makeArith /eysub defv
+    [ /rcx /rdx :andqRegReg ] makeArith /eyband defv
+    [ /rcx /rdx :orqRegReg ] makeArith /eybor defv
+    [ /rcx /rdx :xorqRegReg ] makeArith /eybxor defv
 
     # create a new entry in the current scope for the given name
     # mark that entry as default-active
@@ -286,7 +321,7 @@
       8 /rbx /rsi :movqMemDisp8Reg # rsi == start of nametable in heap
       8 /rsi /rsi :addqMemDisp8Reg # rsi == end of nametable in heap (according to fill)
 
-      /nameSearch :label
+      @nameSearch
       16 /rdx :addqImm8Reg
 
       # rsi: end of nametable
@@ -309,7 +344,7 @@
       /nameOffsetKnown :jnzLbl8
 
       # if not exists, insert
-      /nameUndefined :label
+      @nameUndefined
       8 /rbx /rdx :movqMemDisp8Reg # rdx == start of nametable in heap
       /rdx /eax :movlMemReg # add memory length to obtain memory end
       /rax /rdx :addqRegReg
@@ -325,12 +360,12 @@
       /rsi /rdx :movqRegReg
       /nameOffsetKnown :jmpLbl8
 
-      /enlargeNameTable :label
+      @enlargeNameTable
       # if name table is already full, double size
       # FIXME
       :ud2
       
-      /nameOffsetKnown :label
+      @nameOffsetKnown
       8 /rbx /rdx :subqMemDisp8Reg # substract name table address
       16 /rdx :subqImm8Reg # substract name table header size
       /rdx :shrq1Reg # divide by 2 to get offset within scope
@@ -356,8 +391,8 @@
       # FIXME
       :ud2
 
-      /inExtensionArea :label
-      /inDataArea :label
+      @inExtensionArea
+      @inDataArea
 
       /rax :popqReg
       /rax /rbx /rdx :movqRegMemIndex # save entry pointer
@@ -379,7 +414,7 @@
       /scoped :jnzLbl8
       currentScope /rax :movqImmReg
       /rax /rcx :movqMemReg
-      /scoped :label
+      @scoped
       8 /r15 :subqImm8Reg
       /rcx /r15 :movqRegMem
 
@@ -393,10 +428,10 @@
       /rax :callqReg
       /done :jmpLbl8
 
-      /typed :label
+      @typed
       :ud2 # TODO handle typed functions and autolooping
 
-      /done :label
+      @done
       /r15 /rcx :movqMemReg
       currentScope /rax :movqImmReg
       /rcx /rax :movqRegMem
@@ -405,14 +440,6 @@
       8 /r15 :addqImm8Reg
       :retn
     ] :labelResolve /ey* defv
-
-    # drop top stack element
-    [
-      /rax :popqReg
-      /rcx :popqReg
-      /rax :pushqReg
-      :retn
-    ] /ey-- defv
 
     # dump top stack element (actually drop it for now)
     # FIXME: this belongs in the standard library
@@ -423,6 +450,89 @@
       :retn
     ] /eydump defv
   > _ ==globalFunctions { defv }' allocateOffsetStruct
+
+  <
+    # drop top stack element
+    [
+      /rax :popqReg
+      /rcx :popqReg
+      /rax :pushqReg
+      :retn
+    ] /ey-- defv
+
+    # top stack element is a string defining a stack shuffle
+    # 0-9: push the thusly numbered element
+    #   *: execute top element
+    # pops as many elements as the highest number specifies
+    [
+      8 /r15 :subqImm8Reg
+      /r15 :popqMem
+      80 /r15 :subqImm8Reg
+
+      /rdi :popqReg
+      16 /rdi /rcx :movqMemDisp8Reg # load string length
+      24 /rdi /rax :leaqMemDisp8Reg # rax to begin of string
+
+      42 /rsi :movqImmReg # initialize with '*'
+
+      # find maximal element, note that '*' < '0'
+      @maximalElementSearch
+      /rax /rdx :movzxMem8Reg64
+      /rsi /rdx :cmpqRegReg
+      /rdx /rsi :cmovaqRegReg
+      /rax :incqReg
+      /maximalElementSearch :loopLbl8
+
+      # move elements to temporary storage
+      42 /rsi :cmpqImm8Reg
+      /elementsSaved :jeLbl8
+      
+      47 /rsi :subqImm8Reg # substract '0'-1
+      /rsi /rcx :movqRegReg
+      /rsi /rsi :xorqRegReg
+
+      @saveElements
+      8 /rsi /r15 :popqMemIndexScale
+      /rsi :incqReg
+      /saveElements :loopLbl8
+
+      # execute shuffle specification
+      @elementsSaved
+      16 /rdi /rcx :movqMemDisp8Reg # load string length
+      24 /rdi /rax :leaqMemDisp8Reg # rax to begin of string
+
+      @executeSpec
+      /rax /rdx :movzxMem8Reg64
+      /rax :incqReg
+
+      42 /rdx :cmpqImm8Reg
+      /executeTop :jeLbl8
+
+      48 /rdx :subqImm8Reg # substract '0'
+      8 /rdx /r15 :pushqMemIndexScale
+      /executeSpec :loopLbl8
+      /done :jmpLbl8
+
+      @executeTop
+      24 /r15 :subqImm8Reg
+      /rax 16 /r15 :movqRegMemDisp8
+      /rcx 8 /r15 :movqRegMemDisp8
+      /rdx /r15 :movqRegMem
+      |ey* /rax :movqImmReg
+      /rax :callqReg
+      /r15 /rdx :movqMemReg
+      8 /r15 /rcx :movqMemDisp8Reg
+      16 /r15 /rax :movqMemDisp8Reg
+      24 /r15 :addqImm8Reg
+      /executeSpec :loopLbl8
+
+      @done
+      80 /r15 :addqImm8Reg
+      /r15 :pushqMem
+      8 /r15 :addqImm8Reg
+      :retn
+    ] :labelResolve /ey- defv
+  > _ ==globalFunctions2 { defv }' allocateOffsetStruct
 
   { strToUTF8Bytes _ =*v len _ ==exactLength
     1 sub 8 div 4 add 8 mul ==memoryLength
@@ -461,15 +571,17 @@
     ]
   } /constStringCode deff
 
+  globalFunctions keys globalFunctions2 keys cat ==globalFunctionNames
+
   [
-    globalFunctions keys len /rdi :movqImmReg
+    globalFunctionNames len /rdi :movqImmReg
     internalAllocateScope /rax :movqImmReg
     /rax :callqReg
 
     currentScope /rdi :movqImmReg
     /rax /rdi :movqRegMem
 
-    globalFunctions keys { ==name
+    globalFunctionNames { ==name
       # create function
       name | 8 sub /rdi :movqImmReg
       currentScope /rsi :movqImmReg
