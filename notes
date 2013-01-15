@@ -186,3 +186,9 @@ Small set in between
   bit 63-60: 0 1 1 0
   bit 59: reserved for GC
 * [ <opcode> ]*
+
+=== Array ===
+* Length in bytes (including header)
+  bit 63-60: 0 1 1 1
+  bit 59: reserved for GC
+* [ <object pointer> ]*

@@ -249,6 +249,26 @@
     i imm8
   } /cmpqImm8Reg deff
 
+  { ==reg ==mem ==idx
+    reg bit64assert
+    mem bit64assert
+    idx bit64assert
+
+    1 reg idx mem rex
+    %3B
+    reg /sib modrm00
+    1 idx mem sib
+  } /cmpqMemIndexReg deff
+
+  { ==reg ==mem
+    reg bit64assert
+    mem bit64assert
+
+    1 reg /none mem rex
+    %3B
+    reg mem modrm00
+  } /cmpqMemReg deff
+
   { ==mem ==reg
     reg bit64assert
     mem bit64assert
@@ -266,6 +286,14 @@
     %39
     src dst modrm11
   } /cmpqRegReg deff
+
+  { ==reg
+    reg bit64assert
+
+    1 /none /none reg rex
+    %FF
+    /one reg modrm11
+  } /decqReg deff
 
   { ==reg
     reg bit64assert
@@ -511,6 +539,16 @@
     %D1
     /five reg modrm11
   } /shrq1Reg deff
+
+  { ==reg ==i
+    reg bit64assert
+    i 64 lt assert
+
+    1 /none /none reg rex
+    %C1
+    /five reg modrm11
+    i imm8
+  } /shrqImm8Reg deff
 
   { ==reg ==i
     reg bit64assert

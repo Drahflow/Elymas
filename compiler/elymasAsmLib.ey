@@ -238,13 +238,29 @@
 
       :retn
     ] /internalAllocateFunction defv
+
+    # allocate array, expecting rdi/8 entries
+    # rdi -> expected number of entry bytes
+    # rax <- address of array on the heap
+    [
+      8 /rdi :addqImm8Reg
+      internalAllocate /rax :movqImmReg
+      /rax :callqReg
+
+      # set type
+      %70 7 /rax :orbImmMemDisp8
+
+      :retn
+    ] /internalAllocateArray defv
   > { defv }' allocateOffsetStruct
 
   # elymas functions, stack based ABI
 
+  1 ==ARRAYMARKER
+
   # 0 -> integer
   # 1 -> integer
-  # 0 <- sum of the above
+  # 0 <- result of the arithmetic operation
   { ==opcodes
     [
       /rbx :popqReg
@@ -449,6 +465,52 @@
       /rax :pushqReg
       :retn
     ] /eydump defv
+
+    # array construction, push begin marker on stack
+    [
+      /rax :popqReg
+      ARRAYMARKER :pushqImm32
+      /rax :pushqReg
+      :retn
+    ] /ey[ defv
+
+    # array construction, create array from begin marker onwards
+    [
+      8 /r15 :subqImm8Reg
+      /r15 :popqMem
+
+      ARRAYMARKER /rax :movqImmReg
+      /rsp /rdi :movqRegReg
+      8 /rdi :subqImm8Reg
+      @search
+      8 /rdi :addqImm8Reg
+      /rdi /rax :cmpqMemReg
+      /search :jneLbl8
+
+      /rdi /rcx :movqRegReg
+      /rsp /rdi :subqRegReg
+      /rcx :pushqReg
+
+      # rdi == size of array
+      internalAllocateArray /rax :movqImmReg
+      /rax :callqReg
+       
+      /rdi :popqReg
+      /rax /rdi :movqRegMem # store array pointer instead of begin marker
+
+      /rax /ecx :movlMemReg
+      3 /rcx :shrqImm8Reg
+      /rcx :decqReg
+
+      8 /rax :addqImm8Reg
+      @copy
+      /rax :popqMem
+      /copy :loopLbl8
+
+      /r15 :pushqMem
+      8 /r15 :addqImm8Reg
+      :retn
+    ] :labelResolve /ey] defv
   > _ ==globalFunctions { defv }' allocateOffsetStruct
 
   <
