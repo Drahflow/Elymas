@@ -33,6 +33,9 @@
     
     # current parser scope
     [ %00 %00 %00 %00 %00 %00 %00 %00 ] ==currentScope
+
+    # current parser quote state
+    [ %00 %00 %00 %00 %00 %00 %00 %00 ] ==currentQuoted
   > { defv }' allocateOffsetStruct
 
   # internal functions, ABI follows SysV standards
@@ -169,7 +172,6 @@
       /rax /rdx :xchgqRegReg
       :retn
     ] :labelResolve /internalResolve defv
-
   > { defv }' allocateOffsetStruct
 
   # TODO: link internal functions statically with relative calls
@@ -239,6 +241,19 @@
       :retn
     ] /internalAllocateFunction defv
 
+    # allocate code block
+    # rdi -> number of code bytes
+    # rax <- address of code block on heap
+    [
+      8 /rdi :addqImm8Reg
+      internalAllocate /rax :movqImmReg
+      /rax :callqReg
+
+      # set type
+      %60 7 /rax :orbImmMemDisp8
+      :retn
+    ] /internalAllocateCode defv
+
     # allocate array, expecting rdi/8 entries
     # rdi -> expected number of entry bytes
     # rax <- address of array on the heap
@@ -257,6 +272,7 @@
   # elymas functions, stack based ABI
 
   1 ==ARRAYMARKER
+  2 ==QUOTEMARKER
 
   # 0 -> integer
   # 1 -> integer
@@ -322,100 +338,104 @@
     [ /rcx /rdx :orqRegReg ] makeArith /eybor defv
     [ /rcx /rdx :xorqRegReg ] makeArith /eybxor defv
 
-    # create a new entry in the current scope for the given name
-    # mark that entry as default-active
-    # 0 -> name, string
-    # 1 -> object
-    [
-      /rcx :popqReg
-      /rdi :popqReg
+    { ==activation
+      # create a new entry in the current scope for the given name
+      # mark that entry's default action according to activation
+      # 0 -> name, string
+      # 1 -> object
+      [
+        /rcx :popqReg
+        /rdi :popqReg
 
-      # search for name in nametable
-      currentScope /rax :movqImmReg
-      /rax /rbx :movqMemReg # rbx == start of scope in heap
-      8 /rbx /rdx :movqMemDisp8Reg # rdx == start of nametable in heap
-      8 /rbx /rsi :movqMemDisp8Reg # rsi == start of nametable in heap
-      8 /rsi /rsi :addqMemDisp8Reg # rsi == end of nametable in heap (according to fill)
+        # search for name in nametable
+        currentScope /rax :movqImmReg
+        /rax /rbx :movqMemReg # rbx == start of scope in heap
+        8 /rbx /rdx :movqMemDisp8Reg # rdx == start of nametable in heap
+        8 /rbx /rsi :movqMemDisp8Reg # rsi == start of nametable in heap
+        8 /rsi /rsi :addqMemDisp8Reg # rsi == end of nametable in heap (according to fill)
 
-      @nameSearch
-      16 /rdx :addqImm8Reg
+        @nameSearch
+        16 /rdx :addqImm8Reg
 
-      # rsi: end of nametable
-      # rdx: current element of nametable
+        # rsi: end of nametable
+        # rdx: current element of nametable
 
-      /rdx /rsi :cmpqRegReg
-      /nameUndefined :jbeLbl8
+        /rdx /rsi :cmpqRegReg
+        /nameUndefined :jbeLbl8
 
-      /rdx :pushqReg
-      /rsi :pushqReg
-      /rdi :pushqReg
-      /rcx :pushqReg
-      /rdx /rsi :movqMemReg
-      internalStringEqualsCode _ len dearray
-      /rcx :popqReg
-      /rdi :popqReg
-      /rsi :popqReg
-      /rdx :popqReg
-      /rax /rax :testqRegReg
-      /nameOffsetKnown :jnzLbl8
+        /rdx :pushqReg
+        /rsi :pushqReg
+        /rdi :pushqReg
+        /rcx :pushqReg
+        /rdx /rsi :movqMemReg
+        internalStringEqualsCode _ len dearray
+        /rcx :popqReg
+        /rdi :popqReg
+        /rsi :popqReg
+        /rdx :popqReg
+        /rax /rax :testqRegReg
+        /nameOffsetKnown :jnzLbl8
 
-      # if not exists, insert
-      @nameUndefined
-      8 /rbx /rdx :movqMemDisp8Reg # rdx == start of nametable in heap
-      /rdx /eax :movlMemReg # add memory length to obtain memory end
-      /rax /rdx :addqRegReg
+        # if not exists, insert
+        @nameUndefined
+        8 /rbx /rdx :movqMemDisp8Reg # rdx == start of nametable in heap
+        /rdx /eax :movlMemReg # add memory length to obtain memory end
+        /rax /rdx :addqRegReg
 
-      /rsi /rdx :cmpqRegReg
-      /enlargeNameTable :jbeLbl8
+        /rsi /rdx :cmpqRegReg
+        /enlargeNameTable :jbeLbl8
 
-      # insert into name table
-      /rdi /rsi :movqRegMem
-      1 8 /rsi :movqImm32MemDisp8 # set default activation mode to execute
-      8 /rbx /rdx :movqMemDisp8Reg # rdx == start of nametable in heap
-      16 8 /rdx :addqImm8MemDisp8 # increment fill
-      /rsi /rdx :movqRegReg
-      /nameOffsetKnown :jmpLbl8
+        # insert into name table
+        /rdi /rsi :movqRegMem
+        activation 8 /rsi :movqImm32MemDisp8 # set default activation mode
+        8 /rbx /rdx :movqMemDisp8Reg # rdx == start of nametable in heap
+        16 8 /rdx :addqImm8MemDisp8 # increment fill
+        /rsi /rdx :movqRegReg
+        /nameOffsetKnown :jmpLbl8
 
-      @enlargeNameTable
-      # if name table is already full, double size
-      # FIXME
-      :ud2
-      
-      @nameOffsetKnown
-      8 /rbx /rdx :subqMemDisp8Reg # substract name table address
-      16 /rdx :subqImm8Reg # substract name table header size
-      /rdx :shrq1Reg # divide by 2 to get offset within scope
+        @enlargeNameTable
+        # if name table is already full, double size
+        # FIXME
+        :ud2
+        
+        @nameOffsetKnown
+        8 /rbx /rdx :subqMemDisp8Reg # substract name table address
+        16 /rdx :subqImm8Reg # substract name table header size
+        /rdx :shrq1Reg # divide by 2 to get offset within scope
 
-      # rdx == offset in scope
-      # top of stack: the object to store
+        # rdx == offset in scope
+        # top of stack: the object to store
 
-      # update 
-      # if fits within main area, fine
-      32 /rdx :addqImm8Reg # add scope header size
-      /edx /rbx :cmplRegMem # TODO this fails for > 4 GB scopes
-      /inDataArea :jnbLbl8
+        # update 
+        # if fits within main area, fine
+        32 /rdx :addqImm8Reg # add scope header size
+        /edx /rbx :cmplRegMem # TODO this fails for > 4 GB scopes
+        /inDataArea :jnbLbl8
 
-      # update within extension area
-      /rbx /edx :sublMemReg # substract scope length
-      24 /rbx /rbx :movqMemDisp8Reg # load extension area pointer
-      8 /rdx :addqImm8Reg # add extension area header length
+        # update within extension area
+        /rbx /edx :sublMemReg # substract scope length
+        24 /rbx /rbx :movqMemDisp8Reg # load extension area pointer
+        8 /rdx :addqImm8Reg # add extension area header length
 
-      # if extension area is full, double size
-      /edx /rbx :cmplRegMem
-      /inExtensionArea :jnbLbl8
+        # if extension area is full, double size
+        /edx /rbx :cmplRegMem
+        /inExtensionArea :jnbLbl8
 
-      # FIXME
-      :ud2
+        # FIXME
+        :ud2
 
-      @inExtensionArea
-      @inDataArea
+        @inExtensionArea
+        @inDataArea
 
-      /rax :popqReg
-      /rax /rbx /rdx :movqRegMemIndex # save entry pointer
+        /rax :popqReg
+        /rax /rbx /rdx :movqRegMemIndex # save entry pointer
 
-      /rcx :pushqReg
-      :retn
-    ] :labelResolve /eydeff defv
+        /rcx :pushqReg
+        :retn
+      ] :labelResolve
+    } 0 -101* /eydefv defv
+      1 -101* /eydeff defv
+      2  -01* /eydefq defv
 
     # execute top stack element
     [
@@ -594,7 +614,209 @@
       8 /r15 :addqImm8Reg
       :retn
     ] :labelResolve /ey- defv
+
+    # execute top stack element multiple times
+    # 0 -> function to execute
+    # 1 -> how often to execute it
+    [
+      8 /r15 :subqImm8Reg
+      /r15 :popqMem
+
+      8 /r15 :subqImm8Reg
+      /r15 :popqMem # store function to call
+
+      8 /r15 :subqImm8Reg
+      /rcx :popqReg
+      8 /rcx /rcx :movqMemDisp8Reg
+
+      @loop
+      /rcx /r15 :movqRegMem
+      
+      8 /r15 :pushqMemDisp8
+      |ey* /rax :movqImmReg
+      /rax :callqReg
+
+      /r15 /rcx :movqMemReg
+      /loop :loopLbl8
+      
+      16 /r15 :addqImm8Reg
+
+      /r15 :pushqMem
+      8 /r15 :addqImm8Reg
+      :retn
+    ] :labelResolve /eyrep defv
   > _ ==globalFunctions2 { defv }' allocateOffsetStruct
+
+  <
+    # quote construction, push begin marker on stack
+    [
+      /rax :popqReg
+      QUOTEMARKER :pushqImm32
+      currentQuoted /rcx :movqImmReg
+      /rcx :incqMem
+      /rax :pushqReg
+      :retn
+    ] /ey{ defv
+
+    <
+      # FIXME: open a new function scope
+      [
+        8 /r15 :subqImm8Reg
+        /r15 :popqMem
+        8 /r15 :subqImm8Reg
+        currentScope /rax :movqImmReg
+        /rax /rax :movqMemReg
+        /rax /r15 :movqRegMem
+      ] /functionHeader defv
+
+      [
+        /r15 /rcx :movqMemReg
+        currentScope /rax :movqImmReg
+        /rcx /rax :movqRegMem
+        8 /r15 :addqImm8Reg
+        /r15 :pushqMem
+        8 /r15 :addqImm8Reg
+        :retn
+      ] /functionFooter defv
+
+      { _ =*array len _ 4 div ==largeMoves
+                        4 mod ==smallMoves
+        0 ==i
+        largeMoves {
+          i _ 4 add =i
+              [ 3 2 1 0 ] add array { -01 256 mul add } fold /rdi :movlImmMem
+          4 /rdi :addqImm8Reg
+        } rep
+        smallMoves {
+          i _ 1 add =i
+              array /rdi :movbImmMem
+          /rdi :incqReg
+        } rep
+      } /loadToRdi deff
+
+      # quote construction, create function from begin marker onwards
+      [
+        8 /r15 :subqImm8Reg
+        /r15 :popqMem
+
+        currentQuoted /rcx :movqImmReg
+        /rcx :decqMem
+
+        QUOTEMARKER /rcx :movqImmReg
+        /rcx :pushqReg
+        /rsp /rdx :movqRegReg
+        @backwardsSearch
+        8 /rdx :addqImm8Reg
+        /rdx /rcx :cmpqMemReg
+        /backwardsSearch :jneLbl8
+
+        /rdx :pushqReg # store address of begin marker
+
+        :quoteEncodingBuffer /rdi :movqImmReg
+
+        functionHeader loadToRdi
+
+        @search
+        8 /rdx :subqImm8Reg
+        /rdx /rcx :cmpqMemReg
+        /markerFound :jeLbl8
+
+        /rdx /rsi :movqMemReg
+        7 /rsi /al :movbMemDisp8Reg
+        %F0 /al :andbImmReg
+        /immediateFound :jzLbl8
+        %50 /al :cmpbImmReg
+        /functionFound :jzLbl8
+        %70 /al :cmpbImmReg
+        /arrayFound :jzLbl8
+
+        # TODO: "invalid object during quote construction"
+        :ud2
+
+        @immediateFound
+        [ /rax :movqImmOOBReg ] _ len 2 eq assert
+          2 dearray 256 mul add 
+          /rdi :movwImmMem
+        /rsi 2 /rdi :movqRegMemDisp8
+        [ /rax :pushqReg ] _ len 1 eq assert
+          1 dearray
+          10 /rdi :movbImmMemDisp8
+        11 /rdi :addqImm8Reg
+        /search :jmpLbl8
+
+        @functionFound
+        [ /rax :movqImmOOBReg ] _ len 2 eq assert
+          2 dearray 256 mul add 
+          /rdi :movwImmMem
+        /rsi 2 /rdi :movqRegMemDisp8
+        [ /rax :pushqReg ] _ len 1 eq assert
+          1 dearray
+          10 /rdi :movbImmMemDisp8
+        11 /rdi :addqImm8Reg
+        [
+          |ey* /rax :movqImmReg
+          /rax :callqReg
+        ] loadToRdi
+        /search :jmpLbl8
+
+        @arrayFound
+        # FIXME allow macros to put byte arrays into quoted contexts and thereby generate assembly
+        :ud2
+        /search :jmpLbl8
+
+        @markerFound
+
+        functionFooter loadToRdi
+
+        :quoteEncodingBuffer /rax :movqImmReg
+        /rax /rdi :subqRegReg
+        /rdi :pushqReg # store opcode byte count
+
+        /rdi :decqReg
+        3 /rdi :shrqImm8Reg
+        /rdi :incqReg
+        3 /rdi :shlqImm8Reg
+        internalAllocateCode /rax :movqImmReg
+        /rax :callqReg
+
+        # rax == code block on heap
+
+        # copy opcodes
+        :quoteEncodingBuffer /rsi :movqImmReg
+        8 /rax /rdi :leaqMemDisp8Reg
+        /rcx :popqReg
+        :reprcx :movsb
+
+        # create function object
+        /rax /rdi :movqRegReg
+        currentScope /rax :movqImmReg
+        /rax /rsi :movqMemReg
+        /rdx /rdx :xorqRegReg
+        internalAllocateFunction /rax :movqImmReg
+        /rax :callqReg
+
+        # rax == function object on heap
+
+        # store function instead of begin marker
+        /rdx :popqReg
+        /rax /rdx :movqRegMem
+        /rdx /rsp :movqRegReg # and drop quoted stuff from stack
+
+        currentQuoted /rcx :movqImmReg
+        /rcx /rcx :movqMemReg
+        /rcx /rcx :testqRegReg
+        /unquoted :jzLbl8
+
+        :ud2
+        # FIXME: quote once more
+
+        @unquoted
+        /r15 :pushqMem
+        8 /r15 :addqImm8Reg
+        :retn
+      ] :labelResolve
+    > -- /ey} defv
+  > _ ==globalMacros { defv }' allocateOffsetStruct
 
   { strToUTF8Bytes _ =*v len _ ==exactLength
     1 sub 8 div 4 add 8 mul ==memoryLength
@@ -633,35 +855,38 @@
     ]
   } /constStringCode deff
 
-  globalFunctions keys globalFunctions2 keys cat ==globalFunctionNames
-
   [
-    globalFunctionNames len /rdi :movqImmReg
+    globalFunctions keys len globalFunctions2 keys len globalMacros keys len add add /rdi :movqImmReg
     internalAllocateScope /rax :movqImmReg
     /rax :callqReg
 
     currentScope /rdi :movqImmReg
     /rax /rdi :movqRegMem
 
-    globalFunctionNames { ==name
-      # create function
-      name | 8 sub /rdi :movqImmReg
-      currentScope /rsi :movqImmReg
-      /rsi /rsi :movqMemReg
-      # TODO: put a type here where applicable
-      /rdx /rdx :xorqRegReg
+    { ==createScopeEntry
+      { ==name
+        # create function
+        name | 8 sub /rdi :movqImmReg
+        currentScope /rsi :movqImmReg
+        /rsi /rsi :movqMemReg
+        # TODO: put a type here where applicable
+        /rdx /rdx :xorqRegReg
 
-      internalAllocateFunction /rax :movqImmReg
-      /rax :callqReg
-      /rax :pushqReg
+        internalAllocateFunction /rax :movqImmReg
+        /rax :callqReg
+        /rax :pushqReg
 
-      # create string
-      name "ey(.*)" regex assert constStringCode _ len dearray
+        # create string
+        name "ey(.*)" regex assert constStringCode _ len dearray
 
-      # enter into current (i.e. global) scope
-      eydeff /rax :movqImmReg
-      /rax :callqReg
-    } each
+        # enter into current (i.e. global) scope
+        createScopeEntry /rax :movqImmReg
+        /rax :callqReg
+      } each
+    } /createScopeEntries deff
+    globalFunctions keys eydeff createScopeEntries
+    globalFunctions2 keys eydeff createScopeEntries
+    globalMacros keys eydefq createScopeEntries
   ] :execute
 
   <

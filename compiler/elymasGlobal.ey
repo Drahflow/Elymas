@@ -14,6 +14,7 @@
 <
   { assembler -01 . } ":" deff
   { assemblerLibrary -01 . } "::" deff
+  assembler .|label "@" deff
   "%" _ : -01 deff
 
   { .value base10decode ==v
@@ -45,13 +46,54 @@
       /rsi :popqReg
       ::internalResolve /rax :movqImmReg
       /rax :callqReg
+
+      /rax /rax :testqRegReg
+      /unresolved :jzLbl8
       /rax :pushqReg
 
-      /rdx /rdx :testqRegReg
+      0 /rdx :cmpqImm8Reg
       /inactive :jzLbl8
+      1 /rdx :cmpqImm8Reg
+      /active :jzLbl8
+      2 /rdx :cmpqImm8Reg
+      /quoteActive :jzLbl8
+      :ud2
+
+      @unresolved
+      :ud2
+
+      @quoteActive
       ::ey* /rax :movqImmReg
       /rax :callqReg
-      /inactive :label
+      /done :jmpLbl8
+
+      @active
+      ::currentQuoted /rax :movqImmReg
+      /rax /rax :movqMemReg
+      /rax /rax :testqRegReg
+      /activeQuoted :jnzLbl8
+      ::ey* /rax :movqImmReg
+      /rax :callqReg
+      /done :jmpLbl8
+
+      @activeQuoted
+      # FIXME: actually, this should re-resolve as if unresolved
+      /done :jmpLbl8
+
+      @inactive
+      ::currentQuoted /rax :movqImmReg
+      /rax /rax :movqMemReg
+      /rax /rax :testqRegReg
+      /inactiveQuoted :jnzLbl8
+      /done :jmpLbl8
+
+      @inactiveQuoted
+      :ud2
+
+#      ::ey* /rax :movqImmReg
+#      /rax :callqReg
+
+      @done
     ] :labelResolve cat :execute
   } /TOKID
 > -- 3 |defv rep

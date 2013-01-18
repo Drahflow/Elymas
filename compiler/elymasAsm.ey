@@ -17,8 +17,11 @@
   < [ /eax /ecx /edx /ebx /esp /ebp /esi /edi /r8d /r9d /r10d /r11d /r12d /r13d /r14d /r15d ] { 1 -01 defv }' each > ==bit32table
   { bit32table -01 . -- } /bit32assert deff
 
-  { [ /ax /cx /dx /bx /sp /bp /si /di /r8w /r9w /r10w /r11w /r12w /r13w /r14w /r15w ] streq any } /bit16 deff
-  { [ /al /cl /dl /bl /spl /ah /bpl /ch /sil /dh /dil /bh /r8b /r9b /r10b /r11b /r12b /r13b /r14b /r15b ] streq any } /bit8 deff
+  < [ /ax /cx /dx /bx /sp /bp /si /di /r8w /r9w /r10w /r11w /r12w /r13w /r14w /r15w ] { 1 -01 defv }' each > ==bit16table
+  { bit16table -01 . -- } /bit16assert deff
+
+  < [ /al /cl /dl /bl /spl /ah /bpl /ch /sil /dh /dil /bh /r8b /r9b /r10b /r11b /r12b /r13b /r14b /r15b ] { 1 -01 defv }' each > ==bit8table
+  { bit8table -01 . -- } /bit8assert deff
   
   <
     [ /zero /al /ax /eax /rax /none ] { 0 -01 defv }' each
@@ -194,6 +197,16 @@
     src dst modrm11
   } /addqRegReg deff
 
+  { ==reg =i
+    reg bit8assert
+    i 256 lt assert
+
+    reg regno %07 gt { 0 /none /none reg rex } rep
+    %80
+    /four reg modrm11
+    i imm8
+  } /andbImmReg deff
+
   { ==dst ==src
     dst bit64assert
     src bit64assert
@@ -229,6 +242,16 @@
     1 /none /none /none rex
     %A7
   } /cmpsq deff
+
+  { ==reg =i
+    reg bit8assert
+    i 256 lt assert
+
+    reg regno %07 gt { 0 /none /none reg rex } rep
+    %80
+    /seven reg modrm11
+    i imm8
+  } /cmpbImmReg deff
 
   { ==mem ==reg
     reg bit32assert
@@ -287,6 +310,14 @@
     src dst modrm11
   } /cmpqRegReg deff
 
+  { ==mem
+    mem bit64assert
+
+    1 /none /none mem rex
+    %FF
+    /one mem modrm00
+  } /decqMem deff
+
   { ==reg
     reg bit64assert
 
@@ -294,6 +325,14 @@
     %FF
     /one reg modrm11
   } /decqReg deff
+
+  { ==mem
+    mem bit64assert
+
+    1 /none /none mem rex
+    %FF
+    /zero mem modrm00
+  } /incqMem deff
 
   { ==reg
     reg bit64assert
@@ -326,6 +365,60 @@
     reg mem modrm01
     disp imm8
   } /leaqMemDisp8Reg deff
+
+  { ==mem ==i
+    mem bit64assert
+    i 256 lt assert
+
+    mem regno %07 gt { 0 /none /none mem rex } rep
+    %C6
+    /zero mem modrm00
+    i imm8
+  } /movbImmMem deff
+
+  { ==mem ==disp ==i
+    mem bit64assert
+    disp 256 lt assert
+    i 256 lt assert
+
+    mem regno %07 gt { 0 /none /none mem rex } rep
+    %C6
+    /zero mem modrm01
+    disp imm8
+    i imm8
+  } /movbImmMemDisp8 deff
+
+  { ==reg ==mem ==disp
+    reg bit8assert
+    mem bit64assert
+    disp 128 lt assert
+
+    reg regno %07 gt mem regno %07 gt or { 0 reg /none mem rex } rep
+    %8A
+    reg mem modrm01
+    disp imm8
+  } /movbMemDisp8Reg deff
+
+  { ==mem ==i
+    mem bit64assert
+    i 65536 lt assert
+
+    mem regno %07 gt { 0 /none /none mem rex } rep
+    %66
+    %C7
+    /zero mem modrm00
+    i imm16
+  } /movwImmMem deff
+
+  { ==mem ==i
+    mem bit64assert
+    i 65536 65536 mul lt assert
+
+    mem regno %07 gt { 0 /none /none mem rex } rep
+    %C7
+    /zero mem modrm00
+    i imm32
+  } /movlImmMem deff
 
   { ==reg ==mem
     reg bit32assert
@@ -434,6 +527,10 @@
     src dst modrm11
   } /movqRegReg deff
 
+  {
+    %A4
+  } /movsb deff
+
   { ==reg ==mem
     reg bit64assert
     mem bit64assert
@@ -497,6 +594,13 @@
     /six mem modrm00
   } /pushqMem deff
 
+  { ==mem ==disp
+    mem regno %07 gt { 1 /none /none mem rex } rep
+    %FF
+    /six mem modrm01
+    disp imm8
+  } /pushqMemDisp8 deff
+
   { ==mem ==idx ==scale
     mem regno %07 gt idx regno %07 gt or { 1 /none idx mem rex } rep
     %FF
@@ -513,6 +617,10 @@
     %68
     imm imm32
   } /pushqImm32 deff
+
+  {
+    %F3
+  } /reprcx deff
 
   {
     %F3
@@ -677,6 +785,8 @@
       stack
     > -12 ==
   }' each
+
+  STACKSIZE sys .asm .alloc .base ==quoteEncodingBuffer
 
   { ==opcodes
     opcodes len 1 sub PAGESIZE div 1 add PAGESIZE mul sys .asm .alloc /codearea defv
