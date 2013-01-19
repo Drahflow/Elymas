@@ -38,6 +38,21 @@
     [ %00 %00 %00 %00 %00 %00 %00 %00 ] ==currentQuoted
   > { defv }' allocateOffsetStruct
 
+  { _ =*array len _ 4 div ==largeMoves
+                    4 mod ==smallMoves
+    0 ==i
+    largeMoves {
+      i _ 4 add =i
+        _ [ 3 2 1 0 ] add array { -01 256 mul add } fold -01 /rdi :movlImmMemDisp8
+    } rep
+    i /rdi :addqImm8Reg
+    smallMoves {
+      i _ 1 add =i
+          array /rdi :movbImmMem
+      /rdi :incqReg
+    } rep
+  } /loadToRdi deff
+
   # internal functions, ABI follows SysV standards
 
   # compare two strings
@@ -269,6 +284,31 @@
     ] /internalAllocateArray defv
   > { defv }' allocateOffsetStruct
 
+  # FIXME: open a new function scope
+  [
+    8 /r15 :subqImm8Reg
+    /r15 :popqMem
+    8 /r15 :subqImm8Reg
+    currentScope /rbx :movqImmReg
+    /rbx /rsi :movqMemReg
+    /rsi /r15 :movqRegMem
+  ] _ /unscopingFunctionHeader defv [
+    8 /rdi :movqImmReg
+    internalAllocateScope /rax :movqImmReg
+    /rax :callqReg
+    /rax /rbx :movqRegMem
+  ] cat /scopingFunctionHeader defv
+
+  [
+    /r15 /rcx :movqMemReg
+    currentScope /rax :movqImmReg
+    /rcx /rax :movqRegMem
+    8 /r15 :addqImm8Reg
+    /r15 :pushqMem
+    8 /r15 :addqImm8Reg
+    :retn
+  ] /functionFooter defv
+
   # elymas functions, stack based ABI
 
   1 ==ARRAYMARKER
@@ -458,15 +498,18 @@
 
       /rdx :popqReg
 
+      # save current scope
+      currentScope /rax :movqImmReg
+      /rax /rsi :movqMemReg
+      8 /r15 :subqImm8Reg
+      /rsi /r15 :movqRegMem
+
       # enter scope
       8 /rdx /rcx :movqMemDisp8Reg
       /rcx /rcx :testqRegReg
-      /scoped :jnzLbl8
-      currentScope /rax :movqImmReg
-      /rax /rcx :movqMemReg
-      @scoped
-      8 /r15 :subqImm8Reg
-      /rcx /r15 :movqRegMem
+      /unscoped :jzLbl8
+      /rcx /rax :movqRegMem
+      @unscoped
 
       # handle typed function
       16 /rdx /rcx :movqMemDisp8Reg
@@ -545,7 +588,193 @@
       8 /r15 :addqImm8Reg
       :retn
     ] :labelResolve /ey] defv
+
+    # length of array or string
+    # 0 -> array / string
+    # 0 <- number of elements / characters
+    [
+      8 /r15 :subqImm8Reg
+      /r15 :popqMem
+      
+      /rax :popqReg
+      7 /rax /cl :movbMemDisp8Reg
+      %F0 /cl :andbImmReg
+      %10 /cl :cmpbImmReg
+      /stringLen :jeLbl8
+      %70 /cl :cmpbImmReg
+      /arrayLen :jeLbl8
+
+      # TODO "neither string nor array in len"
+      :ud2
+
+      @arrayLen
+      /rax /rcx :movqMemReg
+      8 /rcx :shlqImm8Reg # clear type bits
+      11 /rcx :shrqImm8Reg # divide by 8
+      /rcx :decqReg # substract header size
+      /done :jmpLbl8
+
+      @stringLen
+      16 /rax /rcx :movqMemDisp8Reg
+
+      @done
+      /rcx :pushqReg
+
+      /r15 :pushqMem
+      8 /r15 :addqImm8Reg
+      :retn
+    ] :labelResolve /eylen defv
   > _ ==globalFunctions { defv }' allocateOffsetStruct
+
+  <
+    <
+      # resolve identifier according to current scope and quote mode and act accordingly
+      # 0 -> identifier to resolve
+      [
+        8 /r15 :subqImm8Reg
+        /r15 :popqMem
+
+        /selfBegin :callLbl32
+        ] _ len ==internalExecuteHeaderLen [ -011 len dearray
+        @selfBegin
+        /rax :popqReg
+        internalExecuteHeaderLen /rax :subqImm8Reg
+        8 /r15 :subqImm8Reg
+        /rax /r15 :movqRegMem # store entry into this function
+
+        8 /r15 :subqImm8Reg
+        /r15 :popqMem # store identifier
+        
+        # scope resolution
+        currentScope /rdi :movqImmReg
+        /rdi /rdi :movqMemReg
+        /r15 /rsi :movqMemReg
+        internalResolve /rax :movqImmReg
+        /rax :callqReg
+
+        /rax /rax :testqRegReg
+        /unresolved :jzLbl8
+        /rax :pushqReg
+
+        0 /rdx :cmpqImm8Reg
+        /inactive :jzLbl8
+        1 /rdx :cmpqImm8Reg
+        /active :jzLbl8
+        2 /rdx :cmpqImm8Reg
+        /quoteActive :jzLbl8
+
+        # TODO: "invalid activation mode"
+        :ud2
+
+        @unresolved
+        currentQuoted /rax :movqImmReg
+        /rax /rax :movqMemReg
+        /rax /rax :testqRegReg
+        /constructQuotedResolve :jnzLbl8
+
+        # TODO: "unresolved name while unquoted"
+        :ud2
+
+        @quoteActive
+        |ey* /rax :movqImmReg
+        /rax :callqReg
+        /done :jmpLbl8
+
+        @active
+        currentQuoted /rax :movqImmReg
+        /rax /rax :movqMemReg
+        /rax /rax :testqRegReg
+        /activeQuoted :jnzLbl8
+        |ey* /rax :movqImmReg
+        /rax :callqReg
+        /done :jmpLbl8
+
+        @activeQuoted
+        # FIXME: actually, this should re-resolve as if unresolved
+        /done :jmpLbl8
+
+        @inactive
+        currentQuoted /rax :movqImmReg
+        /rax /rax :movqMemReg
+        /rax /rax :testqRegReg
+        /constructQuotedResolve :jnzLbl8
+
+        @done
+        16 /r15 :addqImm8Reg
+        /r15 :pushqMem
+        8 /r15 :addqImm8Reg
+        :retn
+
+        @constructQuotedResolve
+        # construct non-capturing function which
+        :quoteEncodingBuffer /rdi :movqImmReg
+        unscopingFunctionHeader loadToRdi
+
+        # 1. pushes identifier
+        [ /rax :movqImmOOBReg ] _ len 2 eq assert
+          2 dearray 256 mul add 
+          /rdi :movwImmMem
+        /r15 /rsi :movqMemReg
+        /rsi 2 /rdi :movqRegMemDisp8
+        10 /rdi :addqImm8Reg
+
+        [
+          /rax :pushqReg
+
+          # 2. resets to non-quoted mode
+          8 /r15 :subqImm8Reg
+          currentQuoted /rax :movqImmReg
+          /rax /rcx :movqMemReg
+          /rcx /r15 :movqRegMem
+          /rcx /rcx :xorqRegReg
+          /rcx /rax :movqRegMem
+          # 3. resolves identifier action
+          /rax :movqImmOOBReg
+        ] loadToRdi
+        8 /r15 /rax :movqMemDisp8Reg
+        /rax /rdi :movqRegMem
+        8 /rdi :addqImm8Reg
+        [
+          /rax :callqReg
+          # 4. restores quote mode
+          /r15 /rcx :movqMemReg
+          currentQuoted /rax :movqImmReg
+          /rcx /rax :movqRegMem
+          8 /r15 :addqImm8Reg
+        ] functionFooter cat loadToRdi
+
+        :quoteEncodingBuffer /rax :movqImmReg
+        /rax /rdi :subqRegReg
+        /rdi :pushqReg # store opcode byte count
+
+        /rdi :decqReg
+        3 /rdi :shrqImm8Reg
+        /rdi :incqReg
+        3 /rdi :shlqImm8Reg
+        internalAllocateCode /rax :movqImmReg
+        /rax :callqReg
+
+        # rax == code block on heap
+
+        # copy opcodes
+        :quoteEncodingBuffer /rsi :movqImmReg
+        8 /rax /rdi :leaqMemDisp8Reg
+        /rcx :popqReg
+        :reprcx :movsb
+
+        # create function object
+        /rax /rdi :movqRegReg
+        /rsi /rsi :xorqRegReg
+        /rdx /rdx :xorqRegReg
+        internalAllocateFunction /rax :movqImmReg
+        /rax :callqReg
+
+        # rax == function object on heap
+        /rax :pushqReg
+        /done :jmpLbl32
+      ] :labelResolve
+    > -- /internalExecuteIdentifier defv
+  > { defv }' allocateOffsetStruct
 
   <
     # drop top stack element
@@ -722,164 +951,128 @@
       :retn
     ] /ey{ defv
 
-    <
-      # FIXME: open a new function scope
+    # quote construction, create function from begin marker onwards
+    [
+      8 /r15 :subqImm8Reg
+      /r15 :popqMem
+
+      currentQuoted /rcx :movqImmReg
+      /rcx :decqMem
+
+      QUOTEMARKER /rcx :movqImmReg
+      /rcx :pushqReg
+      /rsp /rdx :movqRegReg
+      @backwardsSearch
+      8 /rdx :addqImm8Reg
+      /rdx /rcx :cmpqMemReg
+      /backwardsSearch :jneLbl8
+
+      /rdx :pushqReg # store address of begin marker
+
+      :quoteEncodingBuffer /rdi :movqImmReg
+      scopingFunctionHeader loadToRdi
+
+      @search
+      8 /rdx :subqImm8Reg
+      /rdx /rcx :cmpqMemReg
+      /markerFound :jeLbl8
+
+      /rdx /rsi :movqMemReg
+      7 /rsi /al :movbMemDisp8Reg
+      %F0 /al :andbImmReg
+      /immediateFound :jzLbl8
+      %10 /al :cmpbImmReg
+      /immediateFound :jzLbl8
+      %50 /al :cmpbImmReg
+      /functionFound :jzLbl8
+      %70 /al :cmpbImmReg
+      /arrayFound :jzLbl8
+
+      # TODO: "invalid object during quote construction"
+      :ud2
+
+      @immediateFound
+      [ /rax :movqImmOOBReg ] _ len 2 eq assert
+        2 dearray 256 mul add 
+        /rdi :movwImmMem
+      /rsi 2 /rdi :movqRegMemDisp8
+      [ /rax :pushqReg ] _ len 1 eq assert
+        1 dearray
+        10 /rdi :movbImmMemDisp8
+      11 /rdi :addqImm8Reg
+      /search :jmpLbl8
+
+      @functionFound
+      [ /rax :movqImmOOBReg ] _ len 2 eq assert
+        2 dearray 256 mul add 
+        /rdi :movwImmMem
+      /rsi 2 /rdi :movqRegMemDisp8
+      [ /rax :pushqReg ] _ len 1 eq assert
+        1 dearray
+        10 /rdi :movbImmMemDisp8
+      11 /rdi :addqImm8Reg
       [
-        8 /r15 :subqImm8Reg
-        /r15 :popqMem
-        8 /r15 :subqImm8Reg
-        currentScope /rax :movqImmReg
-        /rax /rax :movqMemReg
-        /rax /r15 :movqRegMem
-      ] /functionHeader defv
-
-      [
-        /r15 /rcx :movqMemReg
-        currentScope /rax :movqImmReg
-        /rcx /rax :movqRegMem
-        8 /r15 :addqImm8Reg
-        /r15 :pushqMem
-        8 /r15 :addqImm8Reg
-        :retn
-      ] /functionFooter defv
-
-      { _ =*array len _ 4 div ==largeMoves
-                        4 mod ==smallMoves
-        0 ==i
-        largeMoves {
-          i _ 4 add =i
-              [ 3 2 1 0 ] add array { -01 256 mul add } fold /rdi :movlImmMem
-          4 /rdi :addqImm8Reg
-        } rep
-        smallMoves {
-          i _ 1 add =i
-              array /rdi :movbImmMem
-          /rdi :incqReg
-        } rep
-      } /loadToRdi deff
-
-      # quote construction, create function from begin marker onwards
-      [
-        8 /r15 :subqImm8Reg
-        /r15 :popqMem
-
-        currentQuoted /rcx :movqImmReg
-        /rcx :decqMem
-
-        QUOTEMARKER /rcx :movqImmReg
-        /rcx :pushqReg
-        /rsp /rdx :movqRegReg
-        @backwardsSearch
-        8 /rdx :addqImm8Reg
-        /rdx /rcx :cmpqMemReg
-        /backwardsSearch :jneLbl8
-
-        /rdx :pushqReg # store address of begin marker
-
-        :quoteEncodingBuffer /rdi :movqImmReg
-
-        functionHeader loadToRdi
-
-        @search
-        8 /rdx :subqImm8Reg
-        /rdx /rcx :cmpqMemReg
-        /markerFound :jeLbl8
-
-        /rdx /rsi :movqMemReg
-        7 /rsi /al :movbMemDisp8Reg
-        %F0 /al :andbImmReg
-        /immediateFound :jzLbl8
-        %50 /al :cmpbImmReg
-        /functionFound :jzLbl8
-        %70 /al :cmpbImmReg
-        /arrayFound :jzLbl8
-
-        # TODO: "invalid object during quote construction"
-        :ud2
-
-        @immediateFound
-        [ /rax :movqImmOOBReg ] _ len 2 eq assert
-          2 dearray 256 mul add 
-          /rdi :movwImmMem
-        /rsi 2 /rdi :movqRegMemDisp8
-        [ /rax :pushqReg ] _ len 1 eq assert
-          1 dearray
-          10 /rdi :movbImmMemDisp8
-        11 /rdi :addqImm8Reg
-        /search :jmpLbl8
-
-        @functionFound
-        [ /rax :movqImmOOBReg ] _ len 2 eq assert
-          2 dearray 256 mul add 
-          /rdi :movwImmMem
-        /rsi 2 /rdi :movqRegMemDisp8
-        [ /rax :pushqReg ] _ len 1 eq assert
-          1 dearray
-          10 /rdi :movbImmMemDisp8
-        11 /rdi :addqImm8Reg
-        [
-          |ey* /rax :movqImmReg
-          /rax :callqReg
-        ] loadToRdi
-        /search :jmpLbl8
-
-        @arrayFound
-        # FIXME allow macros to put byte arrays into quoted contexts and thereby generate assembly
-        :ud2
-        /search :jmpLbl8
-
-        @markerFound
-
-        functionFooter loadToRdi
-
-        :quoteEncodingBuffer /rax :movqImmReg
-        /rax /rdi :subqRegReg
-        /rdi :pushqReg # store opcode byte count
-
-        /rdi :decqReg
-        3 /rdi :shrqImm8Reg
-        /rdi :incqReg
-        3 /rdi :shlqImm8Reg
-        internalAllocateCode /rax :movqImmReg
+        |ey* /rax :movqImmReg
         /rax :callqReg
+      ] loadToRdi
+      /search :jmpLbl8
 
-        # rax == code block on heap
+      @arrayFound
+      # FIXME allow macros to put byte arrays into quoted contexts and thereby generate assembly
+      :ud2
+      /search :jmpLbl8
 
-        # copy opcodes
-        :quoteEncodingBuffer /rsi :movqImmReg
-        8 /rax /rdi :leaqMemDisp8Reg
-        /rcx :popqReg
-        :reprcx :movsb
+      @markerFound
 
-        # create function object
-        /rax /rdi :movqRegReg
-        currentScope /rax :movqImmReg
-        /rax /rsi :movqMemReg
-        /rdx /rdx :xorqRegReg
-        internalAllocateFunction /rax :movqImmReg
-        /rax :callqReg
+      functionFooter loadToRdi
 
-        # rax == function object on heap
+      :quoteEncodingBuffer /rax :movqImmReg
+      /rax /rdi :subqRegReg
+      /rdi :pushqReg # store opcode byte count
 
-        # store function instead of begin marker
-        /rdx :popqReg
-        /rax /rdx :movqRegMem
-        /rdx /rsp :movqRegReg # and drop quoted stuff from stack
+      /rdi :decqReg
+      3 /rdi :shrqImm8Reg
+      /rdi :incqReg
+      3 /rdi :shlqImm8Reg
+      internalAllocateCode /rax :movqImmReg
+      /rax :callqReg
 
-        currentQuoted /rcx :movqImmReg
-        /rcx /rcx :movqMemReg
-        /rcx /rcx :testqRegReg
-        /unquoted :jzLbl8
+      # rax == code block on heap
 
-        :ud2
-        # FIXME: quote once more
+      # copy opcodes
+      :quoteEncodingBuffer /rsi :movqImmReg
+      8 /rax /rdi :leaqMemDisp8Reg
+      /rcx :popqReg
+      :reprcx :movsb
 
-        @unquoted
-        /r15 :pushqMem
-        8 /r15 :addqImm8Reg
-        :retn
-      ] :labelResolve
-    > -- /ey} defv
+      currentQuoted /rcx :movqImmReg
+      /rcx /rcx :movqMemReg
+      /rcx /rcx :testqRegReg
+      /quoted :jnzLbl8
+
+      # create function object
+      /rax /rdi :movqRegReg
+      currentScope /rax :movqImmReg
+      /rax /rsi :movqMemReg
+      /rdx /rdx :xorqRegReg
+      internalAllocateFunction /rax :movqImmReg
+      /rax :callqReg
+
+      # rax == function object on heap
+
+      # store function instead of begin marker
+      /rdx :popqReg
+      /rax /rdx :movqRegMem
+      /rdx /rsp :movqRegReg # and drop quoted stuff from stack
+
+      /r15 :pushqMem
+      8 /r15 :addqImm8Reg
+      :retn
+
+      @quoted
+      # FIXME: quote once more
+      :ud2
+    ] :labelResolve /ey} defv
   > _ ==globalMacros { defv }' allocateOffsetStruct
 
   { strToUTF8Bytes _ =*v len _ ==exactLength
@@ -931,8 +1124,7 @@
       { ==name
         # create function
         name | 8 sub /rdi :movqImmReg
-        currentScope /rsi :movqImmReg
-        /rsi /rsi :movqMemReg
+        /rsi /rsi :xorqRegReg # library functions don't have a captured scope
         # TODO: put a type here where applicable
         /rdx /rdx :xorqRegReg
 

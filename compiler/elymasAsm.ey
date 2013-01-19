@@ -96,8 +96,8 @@
   } /sib deff
 
   { _ 0 ge assert 8 { _ 256 mod -01 256 div } rep -- } /imm64 deff
-  { _ 0 ge assert 4 { _ 256 mod -01 256 div } rep -- } /imm32 deff
-  { _ 0 ge assert 2 { _ 256 mod -01 256 div } rep -- } /imm16 deff
+  { _ 0 lt { 4294967296 add } rep 4294967295 band 4 { _ 256 mod -01 256 div } rep -- } /imm32 deff
+  { _ 0 lt { 65536 add } rep 65535 band 2 { _ 256 mod -01 256 div } rep -- } /imm16 deff
   { _ 0 lt { 256 add } rep 255 band } /imm8 deff
 
   # label handling
@@ -117,6 +117,26 @@
       imm8 offset -102 =[] } ] cat =labelHoles
     [ -011 len dearray %00
   } /labelRel8 deff
+
+  { ==l
+    ] _ len ==offset
+    labelHoles [ {
+      labels l . offset 2 add sub
+      _ 32768 lt assert
+      _ 32768 neg ge assert
+      imm16 offset [ 0 1 ] add 2 dearray -204314 =[] =[] } ] cat =labelHoles
+    [ -011 len dearray %00 %00
+  } /labelRel16 deff
+
+  { ==l
+    ] _ len ==offset
+    labelHoles [ {
+      labels l . offset 4 add sub
+      _ 2147483648 lt assert
+      _ 2147483648 neg ge assert
+      imm32 offset [ 0 1 2 3 ] add 4 dearray -408518628738 =[] =[] =[] =[] } ] cat =labelHoles
+    [ -011 len dearray %00 %00 %00 %00
+  } /labelRel32 deff
 
   { ==opcodes
     labelHoles { opcodes -01 * } each
@@ -144,7 +164,7 @@
       _ 128 lt assert
     } name "Lbl8" cat
     > -- 2 |deff rep
-  }' /defJmp deff
+  }' /defJmpRel8 deff
 
   # instructions
   { ==reg ==mem
@@ -215,6 +235,11 @@
     %21
     src dst modrm11
   } /andqRegReg deff
+
+  { ==lbl
+    %E8
+    lbl labelRel32
+  } /callLbl32 deff
 
   { ==reg
     reg bit64assert
@@ -364,18 +389,22 @@
     /zero reg modrm11
   } /incqReg deff
 
-  %E2 /loop defJmp
+  %E2 /loop defJmpRel8
 
-  %EB /jmp defJmp
+  %EB /jmp defJmpRel8
+  { ==lbl
+    %E9
+    lbl labelRel32
+  } /jmpLbl32 deff
 
-  %72 /jb defJmp
-  %76 /jbe defJmp
-  %74 /je defJmp
-  %7E /jle defJmp
-  %73 /jnb defJmp
-  %75 /jne defJmp
-  %75 /jnz defJmp
-  %74 /jz defJmp
+  %72 /jb defJmpRel8
+  %76 /jbe defJmpRel8
+  %74 /je defJmpRel8
+  %7E /jle defJmpRel8
+  %73 /jnb defJmpRel8
+  %75 /jne defJmpRel8
+  %75 /jnz defJmpRel8
+  %74 /jz defJmpRel8
 
   { ==reg ==mem ==disp
     reg bit64assert
@@ -441,6 +470,18 @@
     /zero mem modrm00
     i imm32
   } /movlImmMem deff
+
+  { ==mem ==disp ==i
+    mem bit64assert
+    disp 128 lt assert
+    i 65536 65536 mul lt assert
+
+    mem regno %07 gt { 0 /none /none mem rex } rep
+    %C7
+    /zero mem modrm01
+    disp imm8
+    i imm32
+  } /movlImmMemDisp8 deff
 
   { ==reg ==mem
     reg bit32assert
