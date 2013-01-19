@@ -234,6 +234,16 @@
     dst src modrm11
   } /cmovaqRegReg deff
 
+  { ==dst ==src
+    src bit64assert
+    dst bit64assert
+
+    1 dst /none src rex
+    %0F
+    %43
+    dst src modrm11
+  } /cmovaeqRegReg deff
+
   {
     %A6
   } /cmpsb deff
@@ -271,6 +281,18 @@
     /seven reg modrm11
     i imm8
   } /cmpqImm8Reg deff
+
+  { ==mem ==disp ==i
+    mem bit64assert
+    disp 128 lt assert
+    i 256 lt assert
+
+    1 /none /none mem rex
+    %83
+    /seven mem modrm01
+    disp imm8
+    i imm8
+  } /cmpqImm8MemDisp8 deff
 
   { ==reg ==mem ==idx
     reg bit64assert
@@ -378,7 +400,7 @@
 
   { ==mem ==disp ==i
     mem bit64assert
-    disp 256 lt assert
+    disp 128 lt assert
     i 256 lt assert
 
     mem regno %07 gt { 0 /none /none mem rex } rep

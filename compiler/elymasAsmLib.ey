@@ -337,6 +337,20 @@
     [ /rcx /rdx :andqRegReg ] makeArith /eyband defv
     [ /rcx /rdx :orqRegReg ] makeArith /eybor defv
     [ /rcx /rdx :xorqRegReg ] makeArith /eybxor defv
+    [
+      /rdi /rdi :xorqRegReg
+      1 /rsi :movqImmReg
+      /rdx /rcx :cmpqRegReg 
+      /rsi /rdx :movqRegReg
+      /rdi /rdx :cmovaeqRegReg
+    ] makeArith /eygt defv
+    [
+      /rdi /rdi :xorqRegReg
+      1 /rsi :movqImmReg
+      /rdx /rcx :cmpqRegReg 
+      /rsi /rdx :movqRegReg
+      /rdi /rdx :cmovaqRegReg
+    ] makeArith /eyge defv
 
     { ==activation
       # create a new entry in the current scope for the given name
@@ -542,6 +556,16 @@
       :retn
     ] /ey-- defv
 
+    # duplicate top stack element
+    [
+      /rax :popqReg
+      /rcx :popqReg
+      /rcx :pushqReg
+      /rcx :pushqReg
+      /rax :pushqReg
+      :retn
+    ] /ey_ defv
+
     # top stack element is a string defining a stack shuffle
     # 0-9: push the thusly numbered element
     #   *: execute top element
@@ -645,6 +669,46 @@
       8 /r15 :addqImm8Reg
       :retn
     ] :labelResolve /eyrep defv
+
+    # a normal loop
+    # 0 -> second part of loop
+    # 1 -> first part of loop
+    # execute first part, if top of stack is nonzero, execute second part, repeat
+    [
+      8 /r15 :subqImm8Reg
+      /r15 :popqMem
+
+      8 /r15 :subqImm8Reg
+      /r15 :popqMem
+
+      8 /r15 :subqImm8Reg
+      /r15 :popqMem
+
+      # /r15 -> first part
+      # 8 /r15 -> second part
+
+      @loop
+      /r15 :pushqMem
+      |ey* /rax :movqImmReg
+      /rax :callqReg
+
+      /rax :popqReg
+      0 8 /rax :cmpqImm8MemDisp8
+      /end :jzLbl8
+
+      8 /r15 :pushqMemDisp8
+      |ey* /rax :movqImmReg
+      /rax :callqReg
+      /loop :jmpLbl8
+
+      @end
+
+      16 /r15 :addqImm8Reg
+
+      /r15 :pushqMem
+      8 /r15 :addqImm8Reg
+      :retn
+    ] :labelResolve /eyloop defv
   > _ ==globalFunctions2 { defv }' allocateOffsetStruct
 
   <
