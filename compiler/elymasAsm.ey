@@ -397,6 +397,7 @@
     lbl labelRel32
   } /jmpLbl32 deff
 
+  %77 /ja defJmpRel8
   %72 /jb defJmpRel8
   %76 /jbe defJmpRel8
   %74 /je defJmpRel8
@@ -593,6 +594,11 @@
   {
     %A4
   } /movsb deff
+
+  {
+    1 /none /none /none rex
+    %A5
+  } /movsq deff
 
   { ==reg ==mem
     reg bit64assert

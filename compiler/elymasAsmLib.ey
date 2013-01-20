@@ -1,6 +1,8 @@
 "elymasAsm.ey" include
 
 <
+  256 ==INITIALEXTENSIONSIZE
+
   { assembler -01 . } ":" deff
   assembler .|label "@" deff
   "%" _ : -01 deff
@@ -24,6 +26,15 @@
     struct keys { address -101 def struct -01 . len address add =address } each
   } /allocateOffsetStruct deff
 
+  { ==str
+    [
+      str len :imm64 -- %10
+      %00 %00 %00 %00 %00 %00 %00 %00
+      str len :imm64
+    ] str strToUTF8Bytes cat
+    [ 8 str len 8 mod sub %00 rep ] cat
+  } /toErrString deff
+
   <
     # current end of heap memory (grows upwards)
     [ %00 %00 %00 %00 %00 %60 %00 %00 ] ==heapEnd
@@ -36,6 +47,9 @@
 
     # current parser quote state
     [ %00 %00 %00 %00 %00 %00 %00 %00 ] ==currentQuoted
+
+    # error strings
+    "unresolved name: " toErrString ==errUnresolvedName
   > { defv }' allocateOffsetStruct
 
   { _ =*array len _ 4 div ==largeMoves
@@ -74,6 +88,17 @@
   ] :labelResolve /internalStringEqualsCode defv
 
   <
+    # dump string to stderr for internal error reporting
+    # rdi -> address of string on heap
+    [
+      24 /rdi /rsi :leaqMemDisp8Reg
+      16 /rdi /rdx :movqMemDisp8Reg
+      2 /rdi :movqImmReg
+      1 /rax :movqImmReg
+      :syscall
+      :retn
+    ] /internalDumpErrorString defv
+
     # allocate a chunk of memory
     # rdi -> size of chunk in bytes
     # rax <- address of allocated chunk
@@ -176,15 +201,21 @@
 
       32 /rdx :addqImm8Reg # add scope header size
       /edx /rdi :cmplRegMem # TODO this fails for > 4 GB scopes
-      /inDataArea :jnbLbl8
+      /inDataArea :jaLbl8
 
       /rdi /edx :sublMemReg # substract scope length
       24 /rdi /rdi :movqMemDisp8Reg # load extension area pointer
+      /rdi /rdi :testqRegReg
+      /outsideExtensionArea :jzLbl8
       8 /rdx :addqImm8Reg # add extension area header length
 
       @inDataArea
       /rdx /rdi /rdx :movqMemIndexReg # load entry pointer
       /rax /rdx :xchgqRegReg
+      :retn
+
+      @outsideExtensionArea
+      /rax /rax :xorqRegReg
       :retn
     ] :labelResolve /internalResolve defv
   > { defv }' allocateOffsetStruct
@@ -398,7 +429,9 @@
       # 0 -> name, string
       # 1 -> object
       [
-        /rcx :popqReg
+        8 /r15 :subqImm8Reg
+        /r15 :popqMem
+
         /rdi :popqReg
 
         # search for name in nametable
@@ -440,6 +473,7 @@
         /enlargeNameTable :jbeLbl8
 
         # insert into name table
+        @insertIntoNameTable
         /rdi /rsi :movqRegMem
         activation 8 /rsi :movqImm32MemDisp8 # set default activation mode
         8 /rbx /rdx :movqMemDisp8Reg # rdx == start of nametable in heap
@@ -449,8 +483,33 @@
 
         @enlargeNameTable
         # if name table is already full, double size
-        # FIXME
-        :ud2
+        8 /rbx /rdx :movqMemDisp8Reg # rdx == start of nametable in heap
+        /rdi :pushqReg
+        /rdx :pushqReg
+        /rdx /edi :movlMemReg # load current length
+        /rdi /rdi :addqRegReg
+
+        internalAllocate /rax :movqImmReg
+        /rax :callqReg
+        %30 7 /rax :orbImmMemDisp8 # set type
+        /rdx :popqReg
+        8 /rdx /rcx :movqMemDisp8Reg
+        /rcx 8 /rax :movqRegMemDisp8 # copy fill
+
+        16 /rdx /rsi :leaqMemDisp8Reg
+        16 /rax /rdi :leaqMemDisp8Reg
+        16 /rcx :subqImm8Reg
+        3 /rcx :shrqImm8Reg
+        :reprcx :movsq # copy content
+
+        # rax == enlarged name table on heap
+        
+        /rax 8 /rbx :movqRegMemDisp8 # switch scope to new name table
+
+        # insert into name table
+        /rsi :popqReg
+        /rsi /rdi :xchgqRegReg
+        /insertIntoNameTable :jmpLbl8
         
         @nameOffsetKnown
         8 /rbx /rdx :subqMemDisp8Reg # substract name table address
@@ -463,28 +522,47 @@
         # update 
         # if fits within main area, fine
         32 /rdx :addqImm8Reg # add scope header size
-        /edx /rbx :cmplRegMem # TODO this fails for > 4 GB scopes
-        /inDataArea :jnbLbl8
+        /edx /rbx :cmplRegMem
+        /inDataArea :jaLbl8
 
         # update within extension area
         /rbx /edx :sublMemReg # substract scope length
-        24 /rbx /rbx :movqMemDisp8Reg # load extension area pointer
+        24 /rbx /rdi :movqMemDisp8Reg # load extension area pointer
         8 /rdx :addqImm8Reg # add extension area header length
 
+        # if extension area is non-existent, create
+        /rdi /rdi :testqRegReg
+        /extensionAreaExists :jnzLbl8
+
+        /rdx :pushqReg
+        INITIALEXTENSIONSIZE /rdi :movqImmReg
+        internalAllocate /rax :movqImmReg
+        /rax :callqReg
+        /rdx :popqReg
+
+        /rax /rdi :movqRegReg
+        /rdi 24 /rbx :movqRegMemDisp8 # store new extension area
+        /inExtensionArea :jmpLbl8
+
+        @extensionAreaExists
+
         # if extension area is full, double size
-        /edx /rbx :cmplRegMem
+        /edx /rdi :cmplRegMem
         /inExtensionArea :jnbLbl8
 
         # FIXME
         :ud2
 
         @inExtensionArea
+        /rdi /rbx :movqRegReg
+
         @inDataArea
 
         /rax :popqReg
         /rax /rbx /rdx :movqRegMemIndex # save entry pointer
 
-        /rcx :pushqReg
+        /r15 :pushqMem
+        8 /r15 :addqImm8Reg
         :retn
       ] :labelResolve
     } 0 -101* /eydefv defv
@@ -492,6 +570,7 @@
       2  -01* /eydefq defv
 
     # execute top stack element
+    # 0 -> function to execute
     [
       8 /r15 :subqImm8Reg
       /r15 :popqMem
@@ -624,7 +703,88 @@
       8 /r15 :addqImm8Reg
       :retn
     ] :labelResolve /eylen defv
+
+    # create an array containing a continuous range of ints
+    # 0 -> last element included in range
+    # 1 -> first element included in range
+    [
+      8 /r15 :subqImm8Reg
+      /r15 :popqMem
+
+      8 /r15 :subqImm8Reg
+      /r15 :popqMem
+
+      8 /r15 :subqImm8Reg
+      /r15 :popqMem
+
+      # 8 /r15 == last element
+      # /r15 == first element
+
+      8 /r15 /rdi :movqMemDisp8Reg
+      8 /rdi /rdi :movqMemDisp8Reg
+      /r15 /rbx :movqMemReg
+      8 /rbx /rbx :movqMemDisp8Reg
+
+      /rbx /rdi :subqRegReg
+      3 /rdi :shlqImm8Reg
+      8 /rdi :addqImm8Reg # one extra element, TODO: consider whether this is actually a good idea
+      internalAllocateArray /rax :movqImmReg
+      /rax :callqReg
+
+      /rax :pushqReg # store array on stack
+
+      8 /rax /rdi :leaqMemDisp8Reg # fill target
+      8 /r15 /rax :movqMemDisp8Reg
+      8 /rax /rax :movqMemDisp8Reg # largest element
+
+      @fill
+      /rax /rbx :cmpqRegReg
+      /done :jaLbl8
+
+      /rax :pushqReg
+      /rdi :pushqReg
+      # create int
+      16 /rdi :movqImmReg
+      internalAllocate /rax :movqImmReg
+      /rax :callqReg
+      /rbx 8 /rax :movqRegMemDisp8 # store value
+      /rdi :popqReg
+      /rax /rdi :movqRegMem # store into array
+      /rax :popqReg
+
+      /rbx :incqReg
+      8 /rdi :addqImm8Reg
+      /fill :jmpLbl8
+
+      @done
+
+      16 /r15 :addqImm8Reg
+      /r15 :pushqMem
+      8 /r15 :addqImm8Reg
+      :retn
+    ] :labelResolve /eyrange defv
   > _ ==globalFunctions { defv }' allocateOffsetStruct
+
+  {
+    :quoteEncodingBuffer /rax :movqImmReg
+    /rax /rdi :subqRegReg
+    /rdi :pushqReg # store opcode byte count
+
+    /rdi :decqReg
+    3 /rdi :shrqImm8Reg
+    /rdi :incqReg
+    3 /rdi :shlqImm8Reg
+    internalAllocateCode /rax :movqImmReg
+    /rax :callqReg
+
+    # rax == code block on heap
+
+    # copy opcodes
+    :quoteEncodingBuffer /rsi :movqImmReg
+    8 /rax /rdi :leaqMemDisp8Reg
+    /rcx :popqReg
+    :reprcx :movsb
+  } /allocateCodeFromEncodingBuffer deff
 
   <
     <
@@ -673,6 +833,12 @@
         /constructQuotedResolve :jnzLbl8
 
         # TODO: "unresolved name while unquoted"
+        errUnresolvedName /rdi :movqImmReg
+        internalDumpErrorString /rax :movqImmReg
+        /rax :callqReg
+        /r15 /rdi :movqMemReg
+        internalDumpErrorString /rax :movqImmReg
+        /rax :callqReg
         :ud2
 
         @quoteActive
@@ -743,24 +909,8 @@
           8 /r15 :addqImm8Reg
         ] functionFooter cat loadToRdi
 
-        :quoteEncodingBuffer /rax :movqImmReg
-        /rax /rdi :subqRegReg
-        /rdi :pushqReg # store opcode byte count
-
-        /rdi :decqReg
-        3 /rdi :shrqImm8Reg
-        /rdi :incqReg
-        3 /rdi :shlqImm8Reg
-        internalAllocateCode /rax :movqImmReg
-        /rax :callqReg
-
+        allocateCodeFromEncodingBuffer
         # rax == code block on heap
-
-        # copy opcodes
-        :quoteEncodingBuffer /rsi :movqImmReg
-        8 /rax /rdi :leaqMemDisp8Reg
-        /rcx :popqReg
-        :reprcx :movsb
 
         # create function object
         /rax /rdi :movqRegReg
@@ -1025,25 +1175,9 @@
       @markerFound
 
       functionFooter loadToRdi
-
-      :quoteEncodingBuffer /rax :movqImmReg
-      /rax /rdi :subqRegReg
-      /rdi :pushqReg # store opcode byte count
-
-      /rdi :decqReg
-      3 /rdi :shrqImm8Reg
-      /rdi :incqReg
-      3 /rdi :shlqImm8Reg
-      internalAllocateCode /rax :movqImmReg
-      /rax :callqReg
+      allocateCodeFromEncodingBuffer
 
       # rax == code block on heap
-
-      # copy opcodes
-      :quoteEncodingBuffer /rsi :movqImmReg
-      8 /rax /rdi :leaqMemDisp8Reg
-      /rcx :popqReg
-      :reprcx :movsb
 
       currentQuoted /rcx :movqImmReg
       /rcx /rcx :movqMemReg
@@ -1058,6 +1192,7 @@
       internalAllocateFunction /rax :movqImmReg
       /rax :callqReg
 
+      @done
       # rax == function object on heap
 
       # store function instead of begin marker
@@ -1070,8 +1205,43 @@
       :retn
 
       @quoted
-      # FIXME: quote once more
-      :ud2
+      # rax == (inner) code object on heap
+
+      # create function which
+      # returns a function with the current scope captured
+      :quoteEncodingBuffer /rdi :movqImmReg
+      unscopingFunctionHeader loadToRdi
+
+      # 1. load inner code block
+      [ /rdi :movqImmOOBReg ] _ len 2 eq assert
+        2 dearray 256 mul add 
+        /rdi :movwImmMem
+      /rax 2 /rdi :movqRegMemDisp8
+      10 /rdi :addqImm8Reg
+
+      [
+        currentScope /rax :movqImmReg
+        /rax /rsi :movqMemReg
+        /rdx /rdx :xorqRegReg
+        internalAllocateFunction /rax :movqImmReg
+        /rax :callqReg
+        /rax :pushqReg
+      ] functionFooter cat loadToRdi
+      
+      allocateCodeFromEncodingBuffer
+
+      # rax == code object on heap
+
+      # create function object
+      /rax /rdi :movqRegReg
+      /rsi /rsi :xorqRegReg # non-capturing
+      /rdx /rdx :xorqRegReg
+      internalAllocateFunction /rax :movqImmReg
+      /rax :callqReg
+
+      # rax == function object on heap
+
+      /done :jmpLbl32
     ] :labelResolve /ey} defv
   > _ ==globalMacros { defv }' allocateOffsetStruct
 
@@ -1211,8 +1381,8 @@
         _ nameTable add peekImm64 stringDump
         _ 16 sub 2 div 32 add _ length lt { ==offset
             offset objAddr add peekImm64 memDump
-          } {
-            "Extension area dumping not yet implemented" die
+          } { length sub 8 add ==offset
+            offset extensionArea add peekImm64 memDump
           } ? *
         16 add
       } loop --
