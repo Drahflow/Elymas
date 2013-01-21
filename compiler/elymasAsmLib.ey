@@ -50,6 +50,7 @@
 
     # error strings
     "unresolved name: " toErrString ==errUnresolvedName
+    "neither string nor array in len" toErrString ==errNeitherStringNorArrayInLen
   > { defv }' allocateOffsetStruct
 
   { _ =*array len _ 4 div ==largeMoves
@@ -315,7 +316,6 @@
     ] /internalAllocateArray defv
   > { defv }' allocateOffsetStruct
 
-  # FIXME: open a new function scope
   [
     8 /r15 :subqImm8Reg
     /r15 :popqMem
@@ -683,21 +683,28 @@
       %70 /cl :cmpbImmReg
       /arrayLen :jeLbl8
 
-      # TODO "neither string nor array in len"
+      errNeitherStringNorArrayInLen /rdi :movqImmReg
+      internalDumpErrorString /rax :movqImmReg
+      /rax :callqReg
       :ud2
 
       @arrayLen
-      /rax /rcx :movqMemReg
-      8 /rcx :shlqImm8Reg # clear type bits
-      11 /rcx :shrqImm8Reg # divide by 8
-      /rcx :decqReg # substract header size
+      /rax /rbx :movqMemReg
+      8 /rbx :shlqImm8Reg # clear type bits
+      11 /rbx :shrqImm8Reg # divide by 8
+      /rbx :decqReg # substract header size
       /done :jmpLbl8
 
       @stringLen
-      16 /rax /rcx :movqMemDisp8Reg
+      16 /rax /rbx :movqMemDisp8Reg
 
       @done
-      /rcx :pushqReg
+      16 /rdi :movqImmReg
+      internalAllocate /rax :movqImmReg
+      /rax :callqReg
+      /rax :pushqReg # push integer on the stack
+      
+      /rbx 8 /rax :movqRegMemDisp8 # store integer value
 
       /r15 :pushqMem
       8 /r15 :addqImm8Reg
