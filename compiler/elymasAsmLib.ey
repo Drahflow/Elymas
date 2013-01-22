@@ -2,6 +2,7 @@
 
 <
   256 ==INITIALEXTENSIONSIZE
+  256 ==INITIALSCOPESIZE
 
   { assembler -01 . } ":" deff
   assembler .|label "@" deff
@@ -321,6 +322,7 @@
     ] /internalAllocateArray defv
   > { defv }' allocateOffsetStruct
 
+  # TODO: don't touch scope at all, if unscoping function
   [
     8 /r15 :subqImm8Reg
     /r15 :popqMem
@@ -822,6 +824,17 @@
       8 /r15 :addqImm8Reg
       :retn
     ] :labelResolve /eyrange defv
+
+    # create a new scope capturing the current one
+    [
+      INITIALSCOPESIZE /rdi :movqImmReg
+      currentScope /rsi :movqImmReg
+      /rsi /rsi :movqMemReg
+      internalAllocateScope /rax :movqImmReg
+      /rax :callqReg
+
+      :retn
+    ] /ey< defv
   > _ ==globalFunctions { defv }' allocateOffsetStruct
 
   {
@@ -846,142 +859,162 @@
   } /allocateCodeFromEncodingBuffer deff
 
   <
-    <
-      # resolve identifier according to current scope and quote mode and act accordingly
-      # 0 -> identifier to resolve
+    # resolve identifier without quoting considerations act accordingly
+    # 0 -> identifier to resolve
+    [
+      8 /r15 :subqImm8Reg
+      /r15 :popqMem
+
+      8 /r15 :subqImm8Reg
+      /r15 :popqMem # store identifier
+      
+      # scope resolution
+      currentScope /rdi :movqImmReg
+      /rdi /rdi :movqMemReg
+      /r15 /rsi :movqMemReg
+      internalResolve /rax :movqImmReg
+      /rax :callqReg
+
+      /rax /rax :testqRegReg
+      /unresolved :jzLbl8
+      /rax :pushqReg
+
+      0 /rdx :cmpqImm8Reg
+      /inactive :jzLbl8
+      1 /rdx :cmpqImm8Reg
+      /active :jzLbl8
+
+      # TODO: "invalid activation mode"
+      :ud2
+
+      @unresolved
+      errUnresolvedName /rdi :movqImmReg
+      internalDumpErrorString /rax :movqImmReg
+      /rax :callqReg
+      /r15 /rdi :movqMemReg
+      internalDumpErrorString /rax :movqImmReg
+      /rax :callqReg
+      :ud2
+
+      @active
+      |ey* /rax :movqImmReg
+      /rax :callqReg
+
+      @inactive
+      @done
+      8 /r15 :addqImm8Reg
+      /r15 :pushqMem
+      8 /r15 :addqImm8Reg
+      :retn
+    ] :labelResolve /internalExecuteIdentifierUnquoted defv
+  > { defv }' allocateOffsetStruct
+
+  <
+    # resolve identifier according to current scope and quote mode and act accordingly
+    # 0 -> identifier to resolve
+    [
+      8 /r15 :subqImm8Reg
+      /r15 :popqMem
+
+      8 /r15 :subqImm8Reg
+      /r15 :popqMem # store identifier
+      
+      # scope resolution
+      currentScope /rdi :movqImmReg
+      /rdi /rdi :movqMemReg
+      /r15 /rsi :movqMemReg
+      internalResolve /rax :movqImmReg
+      /rax :callqReg
+
+      /rax /rax :testqRegReg
+      /unresolved :jzLbl8
+
+      0 /rdx :cmpqImm8Reg
+      /inactive :jzLbl8
+      1 /rdx :cmpqImm8Reg
+      /active :jzLbl8
+      2 /rdx :cmpqImm8Reg
+      /quoteActive :jzLbl8
+
+      # TODO: "invalid activation mode"
+      :ud2
+
+      @unresolved
+      currentQuoted /rax :movqImmReg
+      /rax /rax :movqMemReg
+      /rax /rax :testqRegReg
+      /constructQuotedResolve :jnzLbl8
+
+      errUnresolvedName /rdi :movqImmReg
+      internalDumpErrorString /rax :movqImmReg
+      /rax :callqReg
+      /r15 /rdi :movqMemReg
+      internalDumpErrorString /rax :movqImmReg
+      /rax :callqReg
+      :ud2
+
+      @quoteActive
+      /rax :pushqReg
+      |ey* /rax :movqImmReg
+      /rax :callqReg
+      /done :jmpLbl8
+
+      @active
+      currentQuoted /rbx :movqImmReg
+      /rbx /rbx :movqMemReg
+      /rbx /rbx :testqRegReg
+      /constructQuotedResolve :jnzLbl8
+
+      /rax :pushqReg
+      |ey* /rax :movqImmReg
+      /rax :callqReg
+      /done :jmpLbl8
+
+      @inactive
+      currentQuoted /rax :movqImmReg
+      /rax /rax :movqMemReg
+      /rax /rax :testqRegReg
+      /constructQuotedResolve :jnzLbl8
+
+      @done
+      8 /r15 :addqImm8Reg
+      /r15 :pushqMem
+      8 /r15 :addqImm8Reg
+      :retn
+
+      @constructQuotedResolve
+      # construct non-capturing function
+      :quoteEncodingBuffer /rdi :movqImmReg
+      unscopingFunctionHeader loadToRdi
+
+      # push identifier
+      [ /rax :movqImmOOBReg ] _ len 2 eq assert
+        2 dearray 256 mul add 
+        /rdi :movwImmMem
+      /r15 /rsi :movqMemReg
+      /rsi 2 /rdi :movqRegMemDisp8
+      10 /rdi :addqImm8Reg
+
       [
-        8 /r15 :subqImm8Reg
-        /r15 :popqMem
-
-        /selfBegin :callLbl32
-        ] _ len ==internalExecuteHeaderLen [ -011 len dearray
-        @selfBegin
-        /rax :popqReg
-        internalExecuteHeaderLen /rax :subqImm8Reg
-        8 /r15 :subqImm8Reg
-        /rax /r15 :movqRegMem # store entry into this function
-
-        8 /r15 :subqImm8Reg
-        /r15 :popqMem # store identifier
-        
-        # scope resolution
-        currentScope /rdi :movqImmReg
-        /rdi /rdi :movqMemReg
-        /r15 /rsi :movqMemReg
-        internalResolve /rax :movqImmReg
-        /rax :callqReg
-
-        /rax /rax :testqRegReg
-        /unresolved :jzLbl8
         /rax :pushqReg
-
-        0 /rdx :cmpqImm8Reg
-        /inactive :jzLbl8
-        1 /rdx :cmpqImm8Reg
-        /active :jzLbl8
-        2 /rdx :cmpqImm8Reg
-        /quoteActive :jzLbl8
-
-        # TODO: "invalid activation mode"
-        :ud2
-
-        @unresolved
-        currentQuoted /rax :movqImmReg
-        /rax /rax :movqMemReg
-        /rax /rax :testqRegReg
-        /constructQuotedResolve :jnzLbl8
-
-        errUnresolvedName /rdi :movqImmReg
-        internalDumpErrorString /rax :movqImmReg
+        internalExecuteIdentifierUnquoted /rax :movqImmReg
         /rax :callqReg
-        /r15 /rdi :movqMemReg
-        internalDumpErrorString /rax :movqImmReg
-        /rax :callqReg
-        :ud2
+      ] functionFooter cat loadToRdi
 
-        @quoteActive
-        |ey* /rax :movqImmReg
-        /rax :callqReg
-        /done :jmpLbl8
+      allocateCodeFromEncodingBuffer
+      # rax == code block on heap
 
-        @active
-        currentQuoted /rax :movqImmReg
-        /rax /rax :movqMemReg
-        /rax /rax :testqRegReg
-        /activeQuoted :jnzLbl8
-        |ey* /rax :movqImmReg
-        /rax :callqReg
-        /done :jmpLbl8
+      # create non-capturing function object
+      /rax /rdi :movqRegReg
+      /rsi /rsi :xorqRegReg
+      /rdx /rdx :xorqRegReg
+      internalAllocateFunction /rax :movqImmReg
+      /rax :callqReg
 
-        @activeQuoted
-        # FIXME: actually, this should re-resolve as if unresolved
-        /done :jmpLbl8
-
-        @inactive
-        currentQuoted /rax :movqImmReg
-        /rax /rax :movqMemReg
-        /rax /rax :testqRegReg
-        /constructQuotedResolve :jnzLbl8
-
-        @done
-        16 /r15 :addqImm8Reg
-        /r15 :pushqMem
-        8 /r15 :addqImm8Reg
-        :retn
-
-        @constructQuotedResolve
-        # construct non-capturing function which
-        :quoteEncodingBuffer /rdi :movqImmReg
-        unscopingFunctionHeader loadToRdi
-
-        # 1. pushes identifier
-        [ /rax :movqImmOOBReg ] _ len 2 eq assert
-          2 dearray 256 mul add 
-          /rdi :movwImmMem
-        /r15 /rsi :movqMemReg
-        /rsi 2 /rdi :movqRegMemDisp8
-        10 /rdi :addqImm8Reg
-
-        [
-          /rax :pushqReg
-
-          # 2. resets to non-quoted mode
-          8 /r15 :subqImm8Reg
-          currentQuoted /rax :movqImmReg
-          /rax /rcx :movqMemReg
-          /rcx /r15 :movqRegMem
-          /rcx /rcx :xorqRegReg
-          /rcx /rax :movqRegMem
-          # 3. resolves identifier action
-          /rax :movqImmOOBReg
-        ] loadToRdi
-        8 /r15 /rax :movqMemDisp8Reg
-        /rax /rdi :movqRegMem
-        8 /rdi :addqImm8Reg
-        [
-          /rax :callqReg
-          # 4. restores quote mode
-          /r15 /rcx :movqMemReg
-          currentQuoted /rax :movqImmReg
-          /rcx /rax :movqRegMem
-          8 /r15 :addqImm8Reg
-        ] functionFooter cat loadToRdi
-
-        allocateCodeFromEncodingBuffer
-        # rax == code block on heap
-
-        # create non-capturing function object
-        /rax /rdi :movqRegReg
-        /rsi /rsi :xorqRegReg
-        /rdx /rdx :xorqRegReg
-        internalAllocateFunction /rax :movqImmReg
-        /rax :callqReg
-
-        # rax == function object on heap
-        /rax :pushqReg
-        /done :jmpLbl32
-      ] :labelResolve
-    > -- /internalExecuteIdentifier defv
+      # rax == function object on heap
+      /rax :pushqReg
+      /done :jmpLbl32
+    ] :labelResolve /internalExecuteIdentifier defv
   > { defv }' allocateOffsetStruct
 
   <
