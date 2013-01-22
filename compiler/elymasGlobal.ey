@@ -56,7 +56,7 @@
     "^ (.*)" { } parse
     "^#" { "" } parse
     "^(\\d+) +(.*)" { TOKINT token -01 } parse
-    "\"(.*)" {
+    "^\"(.*)" {
       "" /str defv
       { _ "^\"(.*)" regex { -01 -- 0 } { 1 } ? * } {
         0 /strmatched defv { /f deff strmatched { -- } { { 1 =strmatched f } rxparse } ? * } /strparse deff
