@@ -51,6 +51,7 @@
     # error strings
     "unresolved name: " toErrString ==errUnresolvedName
     "neither string nor array in len" toErrString ==errNeitherStringNorArrayInLen
+    "not an executable thing" toErrString ==errNotExecutable
   > { defv }' allocateOffsetStruct
 
   { _ =*array len _ 4 div ==largeMoves
@@ -581,6 +582,19 @@
 
       /rdx :popqReg
 
+      7 /rdx /cl :movbMemDisp8Reg
+      %F0 /cl :andbImmReg
+      %50 /cl :cmpbImmReg
+      /normalFunction :jeLbl8
+      %70 /cl :cmpbImmReg
+      /arrayFunction :jeLbl8
+
+      errNotExecutable /rdi :movqImmReg
+      internalDumpErrorString /rax :movqImmReg
+      /rax :callqReg
+      :ud2
+
+      @normalFunction
       # save current scope
       currentScope /rax :movqImmReg
       /rax /rsi :movqMemReg
@@ -604,9 +618,6 @@
       /rax :callqReg
       /done :jmpLbl8
 
-      @typed
-      :ud2 # TODO handle typed functions and autolooping
-
       @done
       /r15 /rcx :movqMemReg
       currentScope /rax :movqImmReg
@@ -615,6 +626,39 @@
       /r15 :pushqMem
       8 /r15 :addqImm8Reg
       :retn
+
+      @arrayFunction
+      # rdx == array on heap
+      /rbx :popqReg
+
+      7 /rbx /cl :movbMemDisp8Reg
+      %F0 /cl :andbImmReg
+      %00 /cl :cmpbImmReg
+      /arrayIntArgument :jeLbl8
+      :ud2 # TODO handle the fully typed case
+
+      @arrayIntArgument
+      8 /rbx /rax :movqMemDisp8Reg # rax == requested index
+      /rdx /ecx :movlMemReg # load array length
+      3 /rcx :shrqImm8Reg # divide by object pointer size
+      /rcx :decqReg # rcx == number of elements in array
+
+      /rsi /rsi :xorqRegReg
+      /rdx /rsi :xchgqRegReg
+
+      # TODO: think about skipping this if index fits
+      /rcx :divqReg
+
+      # rsi == array object on heap
+      # rdx == correct array index
+      8 8 /rdx /rsi :pushqMemIndexScaleDisp8 # use some of the CISC goodness
+
+      /r15 :pushqMem
+      8 /r15 :addqImm8Reg
+      :retn
+
+      @typed
+      :ud2 # TODO handle typed functions and autolooping
     ] :labelResolve /ey* defv
 
     # dump top stack element (actually drop it for now)
@@ -660,13 +704,17 @@
 
       /rax /ecx :movlMemReg
       3 /rcx :shrqImm8Reg
-      /rcx :decqReg
+      /rcx :decqReg # rcx == number of array elements
+      /rcx /rcx :testqRegReg
+      /empty :jzLbl8
 
-      8 /rax :addqImm8Reg
+      8 /rcx /rax /rax :leaqMemIndexScaleReg # rax == address of last cell
       @copy
       /rax :popqMem
+      8 /rax :subqImm8Reg
       /copy :loopLbl8
 
+      @empty
       /r15 :pushqMem
       8 /r15 :addqImm8Reg
       :retn
@@ -1117,7 +1165,7 @@
       /rcx /r15 :movqRegMem
 
       /rax /edx :movlMemReg
-      /rdx /rcx :addqRegReg
+      1 /rdx /rax /rcx :leaqMemIndexScaleReg
       /rcx 8 /r15 :movqRegMemDisp8
 
       # /r15 -> current array element

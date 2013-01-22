@@ -394,6 +394,14 @@
     /one reg modrm11
   } /decqReg deff
 
+  { ==reg
+    reg bit64assert
+
+    1 /none /none reg rex
+    %F7
+    /six reg modrm11
+  } /divqReg deff
+
   { ==mem
     mem bit64assert
 
@@ -438,6 +446,17 @@
     reg mem modrm01
     disp imm8
   } /leaqMemDisp8Reg deff
+
+  { ==reg ==mem ==idx ==scale
+    reg bit64assert
+    mem bit64assert
+    idx bit64assert
+
+    1 reg idx mem rex
+    %8D
+    reg /sib modrm00
+    scale idx mem sib
+  } /leaqMemIndexScaleReg deff
 
   { ==mem ==i
     mem bit64assert
@@ -706,6 +725,15 @@
     /six /sib modrm00
     scale idx mem sib
   } /pushqMemIndexScale deff
+
+  { ==mem ==idx ==scale ==disp
+    mem regno %07 gt idx regno %07 gt or { 1 /none idx mem rex } rep
+    disp 128 lt assert
+    %FF
+    /six /sib modrm01
+    scale idx mem sib
+    disp imm8
+  } /pushqMemIndexScaleDisp8 deff
 
   { ==reg
     reg regno %07 gt { 1 /none /none reg rex } rep
