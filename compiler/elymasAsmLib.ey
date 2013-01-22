@@ -55,6 +55,7 @@
     "not an executable thing" toErrString ==errNotExecutable
     "neither string nor array in cat" toErrString ==errNeitherStringNorArrayInCat
     "type mismatch within cat" toErrString ==errMismatchInCat
+    "non-array passed to dom" toErrString ==errNotArrayInDom
   > { defv }' allocateOffsetStruct
 
   { _ =*array len _ 4 div ==largeMoves
@@ -433,20 +434,43 @@
     [ /rcx /rdx :andqRegReg ] makeArith /eyband defv
     [ /rcx /rdx :orqRegReg ] makeArith /eybor defv
     [ /rcx /rdx :xorqRegReg ] makeArith /eybxor defv
+
     [
       /rdi /rdi :xorqRegReg
       1 /rsi :movqImmReg
       /rdx /rcx :cmpqRegReg 
       /rsi /rdx :movqRegReg
-      /rdi /rdx :cmovaeqRegReg
+      /rdi /rdx :cmovnzqRegReg
+    ] makeArith /eyeq defv
+    [
+      /rdi /rdi :xorqRegReg
+      1 /rsi :movqImmReg
+      /rdx /rcx :cmpqRegReg 
+      /rsi /rdx :movqRegReg
+      /rdi /rdx :cmovgeqRegReg
     ] makeArith /eygt defv
     [
       /rdi /rdi :xorqRegReg
       1 /rsi :movqImmReg
       /rdx /rcx :cmpqRegReg 
       /rsi /rdx :movqRegReg
-      /rdi /rdx :cmovaqRegReg
+      /rdi /rdx :cmovgqRegReg
     ] makeArith /eyge defv
+    [
+      /rdi /rdi :xorqRegReg
+      1 /rsi :movqImmReg
+      /rdx /rcx :cmpqRegReg 
+      /rsi /rdx :movqRegReg
+      /rdi /rdx :cmovngqRegReg
+    ] makeArith /eylt defv
+    [
+      /rdi /rdi :xorqRegReg
+      1 /rsi :movqImmReg
+      /rdx /rcx :cmpqRegReg 
+      /rsi /rdx :movqRegReg
+      /rdi /rdx :cmovngeqRegReg
+    ] makeArith /eyle defv
+
     [
       /rax :pushqReg
       /rcx /rax :movqRegReg
@@ -454,6 +478,76 @@
       /rax /rdx :movqRegReg
       /rax :popqReg
     ] makeArith /eymul defv
+    [
+      /rax :pushqReg
+      /rdx /rax :movqRegReg
+      /rdx /rdx :xorqRegReg
+      /rcx :divqReg
+      /rax :popqReg
+    ] makeArith /eymod defv
+    [
+      /rax :pushqReg
+      /rdx /rax :movqRegReg
+      /rdx /rdx :xorqRegReg
+      /rcx :divqReg
+      /rax /rdx :movqRegReg
+      /rax :popqReg
+    ] makeArith /eydiv defv
+
+    [
+      /rcx /rcx :testqRegReg
+      /no :jzLbl8
+      /rdx /rdx :testqRegReg
+      /no :jzLbl8
+      1 /rdx :movqImmReg
+      /done :jmpLbl8
+
+      @no
+      /rdx /rdx :xorqRegReg
+      @done
+    ] :labelResolve makeArith /eyand defv
+
+    # 0 -> integer
+    # 0 <- the negated integer
+    [
+      /rbx :popqReg
+
+      # allocate result int
+      16 /rdi :movqImmReg
+      internalAllocate /rax :movqImmReg
+      /rax :callqReg
+
+      # type zero does not need to be changed
+
+      # actual negation
+      /rcx :popqReg
+      8 /rcx /rcx :movqMemDisp8Reg
+      /rcx :negqReg
+      /rcx 8 /rax :movqRegMemDisp8
+
+      # push int address on program stack
+      /rax :pushqReg
+      /rbx :pushqReg
+      :retn
+    ] /eyneg defv
+
+    # decide between two alternatives
+    # 0 -> alternative 0
+    # 1 -> alternative not 0
+    # 2 -> decision value
+    # 0 <- the selected alternative
+    [
+      /rbx :popqReg
+      /rcx :popqReg
+      /rdx :popqReg
+      /rax :popqReg
+      8 /rax /rax :movqMemDisp8Reg
+      /rax /rax :testqRegReg
+      /rcx /rdx :cmovzqRegReg
+      /rdx :pushqReg
+      /rbx :pushqReg
+      :retn
+    ] /ey? defv
 
     { ==activation
       # create a new entry in the current scope for the given name
@@ -897,6 +991,60 @@
       :retn
     ] :labelResolve /eycat defv
 
+    # domain of an array
+    # 0 -> array
+    # 0 <- an array containing the integers from 0 to len 1 sub
+    [
+      8 /r15 :subqImm8Reg
+      /r15 :popqMem
+      
+      /rax :popqReg
+      7 /rax /cl :movbMemDisp8Reg
+      %F0 /cl :andbImmReg
+      %70 /cl :cmpbImmReg
+      /arrayDom :jeLbl8
+
+      errNotArrayInDom /rdi :movqImmReg
+      internalDumpErrorString /rax :movqImmReg
+      /rax :callqReg
+      :ud2
+
+      @arrayDom
+      /rax /edi :movlMemReg
+      8 /rdi :subqImm8Reg # substract header length
+
+      internalAllocateArray /rax :movqImmReg
+      /rax :callqReg
+      /rax :pushqReg # result on stack
+
+      8 /rax /rdi :leaqMemDisp8Reg
+      /rbx /rbx :xorqRegReg
+      /rax /ecx :movlMemReg
+      3 /rcx :shrqImm8Reg
+      /rcx :decqReg
+
+      @loop
+      /rcx /rbx :cmpqRegReg
+      /end :jnbLbl8
+
+      /rdi :pushqReg
+      /rcx :pushqReg
+      16 /rdi :movqImmReg
+      internalAllocate /rax :movqImmReg
+      /rax :callqReg
+      /rcx :popqReg
+      /rdi :popqReg
+      /rax 8 /rbx /rdi :movqRegMemIndexScale # store in array
+      /rbx 8 /rax :movqRegMemDisp8 # store value in int
+      /rbx :incqReg
+      /loop :jmpLbl8
+
+      @end
+      /r15 :pushqMem
+      8 /r15 :addqImm8Reg
+      :retn
+    ] :labelResolve /eydom defv
+
     # create an array containing a continuous range of ints
     # 0 -> last element included in range
     # 1 -> first element included in range
@@ -1165,6 +1313,60 @@
   > { defv }' allocateOffsetStruct
 
   <
+    # concatenate two functions
+    # 0 -> function g
+    # 1 -> function f
+    # 0 <- (f g)
+    [
+      8 /r15 :subqImm8Reg
+      /r15 :popqMem
+      
+      # construct non-capturing function
+      :quoteEncodingBuffer /rdi :movqImmReg
+      unscopingFunctionHeader loadToRdi
+      
+      /rcx :popqReg
+      /rdx :popqReg
+
+      # push function f
+      [ /rax :movqImmOOBReg ] _ len 2 eq assert
+        2 dearray 256 mul add 
+        /rdi :movwImmMem
+      /rdx 2 /rdi :movqRegMemDisp8
+      10 /rdi :addqImm8Reg
+      [
+        /rax :pushqReg
+        |ey* /rax :movqImmReg
+        /rax :callqReg
+        /rax :movqImmOOBReg
+      ] loadToRdi
+      # push function g
+      /rcx /rdi :movqRegMem
+      8 /rdi :addqImm8Reg
+      [
+        /rax :pushqReg
+        |ey* /rax :movqImmReg
+        /rax :callqReg
+      ] functionFooter cat loadToRdi
+
+      allocateCodeFromEncodingBuffer
+      # rax == code block on heap
+
+      # create non-capturing function object
+      /rax /rdi :movqRegReg
+      /rsi /rsi :xorqRegReg
+      /rdx /rdx :xorqRegReg
+      internalAllocateFunction /rax :movqImmReg
+      /rax :callqReg
+
+      # rax == function object on heap
+      /rax :pushqReg
+
+      /r15 :pushqMem
+      8 /r15 :addqImm8Reg
+      :retn
+    ] :labelResolve /ey; defv
+
     # drop top stack element
     [
       /rax :popqReg

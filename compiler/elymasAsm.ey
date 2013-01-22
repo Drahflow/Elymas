@@ -275,9 +275,89 @@
 
     1 dst /none src rex
     %0F
+    %46
+    dst src modrm11
+  } /cmovnaqRegReg deff
+
+  { ==dst ==src
+    src bit64assert
+    dst bit64assert
+
+    1 dst /none src rex
+    %0F
     %43
     dst src modrm11
   } /cmovaeqRegReg deff
+
+  { ==dst ==src
+    src bit64assert
+    dst bit64assert
+
+    1 dst /none src rex
+    %0F
+    %42
+    dst src modrm11
+  } /cmovaeqRegReg deff
+
+  { ==dst ==src
+    src bit64assert
+    dst bit64assert
+
+    1 dst /none src rex
+    %0F
+    %4F
+    dst src modrm11
+  } /cmovgqRegReg deff
+
+  { ==dst ==src
+    src bit64assert
+    dst bit64assert
+
+    1 dst /none src rex
+    %0F
+    %4E
+    dst src modrm11
+  } /cmovngqRegReg deff
+
+  { ==dst ==src
+    src bit64assert
+    dst bit64assert
+
+    1 dst /none src rex
+    %0F
+    %4D
+    dst src modrm11
+  } /cmovgeqRegReg deff
+
+  { ==dst ==src
+    src bit64assert
+    dst bit64assert
+
+    1 dst /none src rex
+    %0F
+    %4C
+    dst src modrm11
+  } /cmovngeqRegReg deff
+
+  { ==dst ==src
+    src bit64assert
+    dst bit64assert
+
+    1 dst /none src rex
+    %0F
+    %45
+    dst src modrm11
+  } /cmovnzqRegReg deff
+
+  { ==dst ==src
+    src bit64assert
+    dst bit64assert
+
+    1 dst /none src rex
+    %0F
+    %44
+    dst src modrm11
+  } /cmovzqRegReg deff
 
   {
     %A6
@@ -635,6 +715,17 @@
     1 idx mem sib
   } /movqRegMemIndex deff
 
+  { ==mem ==idx ==scale ==reg
+    reg bit64assert
+    mem bit64assert
+    idx bit64assert
+
+    1 reg idx mem rex
+    %89
+    reg /sib modrm00
+    scale idx mem sib
+  } /movqRegMemIndexScale deff
+
   { ==dst ==src
     src bit64assert
     dst bit64assert
@@ -670,6 +761,14 @@
     %F7
     /four reg modrm11
   } /mulqReg deff
+
+  { ==reg
+    reg bit64assert
+
+    1 /none /none reg rex
+    %F7
+    /three reg modrm11
+  } /negqReg deff
 
   { ==mem ==i
     mem bit64assert
