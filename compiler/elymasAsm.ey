@@ -436,6 +436,19 @@
   %75 /jnz defJmpRel8
   %74 /jz defJmpRel8
 
+  { ==reg ==mem ==idx ==scale ==disp
+    reg bit32assert
+    mem bit64assert
+    idx bit64assert
+    disp 128 lt assert
+
+    reg regno %07 gt mem regno %07 gt idx regno %07 gt or or { 0 reg idx mem rex } rep
+    %8D
+    reg /sib modrm01
+    scale idx mem sib
+    disp imm8
+  } /lealMemIndexScaleDisp8Reg deff
+
   { ==reg ==mem ==disp
     reg bit64assert
     mem bit64assert
@@ -649,6 +662,14 @@
     %B6
     reg mem modrm00
   } /movzxMem8Reg64 deff
+
+  { ==reg
+    reg bit64assert
+
+    1 /none /none reg rex
+    %F7
+    /four reg modrm11
+  } /mulqReg deff
 
   { ==mem ==i
     mem bit64assert

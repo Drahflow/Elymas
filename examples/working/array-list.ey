@@ -6,14 +6,12 @@
   }
 
   {
-    list dump
+    list
   }
-> -- /dumpAll deff /append deff
-
-"here" dump
+> -- /content deff /append deff
 
 3 append
 4 append
 5 append
 
-dumpAll
+content dump
