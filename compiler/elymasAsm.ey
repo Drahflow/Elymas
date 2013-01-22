@@ -176,6 +176,16 @@
     reg mem modrm00
   } /addlMemReg deff
 
+  { ==mem ==i
+    mem bit64assert
+    i 256 lt assert
+
+    1 /none /none mem rex
+    %83
+    /zero mem modrm00
+    i imm8
+  } /addqImm8Mem deff
+
   { ==mem ==disp ==i
     mem bit64assert
     i 256 lt assert
@@ -338,6 +348,17 @@
     %3B
     reg mem modrm00
   } /cmpqMemReg deff
+
+  { ==reg ==mem ==disp
+    reg bit64assert
+    mem bit64assert
+    disp 128 lt assert
+
+    1 reg /none mem rex
+    %3B
+    reg mem modrm01
+    disp imm8
+  } /cmpqMemDisp8Reg deff
 
   { ==mem ==reg
     reg bit64assert
@@ -644,6 +665,15 @@
     %8F
     /zero mem modrm00
   } /popqMem deff
+
+  { ==mem ==disp
+    mem regno %07 gt { 1 /none /none mem rex } rep
+    disp 128 lt assert
+
+    %8F
+    /zero mem modrm01
+    disp imm8
+  } /popqMemDisp8 deff
 
   { ==mem ==idx ==scale
     mem regno %07 gt idx regno %07 gt or { 1 /none idx mem rex } rep

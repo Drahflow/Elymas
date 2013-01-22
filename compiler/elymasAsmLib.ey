@@ -158,6 +158,8 @@
     #        1 if element is active
     #        2 if element is quote-active
     [
+      @retryWithParent
+
       8 /rdi /rcx :movqMemDisp8Reg # load name table
       /rcx /rdx :movqRegReg
       16 /rdx :addqImm8Reg # rdx will iterate over entries
@@ -186,7 +188,11 @@
       @end
 
       # not found at all, retry with parent
-      # FIXME: Actually try with parent
+      16 /rdi /rdi :movqMemDisp8Reg
+      /rdi /rdi :testqRegReg
+      /retryWithParent :jnzLbl8
+
+      @failed
       /rax /rax :xorqRegReg
       /rdx /rdx :xorqRegReg
       :retn
@@ -228,6 +234,7 @@
     # rsi -> parent scope
     # rax <- address of scope on the heap
     [
+      /rsi :pushqReg
       /rdi :pushqReg
       
       # allocate name table
@@ -252,12 +259,9 @@
 
       # set type and existence of all pointers
       %26 7 /rax :orbImmMemDisp8
-      # reference name table
-      /rcx :popqReg
-      /rcx 8 /rax :movqRegMemDisp8
-      # zero parent and extension
-      /rdi /rdi :xorqRegReg
-      /rdi 16 /rax :movqRegMemDisp8
+      8 /rax :popqMemDisp8 # reference name table
+      16 /rax :popqMemDisp8 # set parent
+      /rdi /rdi :xorqRegReg # zero extension
       /rdi 24 /rax :movqRegMemDisp8
 
       :retn
@@ -839,7 +843,6 @@
         /rax /rax :testqRegReg
         /constructQuotedResolve :jnzLbl8
 
-        # TODO: "unresolved name while unquoted"
         errUnresolvedName /rdi :movqImmReg
         internalDumpErrorString /rax :movqImmReg
         /rax :callqReg
@@ -919,7 +922,7 @@
         allocateCodeFromEncodingBuffer
         # rax == code block on heap
 
-        # create function object
+        # create non-capturing function object
         /rax /rdi :movqRegReg
         /rsi /rsi :xorqRegReg
         /rdx /rdx :xorqRegReg
@@ -1095,6 +1098,52 @@
       8 /r15 :addqImm8Reg
       :retn
     ] :labelResolve /eyloop defv
+
+    # a foreach loop
+    # 0 -> code to execute
+    # 1 -> array to loop over
+    # for each element in array, push it onto stack then execute the code
+    [
+      8 /r15 :subqImm8Reg
+      /r15 :popqMem
+
+      8 /r15 :subqImm8Reg
+      /r15 :popqMem
+
+      16 /r15 :subqImm8Reg
+      
+      /rax :popqReg
+      8 /rax /rcx :leaqMemDisp8Reg
+      /rcx /r15 :movqRegMem
+
+      /rax /edx :movlMemReg
+      /rdx /rcx :addqRegReg
+      /rcx 8 /r15 :movqRegMemDisp8
+
+      # /r15 -> current array element
+      # 8 /r15 -> address after last array element
+      # 16 /r15 -> code to execute
+
+      @loop
+      /r15 /rax :movqMemReg
+      8 /r15 /rax :cmpqMemDisp8Reg
+      /end :jnbLbl8
+
+      /rax :pushqMem # push array element
+      16 /r15 :pushqMemDisp8 # push code
+      |ey* /rax :movqImmReg
+      /rax :callqReg
+
+      8 /r15 :addqImm8Mem
+      /loop :jmpLbl8
+
+      @end
+
+      24 /r15 :addqImm8Reg
+      /r15 :pushqMem
+      8 /r15 :addqImm8Reg
+      :retn
+    ] :labelResolve /eyeach defv
   > _ ==globalFunctions2 { defv }' allocateOffsetStruct
 
   <
@@ -1291,6 +1340,7 @@
 
   [
     globalFunctions keys len globalFunctions2 keys len globalMacros keys len add add /rdi :movqImmReg
+    /rsi /rsi :xorqRegReg
     internalAllocateScope /rax :movqImmReg
     /rax :callqReg
 
