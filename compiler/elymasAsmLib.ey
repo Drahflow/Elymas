@@ -34,7 +34,7 @@
       str len :imm64
     ] str strToUTF8Bytes cat
     [ 8 str len 8 mod sub %00 rep ] cat
-  } /toErrString deff
+  } /toConstString deff
 
   <
     # current end of heap memory (grows upwards)
@@ -50,12 +50,16 @@
     [ %00 %00 %00 %00 %00 %00 %00 %00 ] ==currentQuoted
 
     # error strings
-    "unresolved name: " toErrString ==errUnresolvedName
-    "neither string nor array in len" toErrString ==errNeitherStringNorArrayInLen
-    "not an executable thing" toErrString ==errNotExecutable
-    "neither string nor array in cat" toErrString ==errNeitherStringNorArrayInCat
-    "type mismatch within cat" toErrString ==errMismatchInCat
-    "non-array passed to dom" toErrString ==errNotArrayInDom
+    "unresolved name: " toConstString ==errUnresolvedName
+    "neither string nor array in len" toConstString ==errNeitherStringNorArrayInLen
+    "not an executable thing" toConstString ==errNotExecutable
+    "neither string nor array in cat" toConstString ==errNeitherStringNorArrayInCat
+    "type mismatch within cat" toConstString ==errMismatchInCat
+    "non-array passed to dom" toConstString ==errNotArrayInDom
+    "non-array passed to =[]" toConstString ==errNotArrayInArrayAssign
+
+    # more constant strings
+    "dom" toConstString ==strDom
   > { defv }' allocateOffsetStruct
 
   { _ =*array len _ 4 div ==largeMoves
@@ -898,6 +902,48 @@
       :retn
     ] :labelResolve /ey] defv
 
+    # assign array cell
+    # 0 -> array
+    # 1 -> index in array
+    # 2 -> value to assign
+    [
+      8 /r15 :subqImm8Reg
+      /r15 :popqMem
+      
+      /rbx :popqReg
+      7 /rbx /cl :movbMemDisp8Reg
+      %F0 /cl :andbImmReg
+      %70 /cl :cmpbImmReg
+      /arrayAssign :jeLbl8
+
+      errNotArrayInArrayAssign /rdi :movqImmReg
+      internalDumpErrorString /rax :movqImmReg
+      /rax :callqReg
+      :ud2
+
+      @arrayAssign
+      /rax :popqReg
+      8 /rax /rax :movqMemDisp8Reg
+
+      /rbx /ecx :movlMemReg # load array length
+      3 /rcx :shrqImm8Reg # divide by object pointer size
+      /rcx :decqReg # rcx == number of elements in array
+
+      /rdx /rdx :xorqRegReg
+
+      # TODO: think about skipping this if index fits
+      /rcx :divqReg
+
+      # rbx == array object on heap
+      # rdx == correct array index
+
+      8 8 /rdx /rbx :popqMemIndexScaleDisp8 # directly pop into array cell
+
+      /r15 :pushqMem
+      8 /r15 :addqImm8Reg
+      :retn
+    ] :labelResolve /ey=[] defv
+
     # length of array or string
     # 0 -> array / string
     # 0 <- number of elements / characters
@@ -1016,60 +1062,6 @@
       8 /r15 :addqImm8Reg
       :retn
     ] :labelResolve /eycat defv
-
-    # domain of an array
-    # 0 -> array
-    # 0 <- an array containing the integers from 0 to len 1 sub
-    [
-      8 /r15 :subqImm8Reg
-      /r15 :popqMem
-      
-      /rax :popqReg
-      7 /rax /cl :movbMemDisp8Reg
-      %F0 /cl :andbImmReg
-      %70 /cl :cmpbImmReg
-      /arrayDom :jeLbl8
-
-      errNotArrayInDom /rdi :movqImmReg
-      internalDumpErrorString /rax :movqImmReg
-      /rax :callqReg
-      :ud2
-
-      @arrayDom
-      /rax /edi :movlMemReg
-      8 /rdi :subqImm8Reg # substract header length
-
-      internalAllocateArray /rax :movqImmReg
-      /rax :callqReg
-      /rax :pushqReg # result on stack
-
-      8 /rax /rdi :leaqMemDisp8Reg
-      /rbx /rbx :xorqRegReg
-      /rax /ecx :movlMemReg
-      3 /rcx :shrqImm8Reg
-      /rcx :decqReg
-
-      @loop
-      /rcx /rbx :cmpqRegReg
-      /end :jnbLbl8
-
-      /rdi :pushqReg
-      /rcx :pushqReg
-      16 /rdi :movqImmReg
-      internalAllocate /rax :movqImmReg
-      /rax :callqReg
-      /rcx :popqReg
-      /rdi :popqReg
-      /rax 8 /rbx /rdi :movqRegMemIndexScale # store in array
-      /rbx 8 /rax :movqRegMemDisp8 # store value in int
-      /rbx :incqReg
-      /loop :jmpLbl8
-
-      @end
-      /r15 :pushqMem
-      8 /r15 :addqImm8Reg
-      :retn
-    ] :labelResolve /eydom defv
 
     # push array contents on stack
     # 0 -> number of elements to push
@@ -1532,6 +1524,9 @@
       /rcx :popqReg
       8 /rcx /rcx :movqMemDisp8Reg
 
+      /rcx /rcx :testqRegReg
+      /end :jzLbl8
+
       @loop
       /rcx /r15 :movqRegMem
       
@@ -1542,6 +1537,7 @@
       /r15 /rcx :movqMemReg
       /loop :loopLbl8
       
+      @end
       16 /r15 :addqImm8Reg
 
       /r15 :pushqMem
@@ -1756,6 +1752,72 @@
   > _ ==globalFunctions2 { defv }' allocateOffsetStruct
 
   <
+    # domain of an array
+    # 0 -> array
+    # 0 <- an array containing the integers from 0 to len 1 sub
+    [
+      8 /r15 :subqImm8Reg
+      /r15 :popqMem
+      
+      /rax :popqReg
+      7 /rax /cl :movbMemDisp8Reg
+      %F0 /cl :andbImmReg
+      %70 /cl :cmpbImmReg
+      /arrayDom :jeLbl8
+      %20 /cl :cmpbImmReg
+      /scopeDom :jeLbl8
+
+      errNotArrayInDom /rdi :movqImmReg
+      internalDumpErrorString /rax :movqImmReg
+      /rax :callqReg
+      :ud2
+
+      @arrayDom
+      /rax /edi :movlMemReg
+      8 /rdi :subqImm8Reg # substract header length
+
+      internalAllocateArray /rax :movqImmReg
+      /rax :callqReg
+      /rax :pushqReg # result on stack
+
+      8 /rax /rdi :leaqMemDisp8Reg
+      /rbx /rbx :xorqRegReg
+      /rax /ecx :movlMemReg
+      3 /rcx :shrqImm8Reg
+      /rcx :decqReg
+
+      @loop
+      /rcx /rbx :cmpqRegReg
+      /end :jnbLbl8
+
+      /rdi :pushqReg
+      /rcx :pushqReg
+      16 /rdi :movqImmReg
+      internalAllocate /rax :movqImmReg
+      /rax :callqReg
+      /rcx :popqReg
+      /rdi :popqReg
+      /rax 8 /rbx /rdi :movqRegMemIndexScale # store in array
+      /rbx 8 /rax :movqRegMemDisp8 # store value in int
+      /rbx :incqReg
+      /loop :jmpLbl8
+
+      @end
+      /r15 :pushqMem
+      8 /r15 :addqImm8Reg
+      :retn
+
+      @scopeDom
+      /rax :pushqReg
+      strDom /rax :movqImmReg
+      /rax :pushqReg
+      |ey. /rax :movqImmReg
+      /rax :callqReg
+      /end :jmpLbl8
+    ] :labelResolve /eydom defv
+  > _ ==globalFunctions3 { defv }' allocateOffsetStruct
+
+  <
     # quote construction, push begin marker on stack
     [
       /rax :popqReg
@@ -1951,7 +2013,11 @@
   } /constStringCode deff
 
   [
-    globalFunctions keys len globalFunctions2 keys len globalMacros keys len add add /rdi :movqImmReg
+    globalFunctions keys len
+    globalFunctions2 keys len add
+    globalFunctions3 keys len add
+    globalMacros keys len add
+    /rdi :movqImmReg
     /rsi /rsi :xorqRegReg
     internalAllocateScope /rax :movqImmReg
     /rax :callqReg
@@ -1981,6 +2047,7 @@
     } /createScopeEntries deff
     globalFunctions keys eydeff createScopeEntries
     globalFunctions2 keys eydeff createScopeEntries
+    globalFunctions3 keys eydeff createScopeEntries
     globalMacros keys eydefq createScopeEntries
   ] :execute
 

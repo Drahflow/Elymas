@@ -821,6 +821,15 @@
     scale idx mem sib
   } /popqMemIndexScale deff
 
+  { ==mem ==idx ==scale ==disp
+    mem regno %07 gt idx regno %07 gt or { 1 /none idx mem rex } rep
+    disp 128 lt assert
+    %8F
+    /zero /sib modrm01
+    scale idx mem sib
+    disp imm8
+  } /popqMemIndexScaleDisp8 deff
+
   { ==reg
     reg regno %07 gt { 1 /none /none reg rex } rep
     %58 reg regno %07 band add
