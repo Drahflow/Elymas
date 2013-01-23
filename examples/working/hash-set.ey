@@ -1,4 +1,4 @@
-< { defv }' /put deff > =hashSet
+< { defv }' /put deff > /hashSet defv
 
 1 /one hashSet .put
 2 /two hashSet .put
@@ -8,12 +8,12 @@ hashSet .two dump
 hashSet keys dump
 
 {
-  < { defv }' /put deff > =hashSetB
+  < { defv }' /put deff > /hashSetB defv
 
   1 /one hashSetB .put
   2 /two hashSetB .put
 
   hashSetB .one dump
   hashSetB .two dump
-  hashSetB keys dump
-} *
+  hashSetB
+} * keys dump

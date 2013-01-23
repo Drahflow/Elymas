@@ -1,4 +1,6 @@
-{ =f =a a len =l
+|defv "==" deff
+
+{ ==f ==a a len ==l
   l {
     0 a *
     1 l 1 sub range { a * f * } each
@@ -6,9 +8,9 @@
   ? *
 } /fold deff
 
-{ =f _ len =l l dearray l 1 sub f rep } /foldshort deff
+{ ==f _ len ==l l dearray l 1 sub f rep } /foldshort deff
 
-{ =f { f fold } } /enfold deff
+{ ==f { f fold } } /enfold deff
 
 [ 1 2 3 ]
 _ |add fold dump
