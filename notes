@@ -192,3 +192,43 @@ Small set in between
   bit 63-60: 0 1 1 1
   bit 59: reserved for GC
 * [ <object pointer> ]*
+
+
+= Musings About The Optimizer =
+
+Main problem: How do we find out if the names mean what we believe they do?
+
+== Runtime Checking ==
+* Optimize for the _current_ values of names
+* Check whether changes have occured
+  * maybe some kind of version numbering in the scopes
++ semantically identical to fully dynamic scopes
+- slow
+
+== Dynamic / Static / Constant Scopes, Guessing ==
+* A scope can be static (i.e. names don't change activation mode and no new names)
+* A scope can be constant (i.e. names don't change values and it is static)
+* The compiler guesses what is correct
+  * The user can override
+* Conflicting runtime-changes raise errors
++ should be doable as long as no joker redefines =, defv, deff
++ should result in fast code for most methods
+- surprising runtime errors
+
+== Dynamic / Static / Constant Scopes, User Specified ==
+* A scope can be static (i.e. names don't change activation mode and no new names)
+* A scope can be constant (i.e. names don't change values and it is static)
+* Default scopes are dynamic, but the user can specify otherwise
+- many methods would not get optimized because the user forgot to flag the scope
+
+== Dynamic / Static / Constant Names ==
+* A name can be static (i.e. it is never overwritten after being resolved in a child scope and remains at the same scope index)
+* A name can be constant (i.e. its value never changes after being resolved in a child scope)
+* An optimized version of the code can be generated whenever it is called (using current name values)
++ fine grained control, sensible defaults possible
+- even more assignment semantics
+
+== Sticky Resolution ==
+* Active names are considered constant after being resolved for the first time
+* Passive names are considered static after being resolved for the first time
+- fails to correctly handle the { =*array ... } use case
