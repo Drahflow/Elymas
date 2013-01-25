@@ -227,6 +227,25 @@ Main problem: How do we find out if the names mean what we believe they do?
 * An optimized version of the code can be generated whenever it is called (using current name values)
 + fine grained control, sensible defaults possible
 - even more assignment semantics
+=== Name Properties ===
+* [d] deeply constant: objects referenced (indirectly) from this name can be assumed constant (constant implied)
+* [c] constant: the object reference of this name can be assumed constant (code constant and static implied)
+* [t] code / type constant: the final code block (not function) reference and function type can be assumed constant
+* [s] static: the path from local scope to where the name resolves can be assumed constant
+          the name index within the scope can be assumed constant
+* [] dynamic: nothing can be assumed
+* [v] inactive: push value
+* [f] active: execute unless quoted
+* [q] quote-active: execute on first resolution (execution is instant)
++---------------------------------------------------+
+|   |      |   s   |   t   |   st   |   c   |   d   |
++---+------+-------+-------+--------+-------+-------+
+| v | defv | defvs | defvt | defvst | defvc | defvd |
+| f | deff | deffs | defft | deffst | deffc | deffd |
+| q | defq |       |       |        |       |       |
++---+------+-------+-------+--------+-------+-------+
+* defaults: |defvst "==" deffd |deffst "=*" deffd
+* it is possible to globally turn checking (after dynamic resolution) on
 
 == Sticky Resolution ==
 * Active names are considered constant after being resolved for the first time
