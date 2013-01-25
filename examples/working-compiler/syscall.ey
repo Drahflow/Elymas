@@ -1,0 +1,1 @@
+1 "Hallo Welt." _ len 0 0 0 1 sys .asm .syscall

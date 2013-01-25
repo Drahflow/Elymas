@@ -584,6 +584,15 @@
     disp imm8
   } /movbMemDisp8Reg deff
 
+  { ==mem ==reg
+    reg bit8assert
+    mem bit64assert
+
+    reg regno %07 gt mem regno %07 gt or { 0 reg /none mem rex } rep
+    %88
+    reg mem modrm00
+  } /movbRegMem deff
+
   { ==mem ==i
     mem bit64assert
     i 65536 lt assert

@@ -1576,6 +1576,27 @@
         ::unscopingFunctionHeader ::unscopingFunctionFooter -102* /ey}' defv
   > _ ==globalMacros { defv }' ::allocateOffsetStruct
 
+  { =*resolve ==createScopeEntry
+    { ==name
+      # create function
+      name resolve 8 sub /rdi :movqImmReg # adjust for expected (but non-existent) code block header size
+      /rsi /rsi :xorqRegReg # library functions don't have a captured scope
+      # TODO: put a type here where applicable
+      /rdx /rdx :xorqRegReg
+
+      ::internalAllocateFunction /rax :movqImmReg
+      /rax :callqReg
+      /rax :pushqReg
+
+      # create string
+      name "ey(.*)" regex assert ::constStringCode _ len dearray
+
+      # enter into current (i.e. global) scope
+      createScopeEntry /rax :movqImmReg
+      /rax :callqReg
+    } each
+  } /createScopeEntries deff
+
   [
     globalFunctions keys len
     globalFunctions2 keys len add
@@ -1589,31 +1610,44 @@
     ::currentScope /rdi :movqImmReg
     /rax /rdi :movqRegMem
 
-    { ==createScopeEntry
-      { ==name
-        # create function
-        name | 8 sub /rdi :movqImmReg
-        /rsi /rsi :xorqRegReg # library functions don't have a captured scope
-        # TODO: put a type here where applicable
-        /rdx /rdx :xorqRegReg
-
-        ::internalAllocateFunction /rax :movqImmReg
-        /rax :callqReg
-        /rax :pushqReg
-
-        # create string
-        name "ey(.*)" regex assert ::constStringCode _ len dearray
-
-        # enter into current (i.e. global) scope
-        createScopeEntry /rax :movqImmReg
-        /rax :callqReg
-      } each
-    } /createScopeEntries deff
-    globalFunctions keys eydeff createScopeEntries
-    globalFunctions2 keys eydeff createScopeEntries
-    globalFunctions3 keys eydeff createScopeEntries
-    globalMacros keys eydefq createScopeEntries
+    globalFunctions keys eydeff { | }' createScopeEntries
+    globalFunctions2 keys eydeff { | }' createScopeEntries
+    globalFunctions3 keys eydeff { | }' createScopeEntries
+    globalMacros keys eydefq { | }' createScopeEntries
   ] :execute
+
+  { ==name
+    [[
+      INITIALSCOPESIZE /rdi :movqImmReg
+      ::currentScope /rsi :movqImmReg
+      8 /r15 :subqImm8Reg
+      /rsi /rsi :movqMemReg
+      /rsi /r15 :movqRegMem # save scope
+      ::internalAllocateScope /rax :movqImmReg
+      /rax :callqReg
+      /rax :pushqReg
+
+      /rax :pushqReg
+      /rax :movqImmOOBReg name ::string
+      /rax :pushqReg
+      |eydefv /rax :movqImmReg
+      /rax :callqReg
+
+      ::currentScope /rsi :movqImmReg
+      /rsi :popqMem
+    ]] :execute
+  } /enterSubScope deff
+
+  {
+    [[
+      ::currentScope /rsi :movqImmReg
+      /r15 /rax :movqMemReg
+      8 /r15 :addqImm8Reg
+      /rax /rsi :movqRegMem
+    ]] :execute
+  } /leaveSubScope deff
+
+  "elymasGlobalSys.ey" include
 > /global defv
 
 # vim: syn=elymas
