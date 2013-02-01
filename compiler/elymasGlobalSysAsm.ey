@@ -37,6 +37,19 @@
       :retn
     ]] /eypoke defv
 
+    # call absolute address
+    # 0 -> address to call
+    [[
+      /rbx :popqReg
+
+      /rax :popqReg
+      8 /rax /rax :movqMemDisp8Reg
+      /rax :callqReg
+
+      /rbx :pushqReg
+      :retn
+    ]] /eyexecute defv
+
     # conduct a syscall
     # 0 -> syscall number, rax before entry
     # 1 -> rdi before entry

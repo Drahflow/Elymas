@@ -1,15 +1,25 @@
-<
+< # sys extensions
   # TODO: handle EINTR correctly
 
   0 _ ==RDONLY
   1 _ ==WRONLY
   2 _ ==RDWR
       bor bor ==RWMASK
+
+  1 ==PROTREAD
+  2 ==PROTWRITE
+  4 ==PROTEXEC
+
+  2 ==MAPPRIVATE
+  32 ==MAPANONYMOUS
   
   0 ==READ
   1 ==WRITE
   2 ==OPEN
   3 ==CLOSE
+
+  9 ==MMAP
+  11 ==MUNMAP
 
   { < ==mode ==flags ==fd <
       { flags RWMASK bnot band RDONLY bor =flags } /readonly deff
@@ -53,6 +63,33 @@
   0 RDONLY 0 makefile /in sys .defv
   1 WRONLY 0 makefile /out sys .defv
   2 WRONLY 0 makefile /err sys .defv
+
+  < # sys .asm extensions
+    { ==reqAddr ==reqSize
+      <
+        reqAddr
+        reqSize
+        PROTEXEC PROTREAD PROTWRITE bor bor
+        MAPPRIVATE MAPANONYMOUS bor
+        1 neg
+        0
+        MMAP sys .asm .syscall -- _
+        0 lt { "mmap failed" die } rep
+
+        ==base
+        reqSize ==size
+
+        {
+          base size 0 0 0 0 MUNMAP sys .asm .syscall --
+          0 lt { "munmap failed" die } rep
+        } =*free
+      >
+    } /allocAt sys .asm .deff
+
+    {
+      0 sys .asm .allocAt
+    } /alloc sys .asm .deff
+  > --
 > --
 
 # vim: syn=elymas

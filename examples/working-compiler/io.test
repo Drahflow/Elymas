@@ -1,0 +1,16 @@
+# ## variant 0
+# 
+# < sys .file with
+#   "io.ey" RO open
+#   512 read
+#   close
+# > -
+
+## variant 1
+
+sys .file /f defv
+"io.test" f .open
+512 f .read
+f .close
+
+sys .out .writeall
