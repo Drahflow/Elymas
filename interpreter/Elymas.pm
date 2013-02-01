@@ -839,7 +839,7 @@ sub executeFile {
   my ($file, $data, $scope) = @_;
 
   my $leakHandle;
-  Devel::Leak::NoteSV($leakHandle);
+  #Devel::Leak::NoteSV($leakHandle);
 
   {
     open my $code, '<', $file or die "cannot open $file: $!";
