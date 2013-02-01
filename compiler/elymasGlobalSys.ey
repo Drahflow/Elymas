@@ -1,0 +1,13 @@
+<
+  "sys" enterSubScope
+
+  [
+    createScopeExtensionEntries
+  ] :execute
+
+  "elymasGlobalSysAsm.ey" include
+
+  leaveSubScope
+> --
+
+# vim: syn=elymas

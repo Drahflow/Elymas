@@ -63,6 +63,7 @@
 
         "^\\\\\\\\(.*)" { str "\\" cat =str } strparse
         "^\\\\n(.*)" { str "\n" cat =str } strparse
+        "^\\\\0(.*)" { str "\0" cat =str } strparse
         "^\\\\\"(.*)" { str "\"" cat =str } strparse
         "^([^\"\\\\])(.*)" { str -01 cat =str } strparse
         strmatched not { "Tokenization of string-like failed" die } rep
@@ -83,10 +84,10 @@
   } {
     { _ "([^\\n]*)\\n(.*)" regex } { -102 -- tokenize {
       _ .handle
-      assemblerLibrary .stackDump
+      # assemblerLibrary .stackDump
       # assemblerLibrary .globalScopeDump
     } each } loop
-  } loop
+  } loop --
 } /executeFile deff
 
 # vim: syn=elymas

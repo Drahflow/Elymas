@@ -637,8 +637,10 @@
       %70 /cl :cmpbImmReg
       /arrayCat :jeLbl8
       %10 /cl :cmpbImmReg
-      /stringCat :jeLbl8
+      /unknownType :jneLbl8
+      /stringCat :jmpLbl32
 
+      @unknownType
       "neither string nor array in cat" ::outputError
       :ud2
 
@@ -681,13 +683,42 @@
       16 /r15 :addqImm8Reg
       /done :jmpLbl8
 
-      @stringCat
-      # TODO
-      :ud2
-
       @mismatch
       "type mismatch in cat" ::outputError
       :ud2
+
+      @stringCat
+      /rbx :popqReg
+
+      7 /rbx /cl :movbMemDisp8Reg
+      %F0 /cl :andbImmReg
+      %10 /cl :cmpbImmReg
+      /mismatch :jneLbl8
+
+      16 /r15 :subqImm8Reg
+      /rax /r15 :movqRegMem
+      /rbx 8 /r15 :movqRegMemDisp8 # store 
+
+      16 /rax /rdi :movqMemDisp8Reg
+      16 /rbx /rdi :addqMemDisp8Reg
+
+      ::internalAllocateString /rax :movqImmReg
+      /rax :callqReg
+      /rax :pushqReg
+
+      24 /rax /rdi :leaqMemDisp8Reg
+
+      8 /r15 /rbx :movqMemDisp8Reg
+      16 /rbx /rcx :movqMemDisp8Reg
+      24 /rbx /rsi :leaqMemDisp8Reg
+      :reprcx :movsb
+
+      /r15 /rbx :movqMemReg
+      16 /rbx /rcx :movqMemDisp8Reg
+      24 /rbx /rsi :leaqMemDisp8Reg
+      :reprcx :movsb
+
+      16 /r15 :addqImm8Reg
 
       @done
       /r15 :pushqMem
@@ -813,6 +844,16 @@
 
       :retn
     ] /ey> defv
+
+    # die
+    # 0 -> object explaining what went wrong
+    [
+      /rbx :popqReg
+      /rdi :popqReg
+      ::internalDumpErrorString /rax :movqImmReg
+      /rax :callqReg
+      :ud2
+    ] /eydie defv
   > _ ==globalFunctions { defv }' ::allocateOffsetStruct
 
   <
@@ -1597,6 +1638,27 @@
     } each
   } /createScopeEntries deff
 
+  {
+    [ /eydefv /eydeff /eydefq ] { ==name
+      # create function
+      name | 8 sub /rdi :movqImmReg # adjust for expected (but non-existent) code block header size
+      ::currentScope /rsi :movqImmReg
+      /rsi /rsi :movqMemReg
+      /rdx /rdx :xorqRegReg # untyped
+
+      ::internalAllocateFunction /rax :movqImmReg
+      /rax :callqReg
+      /rax :pushqReg
+
+      # create string
+      name "ey(.*)" regex assert ::constStringCode _ len dearray
+
+      # enter into current scope
+      |eydeff /rax :movqImmReg
+      /rax :callqReg
+    } each
+  } /createScopeExtensionEntries deff
+
   [
     globalFunctions keys len
     globalFunctions2 keys len add
@@ -1648,6 +1710,7 @@
   } /leaveSubScope deff
 
   "elymasGlobalSys.ey" include
+  "elymasGlobalStr.ey" include
 > /global defv
 
 # vim: syn=elymas

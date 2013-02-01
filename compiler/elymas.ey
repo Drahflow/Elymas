@@ -4,7 +4,16 @@
 "elymasGlobal.ey" include
 "elymasLexer.ey" include
 
-0 sys .argv _ len not { "Usage: ./elymas <input file.ey>" die } rep
-              * sys .file -010 .open executeFile
+sys .argv len not { "Usage: ./elymas <input file.ey>" die } rep
+
+[
+  "standard.ey"
+  "standardClient.ey"
+  0 sys .argv *
+] {
+  sys .file -0010 .open
+                  executeFile
+                  .close
+} each
 
 # vim: syn=elymas

@@ -339,6 +339,29 @@
 
       :retn
     ] /internalAllocateArray defv
+
+    # allocate string, holding rdi bytes
+    # rdi -> expected number of bytes
+    # rax <- address of string on the heap
+    [
+      /rdi :pushqReg
+
+      /rdi :decqReg
+      3 /rdi :shrqImm8Reg
+      4 /rdi :addqImm8Reg
+      3 /rdi :shlqImm8Reg
+      internalAllocate /rax :movqImmReg
+      /rax :callqReg
+
+      # set type
+      %10 7 /rax :orbImmMemDisp8
+
+      /rdx /rdx :xorqRegReg
+      /rdx 8 /rax :movqRegMemDisp8
+      16 /rax :popqMemDisp8
+
+      :retn
+    ] /internalAllocateString defv
   > { defv }' allocateOffsetStruct
 
   { ==str

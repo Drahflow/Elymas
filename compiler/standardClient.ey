@@ -1,0 +1,58 @@
+<
+  # TODO: handle EINTR correctly
+
+  0 _ ==RDONLY
+  1 _ ==WRONLY
+  2 _ ==RDWR
+      bor bor ==RWMASK
+  
+  0 ==READ
+  1 ==WRITE
+  2 ==OPEN
+  3 ==CLOSE
+
+  { < ==mode ==flags ==fd <
+      { flags RWMASK bnot band RDONLY bor =flags } /readonly deff
+      { flags RWMASK bnot band WRONLY bor =flags } /writeonly deff
+      { flags RWMASK bnot band RDWR bor =flags } /readwrite deff
+      { ==path
+        fd 0 ge { "file already open" die } rep 
+        path "\0" cat flags mode 0 0 0 OPEN sys .asm .syscall -- _ =fd
+        0 lt { "cannot open " path cat die } rep
+      } /open deff
+      {
+        fd 0 0 0 0 0 CLOSE sys .asm .syscall --
+        0 lt { "bad things happened to your close call" die } rep
+      } /close deff
+      { ==count
+        fd 0 lt { "file not open" die } rep 
+        count str .alloc ==buf
+        fd buf count 0 0 0 READ sys .asm .syscall -- _
+        0 lt { "read failed" die } rep
+        buf str .inplacePrefix
+      } /read deff
+      { ==buf
+        fd 0 lt { "file not open" die } rep 
+        fd buf _ len 0 0 0 WRITE sys .asm .syscall -- _
+        0 lt { "write failed" die } rep
+      } /write deff
+      { ==buf
+        fd 0 lt { "file not open" die } rep 
+        { buf len } { 
+          fd buf _ len 0 0 0 WRITE sys .asm .syscall -- _
+          0 lt { "write failed" die } rep
+          buf str .postfix =buf
+        } loop
+      } /writeall deff
+  > > -- } /makefile deff
+
+  { # 0777 = 511
+    1 neg RDONLY 511 makefile
+  } /file sys .deff
+
+  0 RDONLY 0 makefile /in sys .defv
+  1 WRONLY 0 makefile /out sys .defv
+  2 WRONLY 0 makefile /err sys .defv
+> --
+
+# vim: syn=elymas

@@ -551,6 +551,18 @@
     scale idx mem sib
   } /leaqMemIndexScaleReg deff
 
+  { ==reg ==mem ==idx ==scale ==disp
+    reg bit64assert
+    mem bit64assert
+    idx bit64assert
+
+    1 reg idx mem rex
+    %8D
+    reg /sib modrm01
+    scale idx mem sib
+    disp imm8
+  } /leaqMemIndexScaleDisp8Reg deff
+
   { ==mem ==i
     mem bit64assert
     i 256 lt assert

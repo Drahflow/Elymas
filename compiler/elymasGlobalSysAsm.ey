@@ -1,0 +1,112 @@
+<
+  <
+    # read absolute address
+    # 0 -> address to read
+    # 0 <- byte read
+    [[
+      /rbx :popqReg
+
+      16 /rdi :movqImmReg
+      ::internalAllocate /rax :movqImmReg
+      /rax :callqReg
+
+      /rcx :popqReg
+      /rax :pushqReg
+
+      8 /rcx /rcx :movqMemDisp8Reg
+      /rcx /rcx :movzxMem8Reg64
+      /rcx 8 /rax :movqRegMemDisp8
+
+      /rbx :pushqReg
+      :retn
+    ]] /eypeek defv
+
+    # write absolute address
+    # 0 -> address to write
+    # 1 -> value to write
+    [[
+      /rbx :popqReg
+
+      /rax :popqReg
+      8 /rax /rax :movqMemDisp8Reg
+      /rcx :popqReg
+      8 /rcx /rcx :movqMemDisp8Reg
+      /cl /rax :movbRegMem
+
+      /rbx :pushqReg
+      :retn
+    ]] /eypoke defv
+
+    # conduct a syscall
+    # 0 -> syscall number, rax before entry
+    # 1 -> rdi before entry
+    # 2 -> rsi before entry
+    # 3 -> rdx before entry
+    # 4 -> r10 before entry
+    # 5 -> r8 before entry
+    # 6 -> r9 before entry
+    # 0 <- rdx after syscall
+    # 1 <- rax after syscall
+    [[
+      8 /r15 :subqImm8Reg
+      /r15 :popqMem
+
+      2 {
+        16 /rdi :movqImmReg
+        ::internalAllocate /rax :movqImmReg
+        /rax :callqReg
+
+        8 /r15 :subqImm8Reg
+        /rax /r15 :movqRegMem
+      } rep # allocate return integers
+
+      [ /rax /r9 /r8 /r10 /rdx /rsi /rdi ] { ==reg
+        reg :popqReg
+        7 reg /bl :movbMemDisp8Reg
+        %F0 /bl :andbImmReg
+        /intLoad reg cat :jzLbl8
+        %10 /bl :cmpbImmReg
+        /stringLoad reg cat :jeLbl8
+        
+        "neither int nor string argument in sys .asm .syscall" ::outputError
+        :ud2
+
+        /stringLoad reg cat :label
+        24 reg reg :leaqMemDisp8Reg
+        /doneLoad reg cat :jmpLbl8
+
+        /intLoad reg cat :label
+        8 reg reg :movqMemDisp8Reg
+
+        /doneLoad reg cat :label
+      } each
+
+      :syscall
+
+      /r15 /rcx :movqMemReg
+      /rax 8 /rcx :movqRegMemDisp8
+      /rcx :pushqReg
+      8 /r15 :addqImm8Reg
+
+      /r15 /rcx :movqMemReg
+      /rdx 8 /rcx :movqRegMemDisp8
+      /rcx :pushqReg
+      8 /r15 :addqImm8Reg
+
+      /r15 :pushqMem
+      8 /r15 :addqImm8Reg
+      :retn
+    ]] /eysyscall defv
+  > _ ==globalFunctions { defv }' ::allocateOffsetStruct
+
+  "asm" enterSubScope
+
+  [
+    globalFunctions keys eydeff { | }' createScopeEntries
+    createScopeExtensionEntries
+  ] :execute
+
+  leaveSubScope
+> --
+
+# vim: syn=elymas

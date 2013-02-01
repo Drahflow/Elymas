@@ -1,0 +1,109 @@
+<
+  "str" enterSubScope
+  
+  <
+    # allocate an uninitialized string
+    # 0 -> number of data bytes to allocate
+    # 0 <- the string
+    [[
+      /rbx :popqReg
+
+      /rdi :popqReg
+      /rdi :pushqReg
+
+      8 /rdi /rdi :movqMemDisp8Reg
+      24 /rdi :addqImm8Reg
+      ::internalAllocate /rax :movqImmReg
+      /rax :callqReg
+
+      # set type
+      %10 7 /rax :orbImmMemDisp8
+
+      # clear hash value
+      /rdx /rdx :xorqRegReg
+      /rdx 8 /rax :movqRegMemDisp8
+
+      # set exact length
+      16 /rax :popqMemDisp8
+
+      /rax :pushqReg
+
+      /rbx :pushqReg
+      :retn
+    ]] /eyalloc defv
+
+    # reduce exact string length in place
+    # 0 -> string to shorten
+    # 1 -> length of prefix
+    # 0 <- the same string (but now with exact length field overwritten)
+    # this effectively creates a prefix of the string
+    [[
+      /rbx :popqReg
+
+      /rax :popqReg
+      /rcx :popqReg
+      8 /rcx /rcx :movqMemDisp8Reg
+
+      16 /rax /rcx :cmpqMemDisp8Reg
+      /ok :jbeLbl8
+
+      "prefix length above string length in inplacePrefix" ::outputError
+      :ud2
+
+      @ok
+      /rcx 16 /rax :movqRegMemDisp8
+
+      /rcx /rcx :xorqRegReg
+      /rcx 8 /rax :movqRegMemDisp8 # reset hash value
+
+      /rax :pushqReg
+
+      /rbx :pushqReg
+      :retn
+    ]] /eyinplacePrefix defv
+
+    # calculate a string postfix
+    # TODO: correctly handly negative indices
+    # 0 -> string to shorten
+    # 1 -> position of string where to start the postfix
+    # 0 <- the requested postfix of the string
+    [[
+      /rbx :popqReg
+
+      /rax :popqReg
+      /rcx :popqReg
+
+      /rax :pushqReg
+
+      16 /rax /rdi :movqMemDisp8Reg
+      8 /rcx /rdi :subqMemDisp8Reg
+      /rdi :pushqReg
+
+      ::internalAllocateString /rax :movqImmReg
+      /rax :callqReg
+
+      /rcx :popqReg
+      /rsi :popqReg
+      /rax :pushqReg # store target string on stack
+
+      16 /rsi /rdx :movqMemDisp8Reg
+      /rcx /rdx :subqRegReg
+
+      24 1 /rdx /rsi /rsi :leaqMemIndexScaleDisp8Reg
+      24 /rax /rdi :leaqMemDisp8Reg
+      :reprcx :movsb
+
+      /rbx :pushqReg
+      :retn
+    ]] /eypostfix defv
+  > _ ==globalFunctions { defv }' ::allocateOffsetStruct
+
+  [
+    globalFunctions keys eydeff { | }' createScopeEntries
+    createScopeExtensionEntries
+  ] :execute
+
+  leaveSubScope
+> --
+
+# vim: syn=elymas
