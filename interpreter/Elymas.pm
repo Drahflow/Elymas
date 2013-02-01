@@ -6,14 +6,26 @@ use warnings;
 require Exporter;
 our @ISA = qw(Exporter);
 our @EXPORT = qw(
-  popInt popString popArray $quoted @globalCallStack
+  popInt popString popArray $quoted @globalCallStack $globalScope $globalData
   interpretCode compileCode execute executeString executeFile resolve canCastTo typeEqual
+  register
 );
 
 use Data::Dumper;
 
+use Devel::Leak;
+use Devel::Cycle;
+use Devel::FindRef;
+our @allObjs;
+use PadWalker qw(closed_over set_closed_over peek_sub peek_my peek_our);
+
+use Scalar::Util qw(weaken);
+
 our $quoted = 0;
 our @globalCallStack;
+our $globalScope;
+our $globalData = [];
+our @globalGCRoots = (\@globalCallStack, \$globalScope, $globalData);
 
 sub popInt {
   my ($data) = @_;
@@ -58,8 +70,11 @@ sub interpretCode {
   if($@) {
     #print "Code: " . Dumper($tokens);
     #print "Scope: " . Dumper($scope);
-    print "Stack: " . Dumper($data);
-    print "Token: " . Dumper($t);
+    {
+      local $@;
+      print "Stack: " . Dumper($data);
+      print "Token: " . $t->[0] . Dumper($t);
+    }
     die;
   }
 }
@@ -73,7 +88,7 @@ sub compileCode {
   my $hasStackOps = 0;
   my $skip = 0;
 
-  $ret .= "my \$i = 0; my \$name; my \$meaning; my \$rscope; eval {\n";
+  $ret .= "my \$i = 0; my \$meaning; my \$rscope; eval {\n";
 
   foreach my $i (0 .. $#$code) {
     if($skip) {
@@ -164,14 +179,17 @@ EOPERL
 
   $ret .= $popCode and $popPending = 0 if $popPending;
   if($hasStackOps) {
-    $ret = "my \$f; my \@buffer; \n" . $ret;
+    $ret = "my \$f; my \@buffer; register(\\\@buffer); \n" . $ret;
   }
 
   $ret .= <<'EOPERL';
   };
   if($@) {
-    print "Stack: " . Dumper($data);
-    print "Token: " . Dumper($code[$i]);
+    {
+      local $@;
+      print "Stack: " . Dumper($data);
+      print "Token: " . $code[$i]->[0] . Dumper($code[$i]);
+    }
     die;
   }
 EOPERL
@@ -338,21 +356,26 @@ sub doLoopStep {
 sub execute {
   my ($f, $data, $scope) = @_;
 
+  if(not grep { $data != $_ } @globalGCRoots) {
+    die "executed-upon data not in GC root list";
+  }
+
   if(ref($f->[1]) ne 'ARRAY') {
     push @$data, $f;
     return;
   }
 
   if($f->[1]->[0] eq 'array') {
-    my $ff = $f;
-    $f = [sub {
-      my ($data) = @_;
+    execute(register([register(sub {
+        my ($data) = @_;
 
-      my $i = pop @$data or die "Stack underflow";
-      die "array index must be int" unless $i->[1] eq 'int';
+        my $i = pop @$data or die "Stack underflow";
+        die "array index must be int" unless $i->[1] eq 'int';
 
-      push @$data, $ff->[0]->[$i->[0] % @{$ff->[0]}];
-    }, ['func', 'array-to-func-cast', ['int'], [$ff->[1]->[1]]]];
+        push @$data, $f->[0]->[$i->[0] % @{$f->[0]}];
+      }), ['func', 'array-to-func-cast', ['int'], [$f->[1]->[1]]]]),
+      $data, $scope);
+    return;
   } elsif($f->[1]->[0] ne 'func') {
     die "complex type unsuitable for execution";
   }
@@ -523,12 +546,15 @@ sub execute {
           foreach my $i (@$stage) {
             my @s = ($v, $argCopy[$i]);
             my $func = pop @s or die "Stack underflow in abstraction";
+            push @globalGCRoots, \@s;
             execute($func, \@s, $scope);
+            pop @globalGCRoots;
             $argCopy[$i] = $s[0];
           }
 
           &$unravel($data, \@argCopy, \@stageCallCopy, \@argTypeCopy, \@loopCopy);
         };
+        register($abstraction);
 
         push @$data, [$abstraction, ['func', 'autoabstraction of ' . $f->[1]->[1], [grep { $_ } @argTypeCopy], undef]];
         # FIXME the undef can be determined
@@ -542,7 +568,9 @@ sub execute {
           foreach my $j (@$stage) {
             my @s = ($i, $argCopy2[$j]);
             my $func = pop @s or die "Stack underflow in abstraction";
+            push @globalGCRoots, \@s;
             execute($func, \@s, $scope);
+            pop @globalGCRoots;
             $argCopy2[$j] = $s[0];
           }
 
@@ -565,8 +593,9 @@ sub execute {
         push @$data, @argCopy;
       }
     };
-
+    register($unravel);
     &$unravel($data, \@concreteArgs, \@stageCalls, \@argTypes, \@loops);
+    weaken($unravel);
   }
 }
 
@@ -588,18 +617,32 @@ sub applyResolvedName {
 
   if(not defined $meaning) {
     if($quoted) {
-      push @$data, [sub {
+      my $quotedSub = sub {
           my ($data, $scope) = @_;
 
           my $meaning = resolve($$scope, $data, $t->[0]);
           applyResolvedName($t, $meaning, $data, $scope, 0);
-        }, ['func', 'quoted late-resolve of ' . $t->[0]], $t->[0]];
+        };
+      push @$data, register([register($quotedSub), ['func', 'quoted late-resolve of ' . $t->[0]], $t->[0]]);
+      weaken($quotedSub);
     } else {
       die "could not resolve '$t->[0]'";
     }
   } elsif($meaning->[2] eq 'passive') {
     if($quoted) {
-      push @$data, [sub { push @{$_[0]}, [$meaning->[0], $meaning->[1]] }, ['func', 'quoted-constant of ' . $t->[0]], $t->[0]];
+      my $subLive = 1;
+      my $sub; $sub = sub {
+        unless($subLive) {
+          warn Devel::FindRef::track($sub, 10);
+          warn Dumper($sub);
+          die "tried to execute GCed sub (quoted passive constant)";
+        }
+
+        my ($data) = @_;
+        push @$data, [$meaning->[0], $meaning->[1]];
+      };
+      push @$data, register([register($sub), ['func', 'quoted-constant of ' . $t->[0]], $t->[0]]);
+      weaken($sub);
     } else {
       push @$data, [$meaning->[0], $meaning->[1]];
     }
@@ -633,23 +676,186 @@ sub interpretTokens {
     if($@) {
       #print "Code: " . Dumper($tokens);
       #print "Scope: " . Dumper($scope);
-      print "Stack: " . Dumper($data);
-      print "Token: " . Dumper($t);
+      {
+        local $@;
+        print "Stack: " . Dumper($data);
+        print "Token: " . $t->[0] . Dumper($t);
+      }
       die;
     }
   }
 }
 
+sub garbageCollect {
+  my $reachableObjs = {};
+
+  foreach my $root (@globalGCRoots) {
+    markObjs($reachableObjs, $root, "");
+  }
+  my $level;
+  #warn "Marked objects: " . scalar keys %$reachableObjs;
+  eval {
+    for($level = 1; ; ++$level) {
+      #warn "Level $level";
+
+      # peek_my returns identical hash-ref each time, need to traverse
+      # without seen-check
+      my $locals = peek_my($level);
+      markObjsInHash($reachableObjs, $locals, "S:");
+    }
+  };
+  if($@ !~ /Not nested deeply enough/) {
+    die "Unexpected level traversal error: " . $@;
+  }
+  #warn "Levels traversed: $level";
+  #warn "Marked objects (2): " . join "\n", keys %$reachableObjs;
+
+  my @cleanedObjs;
+
+  foreach my $i (0 .. $#allObjs) {
+    my $obj = $allObjs[$i];
+
+    if(not exists $reachableObjs->{$obj}) {
+      next unless ref($obj);
+
+      if(ref($obj) eq 'CODE') {
+        my ($closed_over, undef) = closed_over($obj);
+        my $killHash = {};
+
+        foreach my $key (keys %$closed_over) {
+          if($key =~ /^@/) {
+            $killHash->{$key} = [];
+          } elsif($key =~ /^%/) {
+            $killHash->{$key} = {};
+          #} elsif($key eq '$obj') {
+            # skip DEBUG FIXME
+          } elsif($key =~ /^\$/) {
+            $killHash->{$key} = \undef;
+          } else {
+            die "Cannot construct gc kill template for closed var: " . $key;
+          }
+        }
+
+        set_closed_over($obj, $killHash);
+      } elsif(ref($obj) eq 'ARRAY') {
+        @$obj = ();
+      } elsif(ref($obj) eq 'REF') {
+        $$obj = undef;
+      } else {
+        die "Garbage collect sweep cannot handle object reference: $obj";
+      }
+
+      push @cleanedObjs, $allObjs[$i];
+      $allObjs[$i] = undef;
+    }
+  }
+
+  %$reachableObjs = ();
+
+  print "Before GC: " . scalar @allObjs . "\n";
+  @allObjs = grep { defined } @allObjs;
+  print "After GC: " . scalar @allObjs . "\n";
+
+#  foreach my $obj (@cleanedObjs) {
+#    print Devel::FindRef::track($obj);
+#  }
+}
+
+sub markObjsInHash {
+  my ($reachableObjs, $hash, $indent) = @_;
+
+  #warn $indent . "Unseen Hash-Walking: $obj";
+  foreach my $k (keys %$hash) {
+    #warn $indent . "-> $k: $obj->{$k}";
+    markObjs($reachableObjs, $hash->{$k}, $indent . "  ");
+  }
+}
+
+sub markObjs {
+  my ($reachableObjs, $obj, $indent) = @_;
+
+  return unless defined $obj and ref($obj);
+  return if exists $reachableObjs->{$obj};
+
+  $reachableObjs->{$obj} = 1;
+
+  if(ref($obj) eq 'ARRAY') {
+    #warn $indent . "Array-Walking: $obj, " . scalar @$obj . " elements";
+    foreach my $i (0 .. $#$obj) {
+      #warn $indent . "-> [$i]: $obj->[$i]";
+      markObjs($reachableObjs, $obj->[$i], $indent . "  ");
+    }
+  } elsif(ref($obj) eq 'HASH') {
+    #warn $indent . "Hash-Walking: $obj";
+    foreach my $k (keys %$obj) {
+      #warn $indent . "-> $k: $obj->{$k}";
+      markObjs($reachableObjs, $obj->{$k}, $indent . "  ");
+    }
+  } elsif(ref($obj) eq 'REF') {
+    #warn $indent . "Ref-Walking: $obj";
+    markObjs($reachableObjs, $$obj, $indent . "  ");
+  } elsif(ref($obj) eq 'SCALAR') {
+    # nothing to follow here
+  } elsif(ref($obj) eq 'GLOB') {
+    #warn $indent . "Glob-Walking: $obj";
+    markObjs($reachableObjs, *$obj{'SCALAR'}, $indent . "  ");
+    markObjs($reachableObjs, *$obj{'ARRAY'}, $indent . "  ");
+    markObjs($reachableObjs, *$obj{'HASH'}, $indent . "  ");
+    markObjs($reachableObjs, *$obj{'CODE'}, $indent . "  ");
+    markObjs($reachableObjs, *$obj{'IO'}, $indent . "  ");
+    markObjs($reachableObjs, *$obj{'GLOB'}, $indent . "  ");
+    markObjs($reachableObjs, *$obj{'FORMAT'}, $indent . "  ");
+  } elsif(ref($obj) eq 'IO::File') {
+    # don't handle these
+  } elsif(ref($obj) eq 'CODE') {
+    #warn $indent . "Code-Walking: $obj";
+    my ($closed_over, $closed_over_2) = closed_over($obj);
+    markObjsInHash($reachableObjs, $closed_over, $indent . "  ");
+    markObjsInHash($reachableObjs, $closed_over_2, $indent . "  ");
+
+    my $peek_sub = peek_sub($obj);
+    markObjsInHash($reachableObjs, $peek_sub, $indent . "  ");
+  } else {
+    die "GC cannot handle ref type: " . ref($obj);
+  }
+}
+
+my $lastAllObjSize = 0;
+
+sub register {
+  my ($obj) = @_;
+
+  # if(@allObjs > $lastAllObjSize + 100000) {
+  #   garbageCollect();
+  #   $lastAllObjSize = @allObjs;
+  # }
+
+  # push @allObjs, $obj;
+
+  return $obj;
+}
+
 sub executeFile {
   my ($file, $data, $scope) = @_;
 
-  open my $code, '<', $file or die "cannot open $file: $!";
-  while(my $line = <$code>) {
-    chomp $line;
+  my $leakHandle;
+  Devel::Leak::NoteSV($leakHandle);
 
-    executeString($line, $data, $scope);
+  {
+    open my $code, '<', $file or die "cannot open $file: $!";
+    while(my $line = <$code>) {
+      chomp $line;
+
+      executeString($line, $data, $scope);
+    }
+    close $code;
   }
-  close $code;
+
+  #garbageCollect();
+
+  #Devel::Leak::CheckSV($leakHandle);
+  #Devel::Cycle::find_cycle($scope);
+  #Devel::Cycle::find_cycle(\@allObjs);
 }
 
 sub executeString {
@@ -688,6 +894,8 @@ sub tokenize {
             $str .= '\\';
           } elsif($1 eq 'n') {
             $str .= "\n";
+          } elsif($1 eq '0') {
+            $str .= "\0";
           } elsif($1 eq '"') {
             $str .= "\"";
           } else {

@@ -15,4 +15,4 @@ use Data::Dumper;
 use Elymas;
 use ElymasGlobal;
 
-executeFile($ARGV[0], [], \$ElymasGlobal::global);
+executeFile($ARGV[0], $globalData, \$globalScope);

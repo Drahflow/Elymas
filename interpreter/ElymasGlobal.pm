@@ -7,8 +7,10 @@ use Elymas;
 use ElymasSys;
 
 use Data::Dumper;
+use Devel::FindRef;
+use Scalar::Util qw(weaken);
 
-our $global = {
+$globalScope = {
   '/' => [sub { }, ['func', '/'], 'active'],
   '|' => [sub {
       my ($data, $scope) = @_;
@@ -42,6 +44,8 @@ our $global = {
       --$quoted;
 
       my @code;
+      register(\@code);
+
       while(1) {
         my $t = pop @$data or die "Stack underflow";
         last if($t->[1] eq 'tok' and $t->[0] eq '{');
@@ -71,32 +75,58 @@ our $global = {
       # }
 
       if($quoted) {
-        my $sub = <<'EOPERL' .
+        my $subLive = 1;
+        my $sub;
+        my $subCode = <<'EOPERL' .
           sub {
+            unless($subLive) {
+              warn Devel::FindRef::track($sub, 10);
+              warn Dumper($sub);
+              warn Dumper(\@code);
+              die "tried to execute GCed sub";
+            }
             my ($data, $refScope) = @_;
             my $scope = $$refScope;
             my $s = sub {
+                unless($subLive) {
+                  warn Devel::FindRef::track($sub, 10);
+                  warn Dumper($sub);
+                  warn Dumper(\@code);
+                  die "tried to execute GCed sub";
+                }
                 my ($data) = @_;
-                my $lscope = \{ ' parent' => $scope };
+                my $lscope = register(\{ ' parent' => $scope });
 EOPERL
                 compileCode(\@code) . <<'EOPERL';
               };
-            push @$data, [$s, ['func', 'compiled sub (1)']];
+            push @$data, register([register($s), ['func', 'compiled sub (1)']]);
+            weaken($s);
           }
 EOPERL
-        $sub = eval($sub);
-        push @$data, [$sub, ['func', 'func-quoted'], \@code];
+        $sub = eval($subCode);
+        my $pushData = register([register($sub), ['func', 'func-quoted'], \@code]);
+        push @$data, $pushData;
+        weaken($sub);
       } else {
-        my $sub = <<'EOPERL' .
+        my $subLive = 1;
+        my $sub;
+        my $subCode = <<'EOPERL' .
           sub {
+            unless($subLive) {
+              warn Devel::FindRef::track($sub, 10);
+              warn Dumper($sub);
+              warn Dumper(\@code);
+              die "tried to execute GCed sub";
+            }
             my ($data) = @_;
-            my $lscope = \{ ' parent' => $scope };
+            my $lscope = register(\{ ' parent' => $scope });
 EOPERL
             compileCode(\@code) . <<'EOPERL';
           };
 EOPERL
-        $sub = eval($sub);
-        push @$data, [$sub, ['func', 'compiled sub (2)']];
+        $sub = eval($subCode);
+        push @$data, register([register($sub), ['func', 'compiled sub (2)']]);
+        weaken($sub);
       }
     }, ['func', '}'], 'quote'],
   "}'" => [sub {
@@ -106,6 +136,8 @@ EOPERL
       --$quoted;
 
       my @code;
+      register(\@code);
+
       while(1) {
         my $t = pop @$data or die "Stack underflow";
         last if($t->[1] eq 'tok' and $t->[0] eq '{');
@@ -143,11 +175,13 @@ EOPERL
 EOPERL
                 compileCode(\@code) . <<'EOPERL';
               };
-            push @$data, [$s, ['func', 'compiled sub (1)']];
+            push @$data, register([register($s), ['func', 'compiled sub (1)']]);
+            weaken($s);
           }
 EOPERL
         $sub = eval($sub);
-        push @$data, [$sub, ['func', 'func-quoted'], \@code];
+        push @$data, register([register($sub), ['func', 'func-quoted'], \@code]);
+        weaken($sub);
       } else {
         my $sub = <<'EOPERL' .
           sub {
@@ -158,7 +192,8 @@ EOPERL
           };
 EOPERL
         $sub = eval($sub);
-        push @$data, [$sub, ['func', 'compiled sub (2)']];
+        push @$data, register([register($sub), ['func', 'compiled sub (2)']]);
+        weaken($sub);
       }
     }, ['func', "}'"], 'quote'],
   'quoted' => [sub {
@@ -212,12 +247,12 @@ EOPERL
       my $g = pop @$data or die "Stack underflow";
       my $f = pop @$data or die "Stack underflow";
       
-      push @$data, [sub {
+      push @$data, register([register(sub {
           my ($data, $scope) = @_;
 
           execute($f, $data, $scope);
           execute($g, $data, $scope);
-        }, ['func', 'f g ;']];
+        }), ['func', 'f g ;']]);
     }, ['func', ';'], 'active'],
   '[' => [sub {
       my ($data, $scope) = @_;
@@ -227,6 +262,8 @@ EOPERL
       my ($data, $scope) = @_;
 
       my @content;
+      register(\@content);
+
       my $type = undef;
       while(1) {
         my $t = pop @$data or die "Stack underflow";
@@ -249,7 +286,7 @@ EOPERL
         unshift @content, $t;
       };
 
-      push @$data, [\@content, ['array', '[]', [['range', 0, $#content]], [$type]]];
+      push @$data, register([\@content, ['array', '[]', [['range', 0, $#content]], [$type]]]);
     }, ['func', ']'], 'active'],
   '<' => [sub {
       my ($data, $scope) = @_;
@@ -295,7 +332,7 @@ EOPERL
       my $name = pop @$data or die "Stack underflow";
       my $func = pop @$data or die "Stack underflow";
 
-      $$scope->{$name->[0]} = [@$func, 'active'];
+      $$scope->{$name->[0]} = [$func->[0], $func->[1], 'active'];
     }, ['func', 'deff'], 'active'],
   'defv' => [sub {
       my ($data, $scope) = @_;
@@ -303,7 +340,7 @@ EOPERL
       my $name = pop @$data or die "Stack underflow";
       my $func = pop @$data or die "Stack underflow";
 
-      $$scope->{$name->[0]} = [@$func, 'passive'];
+      $$scope->{$name->[0]} = [$func->[0], $func->[1], 'passive'];
     }, ['func', 'defv'], 'active'],
   'defq' => [sub {
       my ($data, $scope) = @_;
@@ -311,7 +348,7 @@ EOPERL
       my $name = pop @$data or die "Stack underflow";
       my $func = pop @$data or die "Stack underflow";
 
-      $$scope->{$name->[0]} = [@$func, 'quote'];
+      $$scope->{$name->[0]} = [$func->[0], $func->[1], 'quote'];
     }, ['func', 'defq'], 'active'],
   '=' => [sub {
       my ($data, $scope) = @_;
@@ -321,7 +358,7 @@ EOPERL
 
       my $meaning = resolve($$scope, $data, $name->[0]);
       if(not $meaning) {
-        $$scope->{$name->[0]} = [@$func, 'passive'];
+        $$scope->{$name->[0]} = [$func->[0], $func->[1], 'passive'];
       } else {
         $meaning->[0] = $func->[0];
         $meaning->[1] = $func->[1];
@@ -637,7 +674,7 @@ EOPERL
 sub installGlobal1IntFunction {
   my ($name, $code) = @_;
 
-  $global->{$name} = [sub {
+  $globalScope->{$name} = [sub {
       my ($data, $scope) = @_;
 
       my $a = popInt($data);
@@ -670,9 +707,9 @@ EOPERL
 
   $sub = eval($sub);
 
-  $global->{$name} = [$sub, ['func', $name, ['int', 'int'], ['int']], 'active'];
+  $globalScope->{$name} = [$sub, ['func', $name, ['int', 'int'], ['int']], 'active'];
 
-#  $global->{$name} = [sub {
+#  $globalScope->{$name} = [sub {
 #      my ($data, $scope) = @_;
 #
 #      my $b = pop @$data;
@@ -690,7 +727,7 @@ EOPERL
 sub installGlobal2StrFunction {
   my ($name, $code) = @_;
 
-  $global->{$name} = [sub {
+  $globalScope->{$name} = [sub {
       my ($data, $scope) = @_;
 
       my $b = pop @$data;
@@ -895,7 +932,7 @@ sub takeTimings {
   }
 }
 
-# takeTimings($global);
+# takeTimings($globalScope);
 
 END {
   foreach my $key (sort { $timings{$a} <=> $timings{$b} } keys %timings) {
