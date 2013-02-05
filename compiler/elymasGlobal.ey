@@ -85,85 +85,6 @@
       :retn
     ]] /ey| defv
 
-    # arithmetic functions on ints
-    [ /rcx /rdx :addqRegReg ] makeArith /eyadd defv
-    [ /rcx /rdx :subqRegReg ] makeArith /eysub defv
-    [ /rcx /rdx :andqRegReg ] makeArith /eyband defv
-    [ /rcx /rdx :orqRegReg ] makeArith /eybor defv
-    [ /rcx /rdx :xorqRegReg ] makeArith /eybxor defv
-
-    [
-      /rdi /rdi :xorqRegReg
-      1 /rsi :movqImmReg
-      /rdx /rcx :cmpqRegReg 
-      /rsi /rdx :movqRegReg
-      /rdi /rdx :cmovnzqRegReg
-    ] makeArith /eyeq defv
-    [
-      /rdi /rdi :xorqRegReg
-      1 /rsi :movqImmReg
-      /rdx /rcx :cmpqRegReg 
-      /rsi /rdx :movqRegReg
-      /rdi /rdx :cmovgeqRegReg
-    ] makeArith /eygt defv
-    [
-      /rdi /rdi :xorqRegReg
-      1 /rsi :movqImmReg
-      /rdx /rcx :cmpqRegReg 
-      /rsi /rdx :movqRegReg
-      /rdi /rdx :cmovgqRegReg
-    ] makeArith /eyge defv
-    [
-      /rdi /rdi :xorqRegReg
-      1 /rsi :movqImmReg
-      /rdx /rcx :cmpqRegReg 
-      /rsi /rdx :movqRegReg
-      /rdi /rdx :cmovngqRegReg
-    ] makeArith /eylt defv
-    [
-      /rdi /rdi :xorqRegReg
-      1 /rsi :movqImmReg
-      /rdx /rcx :cmpqRegReg 
-      /rsi /rdx :movqRegReg
-      /rdi /rdx :cmovngeqRegReg
-    ] makeArith /eyle defv
-
-    [
-      /rax :pushqReg
-      /rcx /rax :movqRegReg
-      /rdx :mulqReg
-      /rax /rdx :movqRegReg
-      /rax :popqReg
-    ] makeArith /eymul defv
-    [
-      /rax :pushqReg
-      /rdx /rax :movqRegReg
-      /rdx /rdx :xorqRegReg
-      /rcx :divqReg
-      /rax :popqReg
-    ] makeArith /eymod defv
-    [
-      /rax :pushqReg
-      /rdx /rax :movqRegReg
-      /rdx /rdx :xorqRegReg
-      /rcx :divqReg
-      /rax /rdx :movqRegReg
-      /rax :popqReg
-    ] makeArith /eydiv defv
-
-    [[
-      /rcx /rcx :testqRegReg
-      /no :jzLbl8
-      /rdx /rdx :testqRegReg
-      /no :jzLbl8
-      1 /rdx :movqImmReg
-      /done :jmpLbl8
-
-      @no
-      /rdx /rdx :xorqRegReg
-      @done
-    ]] makeArith /eyand defv
-
     # 0 -> integer
     # 0 <- the negated integer
     [
@@ -400,8 +321,10 @@
       %50 /cl :cmpbImmReg
       /normalFunction :jeLbl8
       %70 /cl :cmpbImmReg
-      /arrayFunction :jeLbl8
+      /unexecutable :jneLbl8
+      /arrayFunction :jmpLbl32
 
+      @unexecutable
       "not an executable thing" ::outputError
       :ud2
 
@@ -422,8 +345,10 @@
       # handle typed function
       16 /rdx /rcx :movqMemDisp8Reg
       /rcx /rcx :testqRegReg
-      /typed :jnzLbl8
+      /untyped :jzLbl8
+      /typed :jmpLbl32
 
+      @untyped
       24 /rdx /rax :movqMemDisp8Reg
       8 /rax :addqImm8Reg
       /rax :callqReg
@@ -437,6 +362,11 @@
       :retn
 
       @unscoped
+      # handle typed unscoped function
+      16 /rdx /rcx :movqMemDisp8Reg
+      /rcx /rcx :testqRegReg
+      /typedUnscoped :jnzLbl8
+
       24 /rdx /rax :movqMemDisp8Reg
       8 /rax :addqImm8Reg
       /rax :callqReg
@@ -445,9 +375,13 @@
       8 /r15 :addqImm8Reg
       :retn
 
-      @unscopedTyped
-      # TODO think about whether this should be allowed to happen
-      :ud2
+      @typedUnscoped
+      # save current scope
+      ::currentScope /rax :movqImmReg
+      /rax /rsi :movqMemReg
+      8 /r15 :subqImm8Reg
+      /rsi /r15 :movqRegMem
+      /typed :jmpLbl32
 
       @arrayFunction
       # rdx == array on heap
@@ -480,7 +414,62 @@
       :retn
 
       @typed
-      :ud2 # TODO handle typed functions and autolooping
+      # quick check for the common case (and to avoid infinite recursion)
+      16 /rdx /rbx :movqMemDisp8Reg
+      8 /rbx /rcx :movqMemDisp8Reg # rcx == number of input stack elements
+      16 /rbx /rbx :leaqMemDisp8Reg # rbx == first input stack element
+
+      /rsp /rdi :movqRegReg
+
+      @typedCommonCheck
+      /rbx /rsi :movqMemReg # rsi == address of abstract argument
+      7 /rsi /al :movbMemDisp8Reg # al == type of abstract argument
+      %F0 /al :andbImmReg
+      /rdi /rsi :movqMemReg # rsi == address of concrete argument
+      7 /rsi /sil :movbMemDisp8Reg # sil = type of concrete argument
+      %F0 /sil :andbImmReg
+
+      /al /sil :cmpbRegReg
+      /typedNonCommon :jnzLbl8 # non-equal types
+      %E0 /al :testbImmReg
+      /typedNonCommon :jnzLbl8 # non-trivial types
+
+      8 /rdi :addqImm8Reg
+      8 /rbx :addqImm8Reg
+      /typedCommonCheck :loopLbl8
+
+      24 /rdx /rax :movqMemDisp8Reg
+      8 /rax :addqImm8Reg
+      /rax :callqReg
+
+      /r15 /rcx :movqMemReg
+      ::currentScope /rax :movqImmReg
+      /rcx /rax :movqRegMem
+      8 /r15 :addqImm8Reg
+      /r15 :pushqMem
+      8 /r15 :addqImm8Reg
+      :retn
+
+      @typedNonCommon
+      :ud2 # TRACE, this path is unchecked
+      # escape this to compiled high-level code
+      /rdx :pushqReg
+
+      /rax :movqImmOOBReg "sys" ::string
+      /rax :pushqReg
+      /rax :movqImmOOBReg "ey*" "ey." ::linkAbs64
+      /rax :callqReg
+
+      /rax :movqImmOOBReg "typed" ::string
+      /rax :pushqReg
+      /rax :movqImmOOBReg "ey*" "ey." ::linkAbs64
+      /rax :callqReg
+
+      /rax :movqImmOOBReg "execute" ::string
+      /rax :pushqReg
+      /rax :movqImmOOBReg "ey*" "ey." ::linkAbs64
+      /rax :callqReg
+      :retn
     ]] /ey* defv
 
     # dump top stack element (actually drop it for now)
@@ -1617,6 +1606,105 @@
         ::unscopingFunctionHeader ::unscopingFunctionFooter -102* /ey}' defv
   > _ ==globalMacros { defv }' ::allocateOffsetStruct
 
+  <
+    [
+      %10 %00 %00 %00 %00 %00 %00 %00
+      %01 %00 %00 %00 %00 %00 %00 %00
+    ] /t1 defv
+
+    [
+      %28 %00 %00 %00 %00 %00 %00 %80
+      %02 %00 %00 %00 %00 %00 %00 %00
+      /t11t1 /t1 ::linkAbs64
+      /t11t1 /t1 ::linkAbs64
+      %01 %00 %00 %00 %00 %00 %00 %00
+      /t11t1 /t1 ::linkAbs64
+    ] /t11t1 defv
+  > _ =globalTypes { defv }' ::allocateOffsetStruct
+
+  <
+    # arithmetic functions on ints
+    [ /rcx /rdx :addqRegReg ] makeArith /eyadd defv
+    [ /rcx /rdx :subqRegReg ] makeArith /eysub defv
+    [ /rcx /rdx :andqRegReg ] makeArith /eyband defv
+    [ /rcx /rdx :orqRegReg ] makeArith /eybor defv
+    [ /rcx /rdx :xorqRegReg ] makeArith /eybxor defv
+
+    [
+      /rdi /rdi :xorqRegReg
+      1 /rsi :movqImmReg
+      /rdx /rcx :cmpqRegReg 
+      /rsi /rdx :movqRegReg
+      /rdi /rdx :cmovnzqRegReg
+    ] makeArith /eyeq defv
+    [
+      /rdi /rdi :xorqRegReg
+      1 /rsi :movqImmReg
+      /rdx /rcx :cmpqRegReg 
+      /rsi /rdx :movqRegReg
+      /rdi /rdx :cmovgeqRegReg
+    ] makeArith /eygt defv
+    [
+      /rdi /rdi :xorqRegReg
+      1 /rsi :movqImmReg
+      /rdx /rcx :cmpqRegReg 
+      /rsi /rdx :movqRegReg
+      /rdi /rdx :cmovgqRegReg
+    ] makeArith /eyge defv
+    [
+      /rdi /rdi :xorqRegReg
+      1 /rsi :movqImmReg
+      /rdx /rcx :cmpqRegReg 
+      /rsi /rdx :movqRegReg
+      /rdi /rdx :cmovngqRegReg
+    ] makeArith /eylt defv
+    [
+      /rdi /rdi :xorqRegReg
+      1 /rsi :movqImmReg
+      /rdx /rcx :cmpqRegReg 
+      /rsi /rdx :movqRegReg
+      /rdi /rdx :cmovngeqRegReg
+    ] makeArith /eyle defv
+
+    [
+      /rax :pushqReg
+      /rcx /rax :movqRegReg
+      /rdx :mulqReg
+      /rax /rdx :movqRegReg
+      /rax :popqReg
+    ] makeArith /eymul defv
+    [
+      /rax :pushqReg
+      /rdx /rax :movqRegReg
+      /rdx /rdx :xorqRegReg
+      /rcx :divqReg
+      /rax :popqReg
+    ] makeArith /eymod defv
+    [
+      /rax :pushqReg
+      /rdx /rax :movqRegReg
+      /rdx /rdx :xorqRegReg
+      /rcx :divqReg
+      /rax /rdx :movqRegReg
+      /rax :popqReg
+    ] makeArith /eydiv defv
+
+    [[
+      /rcx /rcx :testqRegReg
+      /no :jzLbl8
+      /rdx /rdx :testqRegReg
+      /no :jzLbl8
+      1 /rdx :movqImmReg
+      /done :jmpLbl8
+
+      @no
+      /rdx /rdx :xorqRegReg
+      @done
+    ]] makeArith /eyand defv
+  > _ =globalT11t1Functions { defv }' ::allocateOffsetStruct
+
+  { | }' ::linkResolve
+
   { =*resolve ==createScopeEntry
     { ==name
       # create function
@@ -1637,6 +1725,26 @@
       /rax :callqReg
     } each
   } /createScopeEntries deff
+
+  { =*resolve ==typeToUse ==createScopeEntry
+    { ==name
+      # create function
+      name resolve 8 sub /rdi :movqImmReg # adjust for expected (but non-existent) code block header size
+      /rsi /rsi :xorqRegReg # library functions don't have a captured scope
+      typeToUse /rdx :movqImmReg
+
+      ::internalAllocateFunction /rax :movqImmReg
+      /rax :callqReg
+      /rax :pushqReg
+
+      # create string
+      name "ey(.*)" regex assert ::constStringCode _ len dearray
+
+      # enter into current (i.e. global) scope
+      createScopeEntry /rax :movqImmReg
+      /rax :callqReg
+    } each
+  } /createTypedScopeEntries deff
 
   {
     [ /eydefv /eydeff /eydefq ] { ==name
@@ -1664,6 +1772,7 @@
     globalFunctions2 keys len add
     globalFunctions3 keys len add
     globalMacros keys len add
+    globalT11t1Functions keys len add
     /rdi :movqImmReg
     /rsi /rsi :xorqRegReg
     ::internalAllocateScope /rax :movqImmReg
@@ -1676,6 +1785,7 @@
     globalFunctions2 keys eydeff { | }' createScopeEntries
     globalFunctions3 keys eydeff { | }' createScopeEntries
     globalMacros keys eydefq { | }' createScopeEntries
+    globalT11t1Functions keys eydeff t11t1 { | }' createTypedScopeEntries
   ] :execute
 
   { ==name

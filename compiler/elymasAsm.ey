@@ -29,7 +29,7 @@
     [ /two /dl /dx /edx /rdx ] { 2 -01 defv }' each
     [ /three /bl /bx /ebx /rbx ] { 3 -01 defv }' each
     [ /four /sib /spl /ah /sp /esp /rsp ] { 4 -01 defv }' each
-    [ /five /bpl /ch /bp /ebp /rbp ] { 5 -01 defv }' each
+    [ /five /bpl /bp /ebp /rbp ] { 5 -01 defv }' each
     [ /six /sil /si /esi /rsi ] { 6 -01 defv }' each
     [ /seven /dil /di /edi /rdi ] { 7 -01 defv }' each
     [ /r8b /r8w /r8d /r8 ] { 8 -01 defv }' each
@@ -43,6 +43,14 @@
   > ==regnoTable
 
   { regnoTable -01 . } /regno deff
+
+  <
+    [ /al /cl /dl /bl ] { 0 -01 defv }' each
+    [ /spl /bpl /sil /dil ] { 1 -01 defv }' each
+    [ /r8b /r9b /r10b /r11b /r12b /r13b /r14b /r15b ] { 1 -01 defv }' each
+  > ==rexreqbyteTable
+  
+  { rexreqbyteTable -01 . } /rexreqbyte deff
 
   # encoding a REX prefix
   { # ==b ==x ==r ==w
@@ -160,8 +168,8 @@
 
       opcode
       lbl labelRel8
-      _ 128 neg ge assert
-      _ 128 lt assert
+      _ 128 neg ge not { lbl " out of Lbl8 reach" cat die } rep
+      _ 128 lt not { lbl " out of Lbl8 reach" cat die } rep
     } name "Lbl8" cat
     > -- 2 |deff rep
   }' /defJmpRel8 deff
@@ -231,7 +239,7 @@
     reg bit8assert
     i 256 lt assert
 
-    reg regno %07 gt { 0 /none /none reg rex } rep
+    reg regno %07 gt reg rexreqbyte or { 0 /none /none reg rex } rep
     %80
     /four reg modrm11
     i imm8
@@ -372,11 +380,20 @@
     reg bit8assert
     i 256 lt assert
 
-    reg regno %07 gt { 0 /none /none reg rex } rep
+    reg regno %07 gt reg rexreqbyte or { 0 /none /none reg rex } rep
     %80
     /seven reg modrm11
     i imm8
   } /cmpbImmReg deff
+
+  { ==dst ==src
+    src bit8assert
+    dst bit8assert
+
+    src regno %07 gt dst regno %07 gt src rexreqbyte dst rexreqbyte or or or { 0 src /none dst rex } rep
+    %38
+    src dst modrm11
+  } /cmpbRegReg deff
 
   { ==mem ==reg
     reg bit32assert
@@ -590,7 +607,7 @@
     mem bit64assert
     disp 128 lt assert
 
-    reg regno %07 gt mem regno %07 gt or { 0 reg /none mem rex } rep
+    reg regno %07 gt reg rexreqbyte mem regno %07 gt or or { 0 reg /none mem rex } rep
     %8A
     reg mem modrm01
     disp imm8
@@ -600,7 +617,7 @@
     reg bit8assert
     mem bit64assert
 
-    reg regno %07 gt mem regno %07 gt or { 0 reg /none mem rex } rep
+    reg regno %07 gt reg rexreqbyte mem regno %07 gt or or { 0 reg /none mem rex } rep
     %88
     reg mem modrm00
   } /movbRegMem deff
@@ -986,6 +1003,16 @@
   {
     %0F %05
   } /syscall deff
+
+  { ==reg =i
+    reg bit8assert
+    i 256 lt assert
+
+    reg regno %07 gt { 0 /none /none reg rex } rep
+    %F6
+    /zero reg modrm11
+    i imm8
+  } /testbImmReg deff
 
   { ==dst ==src
     dst bit64assert

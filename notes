@@ -193,6 +193,14 @@ Small set in between
   bit 59: reserved for GC
 * [ <object pointer> ]*
 
+=== Function Type ===
+* Length in bytes (including header)
+  bit 63-60: 1 0 0 0
+  bit 59: reserved for GC
+* Number of input stack elements
+* Number of output stack elements
+* [ <input type pointer> ]*
+* [ <output type pointer> ]*
 
 = Musings About The Optimizer =
 
@@ -251,3 +259,17 @@ Main problem: How do we find out if the names mean what we believe they do?
 * Active names are considered constant after being resolved for the first time
 * Passive names are considered static after being resolved for the first time
 - fails to correctly handle the { =*array ... } use case
+
+= Musings about Types =
+
+[ /foo /bar ] [ 2 3 ] { "Key %s -> %d" format sys .out .writeall } [ "" "" ] [ ] typed *
+[ /a /b /c ] _ { cat } *                        # -> [ /aa /bb /cc ]
+[ /a /b /c ] _ { cat } [ "" "" ] [ "" ] typed * # -> [ /aa /bb /cc ]
+[ /a /b /c ] _ [ 0 ] [ "" ] typed cat           # -> [ [ /aa /ba /ca ] [ /ab /bb /cb ] [ /ac /bc /cc ] ]
+[ /a /b /c ] _ |cat cross
+
+Types are represented by concrete values of that type.
+
+Co-iterability is decided by type-match and
+* integers: co-iterated type is bitwise and, if zero, no co-iteration
+* strings: co-iterated type is longest common substring, if epsilon, no co-iteration

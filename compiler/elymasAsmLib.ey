@@ -57,6 +57,22 @@
     opcodes
   } /stringResolve deff
 
+  [ ] ==linkHoles
+
+  { ==what ==where
+    ] _ len ==offset
+    linkHoles [ { =*resolve
+      [ what resolve :imm64 ] =*bytesToPatch
+      0 7 range { _ bytesToPatch -01 where resolve offset add add sys .asm .poke } each
+    } ] cat =linkHoles
+    [ -011 len dearray %00 %00 %00 %00 %00 %00 %00 %00
+  } /linkAbs64 deff
+
+  { ==resolve
+    linkHoles { resolve -01 * } each
+    [ ] =linkHoles
+  } /linkResolve deff
+
   <
     # current end of heap memory (grows upwards)
     [ %00 %00 %00 %00 %00 %60 %00 %00 ] ==heapEnd
