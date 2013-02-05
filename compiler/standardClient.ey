@@ -90,6 +90,14 @@
       0 sys .asm .allocAt
     } /alloc sys .asm .deff
   > --
+
+  < # sys .typed extensions
+    <
+      {
+        "Here!!! :)" die
+      } /execute deff
+    > /typed sys .defv
+  > --
 > --
 
 # vim: syn=elymas

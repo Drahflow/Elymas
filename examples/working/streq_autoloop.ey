@@ -1,1 +1,2 @@
+/a /a streq dump
 /d [ /a /b /c /d /e /f /g /h ] streq dump

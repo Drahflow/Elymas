@@ -85,30 +85,6 @@
       :retn
     ]] /ey| defv
 
-    # 0 -> integer
-    # 0 <- the negated integer
-    [
-      /rbx :popqReg
-
-      # allocate result int
-      16 /rdi :movqImmReg
-      ::internalAllocate /rax :movqImmReg
-      /rax :callqReg
-
-      # type zero does not need to be changed
-
-      # actual negation
-      /rcx :popqReg
-      8 /rcx /rcx :movqMemDisp8Reg
-      /rcx :negqReg
-      /rcx 8 /rax :movqRegMemDisp8
-
-      # push int address on program stack
-      /rax :pushqReg
-      /rbx :pushqReg
-      :retn
-    ] /eyneg defv
-
     # decide between two alternatives
     # 0 -> alternative 0
     # 1 -> alternative not 0
@@ -451,13 +427,12 @@
       :retn
 
       @typedNonCommon
-      :ud2 # TRACE, this path is unchecked
       # escape this to compiled high-level code
       /rdx :pushqReg
 
       /rax :movqImmOOBReg "sys" ::string
       /rax :pushqReg
-      /rax :movqImmOOBReg "ey*" "ey." ::linkAbs64
+      /rax :movqImmOOBReg "ey*" "ey|" ::linkAbs64
       /rax :callqReg
 
       /rax :movqImmOOBReg "typed" ::string
@@ -1614,12 +1589,36 @@
 
     [
       %28 %00 %00 %00 %00 %00 %00 %80
+      %01 %00 %00 %00 %00 %00 %00 %00
+      /t1t1 /t1 ::linkAbs64
+      %01 %00 %00 %00 %00 %00 %00 %00
+      /t1t1 /t1 ::linkAbs64
+    ] /t1t1 defv
+
+    [
+      %30 %00 %00 %00 %00 %00 %00 %80
       %02 %00 %00 %00 %00 %00 %00 %00
       /t11t1 /t1 ::linkAbs64
       /t11t1 /t1 ::linkAbs64
       %01 %00 %00 %00 %00 %00 %00 %00
       /t11t1 /t1 ::linkAbs64
     ] /t11t1 defv
+
+    [
+      %20 %00 %00 %00 %00 %00 %00 %10
+      %00 %00 %00 %00 %00 %00 %00 %00
+      %01 %00 %00 %00 %00 %00 %00 %00
+      %61 %00 %00 %00 %00 %00 %00 %00
+    ] /ta defv
+
+    [
+      %30 %00 %00 %00 %00 %00 %00 %80
+      %02 %00 %00 %00 %00 %00 %00 %00
+      /taat1 /ta ::linkAbs64
+      /taat1 /ta ::linkAbs64
+      %01 %00 %00 %00 %00 %00 %00 %00
+      /taat1 /t1 ::linkAbs64
+    ] /taat1 defv
   > _ =globalTypes { defv }' ::allocateOffsetStruct
 
   <
@@ -1703,6 +1702,71 @@
     ]] makeArith /eyand defv
   > _ =globalT11t1Functions { defv }' ::allocateOffsetStruct
 
+  <
+    [[
+      /rbx :popqReg
+
+      # allocate result int
+      16 /rdi :movqImmReg
+      ::internalAllocate /rax :movqImmReg
+      /rax :callqReg
+
+      /rdx :popqReg
+      /rdi :popqReg
+      /rax :pushqReg
+
+      16 /rdx /rsi :movqMemDisp8Reg
+      16 /rdi /rcx :movqMemDisp8Reg
+
+      /rsi /rcx :cmpqRegReg
+      /nonEqual :jneLbl8
+
+      24 /rdx /rsi :leaqMemDisp8Reg
+      24 /rdi /rdi :leaqMemDisp8Reg
+
+      :repz :cmpsb
+      /nonEqual :jneLbl8
+
+      /rdx /rdx :xorqRegReg
+      /rdx :incqReg
+      /done :jmpLbl8
+
+      @nonEqual
+      /rdx /rdx :xorqRegReg
+
+      @done
+      /rdx 8 /rax :movqRegMemDisp8
+      /rbx :pushqReg
+      :retn
+    ]] /eystreq defv
+  > _ =globalTaat1Functions { defv }' ::allocateOffsetStruct
+
+  <
+    # 0 -> integer
+    # 0 <- the negated integer
+    [
+      /rbx :popqReg
+
+      # allocate result int
+      16 /rdi :movqImmReg
+      ::internalAllocate /rax :movqImmReg
+      /rax :callqReg
+
+      # type zero does not need to be changed
+
+      # actual negation
+      /rcx :popqReg
+      8 /rcx /rcx :movqMemDisp8Reg
+      /rcx :negqReg
+      /rcx 8 /rax :movqRegMemDisp8
+
+      # push int address on program stack
+      /rax :pushqReg
+      /rbx :pushqReg
+      :retn
+    ] /eyneg defv
+  > _ =globalT1t1Functions { defv }' ::allocateOffsetStruct
+
   { | }' ::linkResolve
 
   { =*resolve ==createScopeEntry
@@ -1773,6 +1837,8 @@
     globalFunctions3 keys len add
     globalMacros keys len add
     globalT11t1Functions keys len add
+    globalT1t1Functions keys len add
+    globalTaat1Functions keys len add
     /rdi :movqImmReg
     /rsi /rsi :xorqRegReg
     ::internalAllocateScope /rax :movqImmReg
@@ -1786,6 +1852,8 @@
     globalFunctions3 keys eydeff { | }' createScopeEntries
     globalMacros keys eydefq { | }' createScopeEntries
     globalT11t1Functions keys eydeff t11t1 { | }' createTypedScopeEntries
+    globalT1t1Functions keys eydeff t1t1 { | }' createTypedScopeEntries
+    globalTaat1Functions keys eydeff taat1 { | }' createTypedScopeEntries
   ] :execute
 
   { ==name
