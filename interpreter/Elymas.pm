@@ -8,7 +8,6 @@ our @ISA = qw(Exporter);
 our @EXPORT = qw(
   popInt popString popArray $quoted @globalCallStack $globalScope $globalData
   interpretCode compileCode execute executeString executeFile resolve canCastTo typeEqual
-  register
 );
 
 use Data::Dumper;
@@ -25,7 +24,6 @@ our $quoted = 0;
 our @globalCallStack;
 our $globalScope;
 our $globalData = [];
-our @globalGCRoots = (\@globalCallStack, \$globalScope, $globalData);
 
 sub popInt {
   my ($data) = @_;
@@ -105,12 +103,12 @@ sub compileCode {
           my $name = $t->[2];
           # $ret .= "\$name = '$name'; Elymas::applyResolvedName(\$name, resolve(\$\$lscope, \$data, \$name), \$data, \$lscope, 0);\n";
           # $ret .= "\$meaning = resolve(\$\$lscope, \$data, '$name');\n";
-          $ret .= "\$meaning = undef;\n";
+          # $ret .= "\$meaning = undef;\n";
           $ret .= "\$rscope = \$\$lscope;\n";
-          $ret .= "do {\n";
-          $ret .= "  \$meaning = \$rscope->{'$name'} and \$rscope = undef if exists \$rscope->{'$name'};\n";
+          $ret .= "while (defined \$rscope) {\n";
+          $ret .= "  \$meaning = \$rscope->{'$name'} and last;\n";
           $ret .= "  \$rscope = \$rscope->{' parent'};\n";
-          $ret .= "} while(defined \$rscope);\n";
+          $ret .= "}\n";
           $ret .= "die 'could not resolve \"$name\"' unless defined \$meaning;\n";
           $ret .= <<'EOPERL';
           if($meaning->[2] eq 'passive') {
@@ -148,28 +146,38 @@ EOPERL
         $ret .= "# -" . $code->[$i]->[0] . "\n";
 
         my $spec = $code->[$i]->[0];
-        my $max = 0;
+        if($spec eq '101') {
+          $ret .= "die 'Stack underflow in inlined stack-op' unless \@\$data >= 2;\n";
+          $ret .= "push \@\$data, \$data->[-2];\n";
+        } else {
+          my $max = 0;
 
-        my @spec = split //, $spec;
-        $max = $_ > $max? $_: $max foreach grep { $_ ne '*' } @spec;
+          my @spec = split //, $spec;
+          $max = $_ > $max? $_: $max foreach grep { $_ ne '*' } @spec;
 
-        $ret .= "die 'Stack underflow in inlined stack-op' unless \@\$data >= $max;\n";
-        $hasStackOps = 1;
-        $ret .= "\@buffer = ();\n";
+          $ret .= "die 'Stack underflow in inlined stack-op' unless \@\$data >= $max;\n";
+          $hasStackOps = 1;
+          #$ret .= "\@buffer = ();\n";
 
-        foreach (0 .. $max) {
-          $ret .= "push \@buffer, pop \@\$data;\n";
-        }
+          foreach my $j (0 .. $max) {
+            #$ret .= "push \@buffer, pop \@\$data;\n";
+            $ret .= "\$buffer[$j] = pop \@\$data;\n";
+          }
 
-        foreach my $j (@spec) {
-          if($j eq '*') {
-            $ret .= "\$f = pop \@\$data or die 'Stack underflow in -*';\n";
-            $ret .= "execute(\$f, \$data, \$scope);\n";
+          if($spec =~ /^\d+$/) {
+            $ret .= "push \@\$data, \@buffer[" . join(', ', @spec) . "];\n";
           } else {
-            $ret .= "push \@\$data, \$buffer[$j];\n";
+            foreach my $j (@spec) {
+              if($j eq '*') {
+                $ret .= "\$f = pop \@\$data or die 'Stack underflow in -*';\n";
+                $ret .= "execute(\$f, \$data, \$scope);\n";
+              } else {
+                $ret .= "push \@\$data, \$buffer[$j];\n";
+              }
+            }
           }
         }
-        
+
         $skip = 1;
       } else {
         $ret .= "push \@\$data, \$code[$i]; # " . $code->[$i]->[0] . "\n";
@@ -179,7 +187,7 @@ EOPERL
 
   $ret .= $popCode and $popPending = 0 if $popPending;
   if($hasStackOps) {
-    $ret = "my \$f; my \@buffer; register(\\\@buffer); \n" . $ret;
+    $ret = "my \$f; my \@buffer; \n" . $ret;
   }
 
   $ret .= <<'EOPERL';
@@ -356,24 +364,20 @@ sub doLoopStep {
 sub execute {
   my ($f, $data, $scope) = @_;
 
-  if(not grep { $data != $_ } @globalGCRoots) {
-    die "executed-upon data not in GC root list";
-  }
-
   if(ref($f->[1]) ne 'ARRAY') {
     push @$data, $f;
     return;
   }
 
   if($f->[1]->[0] eq 'array') {
-    execute(register([register(sub {
+    execute([sub {
         my ($data) = @_;
 
         my $i = pop @$data or die "Stack underflow";
         die "array index must be int" unless $i->[1] eq 'int';
 
         push @$data, $f->[0]->[$i->[0] % @{$f->[0]}];
-      }), ['func', 'array-to-func-cast', ['int'], [$f->[1]->[1]]]]),
+      }, ['func', 'array-to-func-cast', ['int'], [$f->[1]->[1]]]],
       $data, $scope);
     return;
   } elsif($f->[1]->[0] ne 'func') {
@@ -546,15 +550,12 @@ sub execute {
           foreach my $i (@$stage) {
             my @s = ($v, $argCopy[$i]);
             my $func = pop @s or die "Stack underflow in abstraction";
-            push @globalGCRoots, \@s;
             execute($func, \@s, $scope);
-            pop @globalGCRoots;
             $argCopy[$i] = $s[0];
           }
 
           &$unravel($data, \@argCopy, \@stageCallCopy, \@argTypeCopy, \@loopCopy);
         };
-        register($abstraction);
 
         push @$data, [$abstraction, ['func', 'autoabstraction of ' . $f->[1]->[1], [grep { $_ } @argTypeCopy], undef]];
         # FIXME the undef can be determined
@@ -568,9 +569,7 @@ sub execute {
           foreach my $j (@$stage) {
             my @s = ($i, $argCopy2[$j]);
             my $func = pop @s or die "Stack underflow in abstraction";
-            push @globalGCRoots, \@s;
             execute($func, \@s, $scope);
-            pop @globalGCRoots;
             $argCopy2[$j] = $s[0];
           }
 
@@ -593,7 +592,6 @@ sub execute {
         push @$data, @argCopy;
       }
     };
-    register($unravel);
     &$unravel($data, \@concreteArgs, \@stageCalls, \@argTypes, \@loops);
     weaken($unravel);
   }
@@ -623,25 +621,18 @@ sub applyResolvedName {
           my $meaning = resolve($$scope, $data, $t->[0]);
           applyResolvedName($t, $meaning, $data, $scope, 0);
         };
-      push @$data, register([register($quotedSub), ['func', 'quoted late-resolve of ' . $t->[0]], $t->[0]]);
+      push @$data, [$quotedSub, ['func', 'quoted late-resolve of ' . $t->[0]], $t->[0]];
       weaken($quotedSub);
     } else {
       die "could not resolve '$t->[0]'";
     }
   } elsif($meaning->[2] eq 'passive') {
     if($quoted) {
-      my $subLive = 1;
       my $sub; $sub = sub {
-        unless($subLive) {
-          warn Devel::FindRef::track($sub, 10);
-          warn Dumper($sub);
-          die "tried to execute GCed sub (quoted passive constant)";
-        }
-
         my ($data) = @_;
         push @$data, [$meaning->[0], $meaning->[1]];
       };
-      push @$data, register([register($sub), ['func', 'quoted-constant of ' . $t->[0]], $t->[0]]);
+      push @$data, [$sub, ['func', 'quoted-constant of ' . $t->[0]], $t->[0]];
       weaken($sub);
     } else {
       push @$data, [$meaning->[0], $meaning->[1]];
@@ -684,155 +675,6 @@ sub interpretTokens {
       die;
     }
   }
-}
-
-sub garbageCollect {
-  my $reachableObjs = {};
-
-  foreach my $root (@globalGCRoots) {
-    markObjs($reachableObjs, $root, "");
-  }
-  my $level;
-  #warn "Marked objects: " . scalar keys %$reachableObjs;
-  eval {
-    for($level = 1; ; ++$level) {
-      #warn "Level $level";
-
-      # peek_my returns identical hash-ref each time, need to traverse
-      # without seen-check
-      my $locals = peek_my($level);
-      markObjsInHash($reachableObjs, $locals, "S:");
-    }
-  };
-  if($@ !~ /Not nested deeply enough/) {
-    die "Unexpected level traversal error: " . $@;
-  }
-  #warn "Levels traversed: $level";
-  #warn "Marked objects (2): " . join "\n", keys %$reachableObjs;
-
-  my @cleanedObjs;
-
-  foreach my $i (0 .. $#allObjs) {
-    my $obj = $allObjs[$i];
-
-    if(not exists $reachableObjs->{$obj}) {
-      next unless ref($obj);
-
-      if(ref($obj) eq 'CODE') {
-        my ($closed_over, undef) = closed_over($obj);
-        my $killHash = {};
-
-        foreach my $key (keys %$closed_over) {
-          if($key =~ /^@/) {
-            $killHash->{$key} = [];
-          } elsif($key =~ /^%/) {
-            $killHash->{$key} = {};
-          #} elsif($key eq '$obj') {
-            # skip DEBUG FIXME
-          } elsif($key =~ /^\$/) {
-            $killHash->{$key} = \undef;
-          } else {
-            die "Cannot construct gc kill template for closed var: " . $key;
-          }
-        }
-
-        set_closed_over($obj, $killHash);
-      } elsif(ref($obj) eq 'ARRAY') {
-        @$obj = ();
-      } elsif(ref($obj) eq 'REF') {
-        $$obj = undef;
-      } else {
-        die "Garbage collect sweep cannot handle object reference: $obj";
-      }
-
-      push @cleanedObjs, $allObjs[$i];
-      $allObjs[$i] = undef;
-    }
-  }
-
-  %$reachableObjs = ();
-
-  print "Before GC: " . scalar @allObjs . "\n";
-  @allObjs = grep { defined } @allObjs;
-  print "After GC: " . scalar @allObjs . "\n";
-
-#  foreach my $obj (@cleanedObjs) {
-#    print Devel::FindRef::track($obj);
-#  }
-}
-
-sub markObjsInHash {
-  my ($reachableObjs, $hash, $indent) = @_;
-
-  #warn $indent . "Unseen Hash-Walking: $obj";
-  foreach my $k (keys %$hash) {
-    #warn $indent . "-> $k: $obj->{$k}";
-    markObjs($reachableObjs, $hash->{$k}, $indent . "  ");
-  }
-}
-
-sub markObjs {
-  my ($reachableObjs, $obj, $indent) = @_;
-
-  return unless defined $obj and ref($obj);
-  return if exists $reachableObjs->{$obj};
-
-  $reachableObjs->{$obj} = 1;
-
-  if(ref($obj) eq 'ARRAY') {
-    #warn $indent . "Array-Walking: $obj, " . scalar @$obj . " elements";
-    foreach my $i (0 .. $#$obj) {
-      #warn $indent . "-> [$i]: $obj->[$i]";
-      markObjs($reachableObjs, $obj->[$i], $indent . "  ");
-    }
-  } elsif(ref($obj) eq 'HASH') {
-    #warn $indent . "Hash-Walking: $obj";
-    foreach my $k (keys %$obj) {
-      #warn $indent . "-> $k: $obj->{$k}";
-      markObjs($reachableObjs, $obj->{$k}, $indent . "  ");
-    }
-  } elsif(ref($obj) eq 'REF') {
-    #warn $indent . "Ref-Walking: $obj";
-    markObjs($reachableObjs, $$obj, $indent . "  ");
-  } elsif(ref($obj) eq 'SCALAR') {
-    # nothing to follow here
-  } elsif(ref($obj) eq 'GLOB') {
-    #warn $indent . "Glob-Walking: $obj";
-    markObjs($reachableObjs, *$obj{'SCALAR'}, $indent . "  ");
-    markObjs($reachableObjs, *$obj{'ARRAY'}, $indent . "  ");
-    markObjs($reachableObjs, *$obj{'HASH'}, $indent . "  ");
-    markObjs($reachableObjs, *$obj{'CODE'}, $indent . "  ");
-    markObjs($reachableObjs, *$obj{'IO'}, $indent . "  ");
-    markObjs($reachableObjs, *$obj{'GLOB'}, $indent . "  ");
-    markObjs($reachableObjs, *$obj{'FORMAT'}, $indent . "  ");
-  } elsif(ref($obj) eq 'IO::File') {
-    # don't handle these
-  } elsif(ref($obj) eq 'CODE') {
-    #warn $indent . "Code-Walking: $obj";
-    my ($closed_over, $closed_over_2) = closed_over($obj);
-    markObjsInHash($reachableObjs, $closed_over, $indent . "  ");
-    markObjsInHash($reachableObjs, $closed_over_2, $indent . "  ");
-
-    my $peek_sub = peek_sub($obj);
-    markObjsInHash($reachableObjs, $peek_sub, $indent . "  ");
-  } else {
-    die "GC cannot handle ref type: " . ref($obj);
-  }
-}
-
-my $lastAllObjSize = 0;
-
-sub register {
-  my ($obj) = @_;
-
-  # if(@allObjs > $lastAllObjSize + 100000) {
-  #   garbageCollect();
-  #   $lastAllObjSize = @allObjs;
-  # }
-
-  # push @allObjs, $obj;
-
-  return $obj;
 }
 
 sub executeFile {

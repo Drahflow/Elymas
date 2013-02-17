@@ -44,7 +44,6 @@ $globalScope = {
       --$quoted;
 
       my @code;
-      register(\@code);
 
       while(1) {
         my $t = pop @$data or die "Stack underflow";
@@ -75,57 +74,37 @@ $globalScope = {
       # }
 
       if($quoted) {
-        my $subLive = 1;
         my $sub;
         my $subCode = <<'EOPERL' .
           sub {
-            unless($subLive) {
-              warn Devel::FindRef::track($sub, 10);
-              warn Dumper($sub);
-              warn Dumper(\@code);
-              die "tried to execute GCed sub";
-            }
             my ($data, $refScope) = @_;
             my $scope = $$refScope;
             my $s = sub {
-                unless($subLive) {
-                  warn Devel::FindRef::track($sub, 10);
-                  warn Dumper($sub);
-                  warn Dumper(\@code);
-                  die "tried to execute GCed sub";
-                }
                 my ($data) = @_;
-                my $lscope = register(\{ ' parent' => $scope });
+                my $lscope = \{ ' parent' => $scope };
 EOPERL
                 compileCode(\@code) . <<'EOPERL';
               };
-            push @$data, register([register($s), ['func', 'compiled sub (1)']]);
+            push @$data, [$s, ['func', 'compiled sub (1)']];
             weaken($s);
           }
 EOPERL
         $sub = eval($subCode);
-        my $pushData = register([register($sub), ['func', 'func-quoted'], \@code]);
+        my $pushData = [$sub, ['func', 'func-quoted'], \@code];
         push @$data, $pushData;
         weaken($sub);
       } else {
-        my $subLive = 1;
         my $sub;
         my $subCode = <<'EOPERL' .
           sub {
-            unless($subLive) {
-              warn Devel::FindRef::track($sub, 10);
-              warn Dumper($sub);
-              warn Dumper(\@code);
-              die "tried to execute GCed sub";
-            }
             my ($data) = @_;
-            my $lscope = register(\{ ' parent' => $scope });
+            my $lscope = \{ ' parent' => $scope };
 EOPERL
             compileCode(\@code) . <<'EOPERL';
           };
 EOPERL
         $sub = eval($subCode);
-        push @$data, register([register($sub), ['func', 'compiled sub (2)']]);
+        push @$data, [$sub, ['func', 'compiled sub (2)']];
         weaken($sub);
       }
     }, ['func', '}'], 'quote'],
@@ -136,7 +115,6 @@ EOPERL
       --$quoted;
 
       my @code;
-      register(\@code);
 
       while(1) {
         my $t = pop @$data or die "Stack underflow";
@@ -175,12 +153,12 @@ EOPERL
 EOPERL
                 compileCode(\@code) . <<'EOPERL';
               };
-            push @$data, register([register($s), ['func', 'compiled sub (1)']]);
+            push @$data, [$s, ['func', 'compiled sub (1)']];
             weaken($s);
           }
 EOPERL
         $sub = eval($sub);
-        push @$data, register([register($sub), ['func', 'func-quoted'], \@code]);
+        push @$data, [$sub, ['func', 'func-quoted'], \@code];
         weaken($sub);
       } else {
         my $sub = <<'EOPERL' .
@@ -192,7 +170,7 @@ EOPERL
           };
 EOPERL
         $sub = eval($sub);
-        push @$data, register([register($sub), ['func', 'compiled sub (2)']]);
+        push @$data, [$sub, ['func', 'compiled sub (2)']];
         weaken($sub);
       }
     }, ['func', "}'"], 'quote'],
@@ -247,12 +225,12 @@ EOPERL
       my $g = pop @$data or die "Stack underflow";
       my $f = pop @$data or die "Stack underflow";
       
-      push @$data, register([register(sub {
+      push @$data, [sub {
           my ($data, $scope) = @_;
 
           execute($f, $data, $scope);
           execute($g, $data, $scope);
-        }), ['func', 'f g ;']]);
+        }, ['func', 'f g ;']];
     }, ['func', ';'], 'active'],
   '[' => [sub {
       my ($data, $scope) = @_;
@@ -262,7 +240,6 @@ EOPERL
       my ($data, $scope) = @_;
 
       my @content;
-      register(\@content);
 
       my $type = undef;
       while(1) {
@@ -277,7 +254,7 @@ EOPERL
           } elsif(ref($type) eq 'ARRAY' and $type->[0] eq 'struct') {
             # TODO permitted for now
           } else {
-            die "mismatched types in array: " . Dumper($type, $t) unless typeEqual($type, $t->[1]);
+            die "mismatched types in array: " . Dumper($type, $t) unless (($type eq $t->[1]) or typeEqual($type, $t->[1]));
           }
         } else {
           $type = $t->[1];
@@ -286,7 +263,7 @@ EOPERL
         unshift @content, $t;
       };
 
-      push @$data, register([\@content, ['array', '[]', [['range', 0, $#content]], [$type]]]);
+      push @$data, [\@content, ['array', '[]', [['range', 0, $#content]], [$type]]];
     }, ['func', ']'], 'active'],
   '<' => [sub {
       my ($data, $scope) = @_;
