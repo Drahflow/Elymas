@@ -792,6 +792,18 @@
     reg mem modrm00
   } /movzxMem8Reg64 deff
 
+  { ==reg ==mem ==disp
+    reg bit64assert
+    mem bit64assert
+    disp 128 lt assert
+
+    1 reg /none mem rex
+    %0F
+    %B6
+    reg mem modrm01
+    disp imm8
+  } /movzxMem8Disp8Reg64 deff
+
   { ==reg
     reg bit64assert
 

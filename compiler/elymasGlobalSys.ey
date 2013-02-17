@@ -6,6 +6,7 @@
   ] :execute
 
   "elymasGlobalSysAsm.ey" include
+  "elymasGlobalSysTyped.ey" include
 
   leaveSubScope
 > --

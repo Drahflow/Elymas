@@ -198,9 +198,11 @@ Small set in between
   bit 63-60: 1 0 0 0
   bit 59: reserved for GC
 * Number of input stack elements
-* Number of output stack elements
 * [ <input type pointer> ]*
+* Number of output stack elements
 * [ <output type pointer> ]*
+  ( TODO: Think about representing this directly as array pointers )
+  ( TODO: Think about moving the counts to the beginning )
 
 = Musings About The Optimizer =
 
@@ -273,3 +275,10 @@ Types are represented by concrete values of that type.
 Co-iterability is decided by type-match and
 * integers: co-iterated type is bitwise and, if zero, no co-iteration
 * strings: co-iterated type is longest common substring, if epsilon, no co-iteration
+
+== Musings about function composition operator ==
+
+Maybe ; should act differently when getting a string, or use another single char for category operations
+
+Uses: Categorical operators over Set
+Anyway: This should be handled by a library, use escape mechanism for ;

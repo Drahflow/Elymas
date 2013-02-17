@@ -230,7 +230,7 @@
         /edx /rdi :cmplRegMem
         /inExtensionArea :jnbLbl8
 
-        # FIXME
+        "FIXME: extension area is full" ::outputError
         :ud2
 
         @inExtensionArea
@@ -367,7 +367,9 @@
       %F0 /cl :andbImmReg
       %00 /cl :cmpbImmReg
       /arrayIntArgument :jeLbl8
-      :ud2 # TODO handle the fully typed case
+
+      "FIXME: typed array application" ::outputError
+      :ud2
 
       @arrayIntArgument
       8 /rbx /rax :movqMemDisp8Reg # rax == requested index
@@ -378,7 +380,13 @@
       /rsi /rsi :xorqRegReg
       /rdx /rsi :xchgqRegReg
 
-      # TODO: think about skipping this if index fits
+      /rcx /rcx :testqRegReg
+      /nonEmpty :jnzLbl8
+
+      "access into empty array" ::outputError
+      :ud2
+
+      @nonEmpty
       /rcx :divqReg
 
       # rsi == array object on heap
@@ -446,15 +454,6 @@
       /rax :callqReg
       :retn
     ]] /ey* defv
-
-    # dump top stack element (actually drop it for now)
-    # FIXME: this belongs in the standard library
-    [
-      /rax :popqReg
-      /rcx :popqReg
-      /rax :pushqReg
-      :retn
-    ] /eydump defv
 
     # array construction, push begin marker on stack
     [
@@ -817,6 +816,8 @@
       ::internalDumpErrorString /rax :movqImmReg
       /rax :callqReg
       :ud2
+      /rbx :pushqReg
+      :retn
     ] /eydie defv
   > _ ==globalFunctions { defv }' ::allocateOffsetStruct
 

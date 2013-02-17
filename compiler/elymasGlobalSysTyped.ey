@@ -1,0 +1,74 @@
+<
+  <
+    # return the array of input types of a function
+    # 0 -> the function object to analyze
+    # 0 <- the array of input types
+    [[
+      /rbx :popqReg
+
+      /rdx :popqReg
+      16 /rdx /rdx :movqMemDisp8Reg
+      /rdx /rdx :testqRegReg
+      /typed :jnzLbl8
+
+      # untyped functions, it does not officially take any arguments
+      /rdi /rdi :xorqRegReg
+      ::internalAllocateArray /rax :movqImmReg
+      /rax :callqReg
+      /rax :pushqReg
+      /rbx :pushqReg
+      :retn
+
+      @typed
+      8 /rdx /rdi :movqMemDisp8Reg
+      3 /rdi :shlqImm8Reg
+      16 /rdx /rsi :leaqMemDisp8Reg
+      /rsi :pushqReg
+      ::internalAllocateArray /rax :movqImmReg
+      /rax :callqReg
+
+      /rsi :popqReg
+      /rax :pushqReg
+
+      8 /rax /rdi :leaqMemDisp8Reg
+      /rax /ecx :movlMemReg
+      8 /rcx :subqImm8Reg
+      :reprcx :movsb
+
+      /rbx :pushqReg
+      :retn
+    ]] /eyinputs defv
+
+    # return the type of an object
+    # 0 -> the object to analyze
+    # 0 <- an integer from 0 - 15
+    [[
+      /rbx :popqReg
+
+      16 /rdi :movqImmReg
+      ::internalAllocate /rax :movqImmReg
+      /rax :callqReg
+
+      /rdx :popqReg
+      7 /rdx /rdx :movzxMem8Disp8Reg64
+      4 /rdx :shrqImm8Reg
+      /rdx 8 /rax :movqRegMemDisp8
+
+      /rax :pushqReg
+
+      /rbx :pushqReg
+      :retn
+    ]] /eytype defv
+  > _ ==globalFunctions { defv }' ::allocateOffsetStruct
+
+  "typed" enterSubScope
+
+  [
+    globalFunctions keys eydeff { | }' createScopeEntries
+    createScopeExtensionEntries
+  ] :execute
+
+  leaveSubScope
+> --
+
+# vim: syn=elymas
