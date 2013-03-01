@@ -452,6 +452,13 @@
       /rax :pushqReg
       /rax :movqImmOOBReg "ey*" "ey." ::linkAbs64
       /rax :callqReg
+
+      /r15 /rcx :movqMemReg
+      ::currentScope /rax :movqImmReg
+      /rcx /rax :movqRegMem
+      8 /r15 :addqImm8Reg
+      /r15 :pushqMem
+      8 /r15 :addqImm8Reg
       :retn
     ]] /ey* defv
 
@@ -743,6 +750,15 @@
       8 /rbx /rbx :movqMemDisp8Reg
 
       /rbx /rdi :subqRegReg
+      /positiveRange :jnsLbl8
+
+      /rdi /rdi :xorqRegReg
+      ::internalAllocateArray /rax :movqImmReg
+      /rax :callqReg
+      /rax :pushqReg # store (empty) array on stack
+      /done :jmpLbl8
+
+      @positiveRange
       3 /rdi :shlqImm8Reg
       8 /rdi :addqImm8Reg # one extra element, TODO: consider whether this is actually a good idea
       ::internalAllocateArray /rax :movqImmReg
@@ -1642,6 +1658,13 @@
       1 /rsi :movqImmReg
       /rdx /rcx :cmpqRegReg 
       /rsi /rdx :movqRegReg
+      /rdi /rdx :cmovzqRegReg
+    ] makeArith /eyneq defv
+    [
+      /rdi /rdi :xorqRegReg
+      1 /rsi :movqImmReg
+      /rdx /rcx :cmpqRegReg 
+      /rsi /rdx :movqRegReg
       /rdi /rdx :cmovgeqRegReg
     ] makeArith /eygt defv
     [
@@ -1701,6 +1724,18 @@
       /rdx /rdx :xorqRegReg
       @done
     ]] makeArith /eyand defv
+    [[
+      /rcx /rcx :testqRegReg
+      /yes :jnzLbl8
+      /rdx /rdx :testqRegReg
+      /yes :jnzLbl8
+      /rdx /rdx :xorqRegReg
+      /done :jmpLbl8
+
+      @yes
+      1 /rdx :movqImmReg
+      @done
+    ]] makeArith /eyor defv
   > _ =globalT11t1Functions { defv }' ::allocateOffsetStruct
 
   <
@@ -1744,8 +1779,8 @@
 
   <
     # 0 -> integer
-    # 0 <- the negated integer
-    [
+    # 0 <- the bitwise negated integer
+    [[
       /rbx :popqReg
 
       # allocate result int
@@ -1765,7 +1800,36 @@
       /rax :pushqReg
       /rbx :pushqReg
       :retn
-    ] /eyneg defv
+    ]] /eyneg defv
+
+    # 0 -> integer
+    # 0 <- the logically negated integer
+    [[
+      /rbx :popqReg
+
+      # allocate result int
+      16 /rdi :movqImmReg
+      ::internalAllocate /rax :movqImmReg
+      /rax :callqReg
+
+      # type zero does not need to be changed
+
+      # actual negation
+      /rcx :popqReg
+      8 /rcx /rcx :movqMemDisp8Reg
+
+      /rdx /rdx :xorqRegReg
+      /rcx /rcx :testqRegReg
+      /zero :jnzLbl8
+      /rdx :incqReg
+      @zero
+      /rdx 8 /rax :movqRegMemDisp8
+
+      # push int address on program stack
+      /rax :pushqReg
+      /rbx :pushqReg
+      :retn
+    ]] /eynot defv
   > _ =globalT1t1Functions { defv }' ::allocateOffsetStruct
 
   { | }' ::linkResolve

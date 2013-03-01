@@ -530,7 +530,9 @@
   %7E /jle defJmpRel8
   %73 /jnb defJmpRel8
   %75 /jne defJmpRel8
+  %79 /jns defJmpRel8
   %75 /jnz defJmpRel8
+  %78 /js defJmpRel8
   %74 /jz defJmpRel8
 
   { ==reg ==mem ==idx ==scale ==disp

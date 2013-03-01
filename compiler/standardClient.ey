@@ -98,7 +98,7 @@
     { ==object
       { "unknown type in typeStack" die } ==unknown
       { "invalid type in typeStack" die } ==invalid
-      { } ==literal
+      { [ object 0 1 neg ] } ==literal
 
       object sys .typed .type [
         literal # integer
@@ -108,13 +108,13 @@
         invalid # extension area
         { object sys .typed .inputs ==in
           in len 1 neq { "multi-input function in typeStack" die } rep
-          0 in *
+          [ 0 in * 0 1 neg ]
           object sys .typed .outputs ==out
           out len 1 neq { "multi-output function in typeStack" die } rep
           0 out * typeStackInternal
         } # function
         invalid # function code
-        { 1 0 object * typeStackInternal } # array
+        { [ 1 0 object len 1 sub ] 0 object * typeStackInternal } # array
         invalid # function type
         unknown
         unknown
@@ -128,7 +128,28 @@
 
     { [ -01 typeStackInternal ] } /typeStack deff
 
-    { 0 } /isVariableType deff
+    { -- 0 } /isVariableType deff
+
+    { ==t
+      t len 3 neq { "complex execution type non-triple" die } rep
+
+      { "unknown type in typeStack" die } ==unknown
+      { "invalid type in typeStack" die } ==invalid
+
+      2 t * 1 t * ge
+    } /isIterableType deff
+
+    { ==arr
+      0
+    } /getLoopStart deff
+
+    { ==arr
+      arr len eq
+    } /isLoopEnd deff
+
+    { ==arr
+      1 add
+    } /doLoopStep deff
 
     # Executing a function f: A->B->C (i.e. B A f) on concrete arguments b a.
     # Phase 1
@@ -143,7 +164,7 @@
     #     Run from right (stacktop) argument to left (stacklow) argument:
     #       Take topmost type, check whether it can be found in other stacks (from top)
     #         Eliminate all matching types via function or loop creation
-    { _ =*f sys .typed .inputs ==inputs
+    { _ ==f sys .typed .inputs ==inputs
       [ ] ==concreteArgs
       [ ] ==viewPortOffset
 
@@ -185,15 +206,13 @@
           { "magic goes here FIXME" die } =c
         } {
           # zero mismatches, can directly use concrete argument
-          [ concreteTypeStack len formalTypeStack len sub viewPortOffset _ len dearray ] =viewPortOffset
+          [ concreteTypeStack len formalTypeStack len sub ] viewPortOffset cat =viewPortOffset
         } ? *
 
-        [ c concreteArgs _ len dearray ] =concreteArgs
+        [ c ] concreteArgs cat =concreteArgs
       } each
 
       # "Viewport Offsets: @viewPortOffset\n" print
-
-      "survived" die
 
       # Phase 2,
       [
@@ -203,17 +222,18 @@
         } each
       ] ==toBeAbstractedTypes
 
-      # "To be abstracted: " . Dumper(@toBeAbstractedTypes) print
-
-      "survived (not reached)" die
+      "toBeAbstractedTypes: " dump
+      toBeAbstractedTypes dump
 
       [ toBeAbstractedTypes { len } each ] any not {
         # no types need to be abstracted, function can be called
-        concreteArgs _ len dearray f
+        concreteArgs _ dump _ len dearray f
+        "attempting to call function (w.o. abstraction)" dump
+        *
       } {
-        [ ] =argTypes # the type stack of the new function
-        [ ] =stageCalls # which functions to call in each stage
-        [ ] =loops # undef for lambda abstraction, loop bound source for loops
+        [ ] ==argTypes # the type stack of the new function
+        [ ] ==stageCalls # which functions to call in each stage
+        [ ] ==loops # undef for lambda abstraction, loop bound source for loops
 
         0 toBeAbstractedTypes len 1 sub range reverse { ==i
           { i toBeAbstractedTypes * len } {
@@ -223,7 +243,7 @@
               1 neg ==iterationSource
               type isIterableType { i =iterationSource } rep
 
-              0 i 1 sub reverse { ==j
+              0 i 1 sub range reverse { ==j
                 j toBeAbstractedTypes * len not not {
                   0 j toBeAbstractedTypes * * type commonSubType # -> <type> <any exists>
                   { =type
@@ -242,17 +262,23 @@
                 [ type ] argTypes cat =argTypes
                 [ 1 neg ] loops cat =loops
               } ? *
-            [ stageCalls _ len dearray stageCalls2 ] =stageCalls
+            stageCalls [ stageCalls2 ] cat =stageCalls
           } loop
         } each
 
-        # Dumper(\@argTypes, \@stageCalls, \@loops) print
-
-        "survived (not reached)" die
+        "concreteArgs: " dump
+        concreteArgs dump
+        "stageCalls: " dump
+        stageCalls dump
+        "argTypes: " dump
+        argTypes dump
+        "loops: " dump
+        loops dump
         
         { ==loops ==argTypes ==stageCalls ==concreteArgs
           stageCalls len not {
             concreteArgs _ len dearray f
+            *
           } {
             [ stageCalls _ len dearray ==stage ] =stageCalls
             [ argTypes _ len dearray ==argType ] =argTypes
@@ -262,17 +288,19 @@
               loopIndex concreteArgs * ==loopedOver
               loopedOver getLoopStart ==i
               { i loopedOver isLoopEnd not } {
-                i loopedOver doLoopStep =i
-
+                [ concreteArgs _ len dearray ] ==concreteArgsCopy
                 stage { ==j
                   # TODO: think about a single function returning multiple values
-                  i j concreteArgs * * j concreteArgs =[]
+                  i j concreteArgs * * j concreteArgsCopy =[]
                 } each
 
-                concreteArgs stageCalls argTypes loops unravel
+                [ concreteArgsCopy stageCalls argTypes loops unravel ]
                 results -01 cat =results
+                results dump
                 # TODO: think about a single function returning multiple values
                 # should be solved by producing two arrays side by side
+
+                i loopedOver doLoopStep =i
               } loop
 
               results
@@ -293,6 +321,8 @@
         } =*unravel
 
         concreteArgs stageCalls argTypes loops unravel
+
+        "execution complete" dump
       } ? *
     } /execute sys .typed .deff
   > --
@@ -308,11 +338,11 @@
     reverse |cat fold
   } /base16encode64 deff
 
-  # dump top stack element to sys .err
-  { _ ==o
+  { ==indent _ ==o
     { "unknown type in dump" die } ==unknown
     { "invalid type in dump" die } ==invalid
         
+    "" indent { "  " cat } rep sys .err .writeall
     sys .typed .type [
       { o base16encode64 sys .err .writeall } # integer
       { "\"" o "\"" cat cat sys .err .writeall } # string
@@ -321,7 +351,11 @@
       invalid # extension area
       { "<function>" } # function
       invalid # function code
-      { "[\n" sys .err .writeall o |dump each "]" sys .err .writeall } # array
+      {
+        "[\n" sys .err .writeall
+        o { indent 1 add dumpIndented } each
+        "" indent { "  " cat } rep "]" cat sys .err .writeall
+      } # array
       invalid # function type
       unknown
       unknown
@@ -332,7 +366,10 @@
       unknown
     ] * *
     "\n" sys .err .writeall
-  }
+  } /dumpIndented deff
+
+  # dump top stack element to sys .err
+  { 0 dumpIndented }
 > -- /dump deff
 
 # vim: syn=elymas
