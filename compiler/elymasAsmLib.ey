@@ -469,12 +469,14 @@
       exactLength /rdx :movqImmReg
       /rdx /rax :movqRegMem 
 
-      # load string contents
-      0 exactLength 8 div range { 8 mul ==i
-        8 /rax :addqImm8Reg
-        /rdx :movqImmOOBReg i _ 7 add range v 8 dearray
-        /rdx /rax :movqRegMem
-      } each
+      exactLength 0 neq {
+        # load string contents
+        0 exactLength 1 sub 8 div range { 8 mul ==i
+          8 /rax :addqImm8Reg
+          /rdx :movqImmOOBReg i _ 7 add range v 8 dearray
+          /rdx /rax :movqRegMem
+        } each
+      } rep
     ]
   } /constStringCode deff
 
