@@ -139,6 +139,49 @@
       2 t * 1 t * ge
     } /isIterableType deff
 
+    { =*a =*b
+      [
+        0 a sys .typed .type 0 b sys .typed .type neq
+        { 0 }
+
+        0 a sys .typed .type 0 neq
+        { "type equality only implemented for ints" die }
+
+        0 b sys .typed .type 0 neq
+        { "type equality only implemented for ints" die }
+
+        0 a 0 b neq { 0 }
+        1 { 1 }
+      ] conds
+    } /typeEqual deff
+
+    { ==earlierType ==laterType
+      [
+        earlierType laterType typeEqual
+        { earlierType 1 }
+
+        # TODO: maybe handle structs here one day (or move the whole affair into
+        # a real compilation stage
+        0 earlierType * sys .typed .type 0 neq
+        { 0 }
+
+        # Who came first determines iteration range
+        2 earlierType * 1 neg neq
+        { earlierType 1 }
+
+        # But if only the later one defines a range, take that one
+        2 laterType * 1 neg neq
+        { laterType 1 }
+
+        # General integers go-iterate iff they binary and results in non-zero
+        0 earlierType * 0 laterType * band 0 neq
+        { earlierType 1 }
+
+        1
+        { 0 }
+      ] conds
+    } /commonIterationType deff
+
     { ==arr
       0
     } /getLoopStart deff
@@ -245,7 +288,7 @@
 
               0 i 1 sub range reverse { ==j
                 j toBeAbstractedTypes * len not not {
-                  0 j toBeAbstractedTypes * * type commonSubType # -> <type> <any exists>
+                  0 j toBeAbstractedTypes * * type commonIterationType # -> <type> <any exists>
                   { =type
                     iterationSource 0 lt type isIterableType and { j =iterationSource } rep
                     # TODO: create a decent shift
