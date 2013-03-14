@@ -835,6 +835,26 @@
       /rbx :pushqReg
       :retn
     ] /eydie defv
+    
+    # determine current quoting mode
+    # 0 <- an integer giving the current quoting level
+    [[
+      /rbx :popqReg
+
+      # allocate result int
+      16 /rdi :movqImmReg
+      ::internalAllocate /rax :movqImmReg
+      /rax :callqReg
+      # and push to stack
+      /rax :pushqReg
+
+      ::currentQuoted /rcx :movqImmReg
+      /rcx /rcx :movqMemReg
+      /rcx 8 /rax :movqRegMemDisp8
+
+      /rbx :pushqReg
+      :retn
+    ]] /eyquoted defv
   > _ ==globalFunctions { defv }' ::allocateOffsetStruct
 
   <
