@@ -296,6 +296,8 @@
       %F0 /cl :andbImmReg
       %50 /cl :cmpbImmReg
       /normalFunction :jeLbl8
+      %10 /cl :cmpbImmReg
+      /stringFunctionSJ :jeLbl8
       %70 /cl :cmpbImmReg
       /unexecutable :jneLbl8
       /arrayFunction :jmpLbl32
@@ -303,6 +305,9 @@
       @unexecutable
       "not an executable thing" ::outputError
       :ud2
+
+      @stringFunctionSJ
+      /stringFunction :jmpLbl32
 
       @normalFunction
       # load scope
@@ -457,6 +462,49 @@
       ::currentScope /rax :movqImmReg
       /rcx /rax :movqRegMem
       8 /r15 :addqImm8Reg
+      /r15 :pushqMem
+      8 /r15 :addqImm8Reg
+      :retn
+
+      @stringFunction
+      # rdx == string on heap
+      /rbx :popqReg
+
+      7 /rbx /cl :movbMemDisp8Reg
+      %F0 /cl :andbImmReg
+      %00 /cl :cmpbImmReg
+      /stringIntArgument :jeLbl8
+
+      "FIXME: typed string application" ::outputError
+      :ud2
+
+      @stringIntArgument
+      8 /rbx /rax :movqMemDisp8Reg # rax == requested index
+      16 /rdx /rcx :movqMemDisp8Reg # load (exact) string length
+
+      /rsi /rsi :xorqRegReg
+      /rdx /rsi :xchgqRegReg
+
+      /rcx /rcx :testqRegReg
+      /nonEmptyString :jnzLbl8
+
+      "access into empty string" ::outputError
+      :ud2
+
+      @nonEmptyString
+      /rcx :divqReg
+
+      # rsi == array object on heap
+      # rdx == correct string index
+      24 1 /rdx /rsi /rbx :movzxMem8IndexScaleDisp8Reg64 # use some of the CISC goodness
+
+      16 /rdi :movqImmReg
+      ::internalAllocate /rax :movqImmReg
+      /rax :callqReg
+      /rax :pushqReg # push integer on the stack
+      
+      /rbx 8 /rax :movqRegMemDisp8 # store integer value
+
       /r15 :pushqMem
       8 /r15 :addqImm8Reg
       :retn

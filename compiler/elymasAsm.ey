@@ -806,6 +806,20 @@
     disp imm8
   } /movzxMem8Disp8Reg64 deff
 
+  { ==reg ==mem ==idx ==scale ==disp
+    reg bit64assert
+    mem bit64assert
+    idx bit64assert
+    disp 128 lt assert
+
+    1 reg idx mem rex
+    %0F
+    %B6
+    reg /sib modrm01
+    scale idx mem sib
+    disp imm8
+  } /movzxMem8IndexScaleDisp8Reg64 deff
+
   { ==reg
     reg bit64assert
 

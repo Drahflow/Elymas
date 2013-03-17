@@ -1,0 +1,4 @@
+"abc" _ 0 -01 * dump
+      _ 1 -01 * dump
+      _ 2 -01 * dump
+      _ 3 -01 * dump
