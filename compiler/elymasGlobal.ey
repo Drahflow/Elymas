@@ -1520,7 +1520,7 @@
     ] /ey{ defv
 
     # quote construction, create function from begin marker onwards
-    { ==footer ==header
+    { ==footer ==header ==capturing
       [[
         8 /r15 :subqImm8Reg
         /r15 :popqMem
@@ -1605,8 +1605,12 @@
 
         # create function object
         /rax /rdi :movqRegReg
-        ::currentScope /rax :movqImmReg
-        /rax /rsi :movqMemReg
+        capturing {
+          ::currentScope /rax :movqImmReg
+          /rax /rsi :movqMemReg
+        } {
+          /rsi /rsi :xorqRegReg
+        } ? *
         /rdx /rdx :xorqRegReg
         ::internalAllocateFunction /rax :movqImmReg
         /rax :callqReg
@@ -1662,8 +1666,12 @@
 
         /done :jmpLbl32
       ]]
-    } _ ::scopingFunctionHeader ::scopingFunctionFooter -102* /ey} defv
-        ::unscopingFunctionHeader ::unscopingFunctionFooter -102* /ey}' defv
+    } _ 1 ::scopingFunctionHeader   ::scopingFunctionFooter   -2103* /ey}  defv
+      _ 1 ::unscopingFunctionHeader ::unscopingFunctionFooter -2103* /ey}' defv
+           # the following line - while very tempting - should not be enabled, as it would
+           # destroy future possibility of detecting scope closedness. If you need to augment
+           # caller scope names using nice syntax, employ macros and pass a { deff }' or similar
+        -- # 0 ::unscopingFunctionHeader ::unscopingFunctionFooter -2103* /ey}" defv
   > _ ==globalMacros { defv }' ::allocateOffsetStruct
 
   <
