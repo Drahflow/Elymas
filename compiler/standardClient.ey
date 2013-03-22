@@ -272,6 +272,11 @@
         # no types need to be abstracted, function can be called
         concreteArgs _ dump _ len dearray f
         "attempting to call function (w.o. abstraction)" dump
+        0 concreteArgs len 1 sub range { ==i
+          i concreteArgs * sys .typed .type _ dump
+          i inputs       * sys .typed .type _ dump
+          neq { "invalid input type at argument index " dump i dump "" die } rep
+        } each
         *
       } {
         [ ] ==argTypes # the type stack of the new function
@@ -414,5 +419,308 @@
   # dump top stack element to sys .err
   { 0 dumpIndented }
 > -- /dump deff
+
+# regex support
+# ideas taken from http://swtch.com/~rsc/regexp/regexp3.html
+{
+  [ "(" ")" "[" "]" "-" "|" "^" "*" "." ] { _ { 0 -01 * eq }_ "'" -102 cat deff }' each
+
+  0 ==currentCapture
+
+  { ==b ==a
+    [
+      [ /SPLIT 1 a len 1 add ]
+      a _ len dearray
+      [ /JUMP b len ]
+      b _ len dearray
+    ]
+  } /alternative deff
+
+  { ==b ==a
+    a b cat
+  } /sequence deff
+
+  { ==a
+    [
+      a _ len dearray
+      [ /SPLIT a len neg 1 ]
+    ]
+  } /star deff
+
+  { ==p
+    [
+      [ /TERM p ]
+    ]
+  } /terminal deff
+
+  { ==a
+    [
+      a _ len dearray
+      [ /MATCH ]
+    ]
+  } /final deff
+
+  { ==i ==a
+    [
+      [ /SAVE i 2 mul ]
+      a _ len dearray
+      [ /SAVE i 2 mul 1 add ]
+    ]
+  } /capture deff
+
+  {
+    [ ]
+  } /empty deff
+
+  { ==str
+    str len 0 eq {
+      1 neg
+    } {
+      0 str *
+    } ? *
+  } /head deff
+
+  { ==s
+    1 s str .postfix
+  } /tail deff
+
+  { ==re
+    # "(parse) re: " re cat dump
+
+    re seq ==a =re
+    re len 0 neq {
+      re head '| {
+        re tail =re
+        re parse ==b =re
+        a b alternative =a
+      } rep
+    } rep
+    re a
+  } /parse deff
+
+  { ==re
+    # "(seq) re: " re cat dump
+
+    empty _ ==a
+            ==l
+
+    {
+      # "(seq loop) re: " re cat dump
+      re head '| not
+      re head ') not and
+      re head  1 neg neq and
+    } {
+      re head '* {
+        l star =l
+        re tail =re
+      } {
+        a l sequence =a
+        re atom =l =re
+      } ? *
+    } loop
+    a l sequence =a
+    re a
+  } /seq deff
+
+  { ==re
+    # "(atom) re: " re cat dump
+    empty ==a
+
+    [
+      re head '(
+      {
+        re tail parse currentCapture capture =a =re
+        currentCapture 1 add =currentCapture
+        re head ') not { ") expected" die } rep
+        re tail =re
+      }
+      re head '[
+      {
+        re tail =re
+        re head '^ {
+          re tail chars ==nset =re
+          { nset not } ==set
+          re head '] not { "] expected" die } rep
+          re tail =re
+        } {
+          re tail chars ==set =re
+          re head '] not { "] expected" die } rep
+          re tail =re
+        } ? *
+        set terminal =a
+      }
+      re head '.
+      {
+        { -- 1 } terminal =a
+        re tail =re
+      }
+      1
+      {
+        re head ==t
+        { t eq } terminal =a
+        re tail =re
+      }
+    ] conds
+
+    re a
+    # "(atom end) re: " re cat dump
+  } /atom deff
+
+  { ==re
+    # "(chars) re: " re cat dump
+
+    re head '] {
+      re tail chars2 ==set =re
+      set "']" | or =set
+    } {
+      chars2 ==set =re
+    } ? *
+    re set
+  } /chars deff
+
+  { ==re
+    # "(chars2) re: " re cat dump
+
+    re head '- {
+      re tail chars2 ==set =re
+      set "'-" | or =set
+    } {
+      charsR ==set =re
+    } ? *
+    re set
+  } /chars2 deff
+
+  { ==re
+    # "(charsR) re: " re cat dump
+
+    re charsN ==set =re
+    { re head '] not } {
+      re charsN set or =set =re
+    } loop
+    re set
+  } /charsR deff
+
+  { ==re
+    # "(charsN) re: " re cat dump
+
+    re head ==start
+    re tail =re
+    re head '- {
+      re tail =re
+      re head ==end
+      re tail =re
+      { "TODO" die } ==set
+    } {
+      { start eq } ==set
+    } ? *
+    re set
+  } /charsN deff
+
+  { <
+    0 ==pc
+    [ 10 { 0 0 } rep ] ==captures
+  > } /newThread deff
+
+  |add /origadd deff
+
+  # TODO think about implementation efficiency
+  { < ==maxSize
+    0 ==size
+    [ maxSize { 0 } rep ] =*get
+    [ maxSize { 1 } rep ] =*pcFree
+
+    { ==thread
+      thread .pc pcFree {
+        thread size |get =[]
+        0 thread .pc |pcFree =[]
+        size 1 origadd =size
+      } rep
+    } /add deff
+
+    {
+      0 =size
+      [ maxSize { 1 } rep ] =pcFree
+    } /clear deff
+  > } /threadList deff
+
+  { ==thread ==newpc <
+    newpc ==pc
+    [ thread .captures 20 dearray ] ==captures
+  > } /cloneThread deff
+
+  { ==prog ==string
+    0 ==position
+    string len ==maxPosition
+    0 ==done
+    0 ==matched
+
+    prog len _ threadList ==clist
+               threadList ==nlist
+
+    newThread _ ==thread clist .add
+
+    { position maxPosition le done not and } {
+      0 ==i
+      { i clist .size lt done not and } {
+        i clist .get _ =thread
+                       .pc _ ==pc
+                             prog * =*code
+        [
+          0 code /MATCH streq
+          {
+            1 =matched
+            clist .clear
+          }
+          0 code /TERM streq
+          {
+            position maxPosition lt {
+              position string * 1 code * { pc 1 add thread cloneThread nlist .add } rep
+            } rep
+          }
+          0 code /JUMP streq
+          { pc 1 code add thread cloneThread clist .add }
+          0 code /SPLIT streq
+          {
+            pc 1 code add thread cloneThread clist .add
+            pc 2 code add thread cloneThread clist .add
+          }
+          0 code /SAVE streq
+          {
+            position 1 code thread .captures =[]
+            pc 1 add thread cloneThread clist .add
+          }
+          1
+          { |code dump  "unsupported regex-VM instruction" die }
+        ] conds
+        i 1 add =i
+      } loop
+
+      clist nlist =clist =nlist
+      nlist .clear
+      position 1 add =position
+    } loop
+
+    matched {
+      currentCapture ==i
+      { i } { i 1 sub =i
+        string
+        i 2 mul       thread .captures * _ ==start -01 str .postfix
+        i 2 mul 1 add thread .captures * start sub -01 str .inplacePrefix
+      } loop
+    } rep
+    matched
+  } /execute deff
+
+  parse 
+  [
+    [ /SPLIT 3 1 ]
+    [ /TERM { -- 1 } ]
+    [ /JUMP 2 neg ]
+  ] -01 cat
+  final ==prog --
+  { prog execute }
+} /enregex deff
+
+{ enregex * } /regex deff
 
 # vim: syn=elymas

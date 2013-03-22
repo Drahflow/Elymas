@@ -1,1 +1,3 @@
-{( cd working-compiler; ls *.test ); (cd working; ls *.ey)} | sed -e 's/\..*//g' | sort | uniq -c | sort -nr
+( cd working; ls *.ey ) | sed -e 's/.ey/.test/' | while read n; do
+  [ ! -r working-compiler/"$n" ] && echo $n
+done
