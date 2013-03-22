@@ -423,8 +423,6 @@
 # regex support
 # ideas taken from http://swtch.com/~rsc/regexp/regexp3.html
 {
-  [ "(" ")" "[" "]" "-" "|" "^" "*" "." ] { _ { 0 -01 * eq }_ "'" -102 cat deff }' each
-
   0 ==currentCapture
 
   { ==b ==a
@@ -484,21 +482,23 @@
     1 s str .postfix
   } /tail deff
 
-  { ==re
+  { deff }' /install deff
+  [ "(" ")" "[" "]" "-" "|" "^" "*" "." ] { ==c
+    { _ head 0 c * eq } "^" c cat install
+  } each
+
+  { # ==re
     # "(parse) re: " re cat dump
 
-    re seq ==a =re
-    re len 0 neq {
-      re head '| {
-        re tail =re
-        re parse ==b =re
-        a b alternative =a
-      } rep
+    seq ==a
+    ^| {
+      tail parse ==b
+      a b alternative =a
     } rep
-    re a
+    a
   } /parse deff
 
-  { ==re
+  { # ==re
     # "(seq) re: " re cat dump
 
     empty _ ==a
@@ -506,114 +506,108 @@
 
     {
       # "(seq loop) re: " re cat dump
-      re head '| not
-      re head ') not and
-      re head  1 neg neq and
+      _ head 1 neg eq -01
+      ^| -01
+      ^) -01
+      -0321 or or not
     } {
-      re head '* {
+      ^* {
         l star =l
-        re tail =re
+        tail
       } {
         a l sequence =a
-        re atom =l =re
+        atom =l
       } ? *
     } loop
-    a l sequence =a
-    re a
+    a l sequence
   } /seq deff
 
-  { ==re
+  { ==e ==t =*i
+    { i t e ? * }
+  } /ifthenelse deff
+
+  { # ==re
     # "(atom) re: " re cat dump
     empty ==a
 
-    [
-      re head '(
-      {
-        re tail parse currentCapture capture =a =re
-        currentCapture 1 add =currentCapture
-        re head ') not { ") expected" die } rep
-        re tail =re
-      }
-      re head '[
-      {
-        re tail =re
-        re head '^ {
-          re tail chars ==nset =re
-          { nset not } ==set
-          re head '] not { "] expected" die } rep
-          re tail =re
-        } {
-          re tail chars ==set =re
-          re head '] not { "] expected" die } rep
-          re tail =re
-        } ? *
-        set terminal =a
-      }
-      re head '.
-      {
-        { -- 1 } terminal =a
-        re tail =re
-      }
-      1
-      {
-        re head ==t
-        { t eq } terminal =a
-        re tail =re
-      }
-    ] conds
+    { ^( } {
+      tail parse currentCapture capture =a
+      currentCapture 1 add =currentCapture
+      ^) not { ") expected" die } rep
+      tail
+    } { ^[ } {
+      tail
+      ^^ {
+        tail chars ==nset
+        { nset not } ==set
+        ^] not { "] expected" die } rep
+        tail
+      } {
+        tail chars ==set
+        ^] not { "] expected" die } rep
+        tail
+      } ? *
+      set terminal =a
+    } { ^. } {
+      { -- 1 } terminal =a
+      tail
+    } {
+      _ head { eq }_ terminal =a
+      tail
+    } ifthenelse ifthenelse ifthenelse *
 
-    re a
+    a
     # "(atom end) re: " re cat dump
   } /atom deff
 
-  { ==re
+  { # ==re
     # "(chars) re: " re cat dump
 
-    re head '] {
-      re tail chars2 ==set =re
-      set "']" | or =set
+    ^] {
+      tail chars2 ==set
+      set { 0 "]" * eq } or =set "TODO" die
     } {
-      chars2 ==set =re
+      chars2 ==set
     } ? *
-    re set
+    set
   } /chars deff
 
-  { ==re
+  { # ==re
     # "(chars2) re: " re cat dump
 
-    re head '- {
-      re tail chars2 ==set =re
-      set "'-" | or =set
+    ^- {
+      tail chars2 ==set
+      set { 0 "-" * eq } or =set "TODO" die
     } {
-      charsR ==set =re
+      charsR ==set
     } ? *
-    re set
+    set
   } /chars2 deff
 
-  { ==re
+  { # ==re
     # "(charsR) re: " re cat dump
 
-    re charsN ==set =re
-    { re head '] not } {
-      re charsN set or =set =re
+    charsN ==set
+    { ^] not } {
+      charsN set or =set "TODO" die
     } loop
-    re set
+    set
   } /charsR deff
 
-  { ==re
+  { # ==re
     # "(charsN) re: " re cat dump
 
-    re head ==start
-    re tail =re
-    re head '- {
-      re tail =re
-      re head ==end
-      re tail =re
+    _ head ==start
+    tail
+    ^- {
+      tail
+      _ head ==end
+      tail
       { "TODO" die } ==set
     } {
       { start eq } ==set
     } ? *
-    re set
+    set
   } /charsN deff
 
   { <
