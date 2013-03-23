@@ -73,6 +73,9 @@
     [ ] =linkHoles
   } /linkResolve deff
 
+  { [ } "[[" deff
+  { ] :labelResolve stringResolve } "]]" deff
+
   <
     # current end of heap memory (grows upwards)
     [ %00 %00 %00 %00 %00 %60 %00 %00 ] ==heapEnd
@@ -167,7 +170,7 @@
         /r8 :movqImmOOBReg %FF %FF %FF %FF %FF %FF %FF %FF
         0 /r9 :movqImmReg
         :syscall
-      ] |len { :jbeRel8 } -21*0*221* dearray
+      ] |len { :jbeRel8 } -21*0*221* dearray # FIXME move to labelResolve
       /rbx /rax :movqRegReg
       /rdi :popqReg
       /rdi /rax :movqRegMem
@@ -183,7 +186,15 @@
       internalStringEqualsCode _ len dearray
       :retn
     ] /internalStringEquals defv
+  > { defv }' allocateOffsetStruct
 
+  { ==str
+    /rdi :movqImmOOBReg str string
+    internalDumpErrorString /rax :movqImmReg
+    /rax :callqReg
+  } /outputError deff
+
+  <
     # resolve element from scope
     # rdi -> address of scope on the heap
     # rsi -> address of element name on the heap
@@ -192,8 +203,22 @@
     #        1 if element is active
     #        2 if element is quote-active
     # rcx <- address of entry (i.e. where rdx was loaded from)
-    [
+    [[
       @retryWithParent
+
+      # CHECK this is just sanity checking
+      /rdi :pushqReg
+      7 /rdi /al :movbMemDisp8Reg
+      %F0 /al :andbImmReg
+      %20 /al :cmpbImmReg
+      /isScope :jeLbl8
+
+      "object resolving in is not a scope" outputError
+      :ud2
+
+      @isScope
+      /rdi :popqReg
+      # ENDCHECK
 
       8 /rdi /rcx :movqMemDisp8Reg # load name table
       /rcx /rdx :movqRegReg
@@ -261,7 +286,7 @@
       @outsideExtensionArea
       /rax /rax :xorqRegReg
       :retn
-    ] :labelResolve /internalResolve defv
+    ]] /internalResolve defv
   > { defv }' allocateOffsetStruct
 
   # TODO: link internal functions statically with relative calls
@@ -312,6 +337,7 @@
     [
       /rdi :pushqReg
       /rdx :pushqReg
+      /rsi :pushqReg
 
       32 /rdi :movqImmReg
       internalAllocate /rax :movqImmReg
@@ -320,6 +346,7 @@
       # set type
       %50 7 /rax :orbImmMemDisp8
 
+      /rsi :popqReg
       /rsi 8 /rax :movqRegMemDisp8
       /rdx :popqReg
       /rdx 16 /rax :movqRegMemDisp8
@@ -379,12 +406,6 @@
       :retn
     ] /internalAllocateString defv
   > { defv }' allocateOffsetStruct
-
-  { ==str
-    /rdi :movqImmOOBReg str string
-    internalDumpErrorString /rax :movqImmReg
-    /rax :callqReg
-  } /outputError deff
 
   [
     8 /r15 :subqImm8Reg
