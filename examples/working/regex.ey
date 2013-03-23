@@ -1,2 +1,8 @@
 "the quick brown fox jumps over the lazy dog"
 { "(the)(.*)" regex } { dump } loop
+"abcdefghijklmnopqrstuvwxyz"
+{ "([d-h][d-h])(.*)" regex } { dump } loop
+"abcdefghijklmnopqrstuvwxyz"
+{ "^(...)(.*)" regex } { dump } loop
+"abcdefghijklmnopqrstuvwxyz"
+"(...)$" regex { dump } rep

@@ -423,7 +423,7 @@
 # regex support
 # ideas taken from http://swtch.com/~rsc/regexp/regexp3.html
 {
-  0 ==MATCH 1 ==TERM 2 ==JUMP 3 ==SPLIT 4 ==SAVE
+  0 ==MATCH 1 ==TERM 2 ==JUMP 3 ==SPLIT 4 ==SAVE 5 ==FIRST 6 ==LAST
 
   { ==b ==a [
     [ SPLIT 1 a len 1 add ]
@@ -462,12 +462,11 @@
   { 1 -01 str .postfix } /tail deff
 
   { deff }' /install deff
-  [ "(" ")" "[" "]" "-" "|" "^" "*" "." ] { ==c
+  [ "(" ")" "[" "]" "-" "|" "^" "*" "." "$" ] { ==c
     { _ head 0 c * eq } "^" c cat install
   } each
 
-  { # ==re
-    # "(parse) re: " re cat dump
+  { # "(parse) re: " -101 cat dump
 
     seq ==a
     ^| {
@@ -477,14 +476,12 @@
     a
   } /parse deff
 
-  { # ==re
-    # "(seq) re: " re cat dump
+  { # "(seq) re: " -101 cat dump
 
     empty _ ==a
             ==l
 
-    {
-      # "(seq loop) re: " re cat dump
+    { # "(seq loop) re: " -101 cat dump
       _ head 1 neg eq -01
       ^| -01
       ^) -01
@@ -507,8 +504,7 @@
 
   0 ==currentCapture
   
-  { # ==re
-    # "(atom) re: " re cat dump
+  { # "(atom) re: " -101 cat dump
     empty ==a
 
     { ^( } {
@@ -523,51 +519,51 @@
         { nset not } ==set
         ^] not { "] expected" die } rep
         tail
-      } {
-        tail chars ==set
+      }' {
+        chars ==set
         ^] not { "] expected" die } rep
         tail
-      } ? *
+      }' ? *
       set terminal =a
     } { ^. } {
       { -- 1 } terminal =a
       tail
+    } { ^^ } {
+      [ [ FIRST ] ] =a
+      tail
+    } { ^$ } {
+      [ [ LAST ] ] =a
+      tail
     } {
       _ head { eq }_ terminal =a
       tail
-    } ifthenelse ifthenelse ifthenelse *
+    } ifthenelse ifthenelse ifthenelse ifthenelse ifthenelse *
 
+    # "(atom end) re: " -101 cat dump
     a
-    # "(atom end) re: " re cat dump
   } /atom deff
 
-  { # ==re
-    # "(chars) re: " re cat dump
-
+  { # "(chars) re: " -101 cat dump
     ^] {
       tail chars2 ==set
       set { 0 "]" * eq } or =set "TODO" die
-    } {
+    }' {
       chars2 ==set
-    } ? *
+    }' ? *
     set
   } /chars deff
 
-  { # ==re
-    # "(chars2) re: " re cat dump
-
+  { # "(chars2) re: " -101 cat dump
     ^- {
       tail chars2 ==set
       set { 0 "-" * eq } or =set "TODO" die
-    } {
+    }' {
       charsR ==set
-    } ? *
+    }' ? *
     set
   } /chars2 deff
 
-  { # ==re
-    # "(charsR) re: " re cat dump
-
+  { # "(charsR) re: " -101 cat dump
     charsN ==set
     { ^] not } {
       charsN set or =set "TODO" die
@@ -575,19 +571,17 @@
     set
   } /charsR deff
 
-  { # ==re
-    # "(charsN) re: " re cat dump
-
+  { # "(charsN) re: " -101 cat dump
     _ head ==start
     tail
     ^- {
       tail
       _ head ==end
       tail
-      { "TODO" die } ==set
-    } {
+      { _ start ge -01 end le and } ==set
+    }' {
       { start eq } ==set
-    } ? *
+    }' ? *
     set
   } /charsN deff
 
@@ -656,6 +650,10 @@
           } { # SAVE
             position 1 code thread .captures =[]
             pc 1 add thread cloneThread clist .add
+          } { # FIRST
+            position 0 eq { pc 1 add thread cloneThread clist .add } rep
+          } { # LAST
+            position string len eq { pc 1 add thread cloneThread clist .add } rep
           }
         ] * *
         i 1 add =i
