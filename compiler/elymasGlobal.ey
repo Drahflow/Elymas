@@ -220,6 +220,8 @@
         /rax :callqReg
         /rdx :popqReg
 
+        %40 7 /rax :orbImmMemDisp8 # set type
+
         /rax /rdi :movqRegReg
         /rdi 24 /rbx :movqRegMemDisp8 # store new extension area
         /inExtensionArea :jmpLbl8
@@ -228,10 +230,33 @@
 
         # if extension area is full, double size
         /edx /rdi :cmplRegMem
-        /inExtensionArea :jnbLbl8
+        /inExtensionArea :jaLbl8
 
-        "FIXME: extension area is full" ::outputError
-        :ud2
+        # indeed full
+        /rdi :pushqReg
+        /rdx :pushqReg
+        /rdi /edi :movlMemReg
+        /rdi /rdi :addqRegReg
+        ::internalAllocate /rax :movqImmReg
+        /rax :callqReg
+        /rdx :popqReg
+        /rdi :popqReg
+
+        %40 7 /rax :orbImmMemDisp8 # set type
+
+        /rdi /rsi :movqRegReg
+        /rax /rdi :movqRegReg
+        /rdi 24 /rbx :movqRegMemDisp8 # store new extension area
+
+        /rdi :pushqReg
+        /rsi /ecx :movlMemReg # load length as copy count
+        8 /rsi :addqImm8Reg
+        8 /rdi :addqImm8Reg
+
+        8 /rcx :subqImm8Reg # substract header length
+        3 /rcx :shrqImm8Reg
+        :reprcx :movsq # copy content
+        /rdi :popqReg
 
         @inExtensionArea
         /rdi /rbx :movqRegReg
