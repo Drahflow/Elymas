@@ -4,5 +4,34 @@
 { "([d-h][d-h])(.*)" regex } { dump } loop
 "abcdefghijklmnopqrstuvwxyz"
 { "^(...)(.*)" regex } { dump } loop
-"abcdefghijklmnopqrstuvwxyz"
+"ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 "(...)$" regex { dump } rep
+
+"    code"
+{ _ "^ (.*)" regex } { -01 -- } loop dump
+"# comment"
+"^#" regex dump
+"1234    remaining"
+"^(\\d+) +(.*)" regex dump dump dump
+"\"stringcontent..."
+"^\"(.*)" regex dump dump
+"\\\\remaining"
+"^\\\\\\\\(.*)" regex dump dump
+"\\nremaining"
+"^\\\\n(.*)" regex dump dump
+"\\0foo"
+"^\\\\0(.*)" regex dump dump
+"\\0"
+"^\\\\0(.*)" regex dump dump
+"\\\"remaining"
+"^\\\\\"(.*)" regex dump dump
+"abcdef"
+{ "([^c])(.*)" regex } { dump } loop
+"...stringcontent\""
+{ "^([^\"\\\\])(.*)" regex } { dump } loop
+"/quoted123   remaining"
+"^([^a-zA-Z0-9 ]+)([a-zA-Z0-9][^ ]*) +(.*)" regex dump dump dump
+"unquoted   remaining"
+"^([a-zA-Z0-9]+|[^a-zA-Z0-9 ]+) +(.*)" regex dump dump dump
+"+++ remaining"
+"^([a-zA-Z0-9]+|[^a-zA-Z0-9 ]+) +(.*)" regex dump dump dump

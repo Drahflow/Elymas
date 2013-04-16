@@ -426,7 +426,7 @@
   0 ==MATCH 1 ==TERM 2 ==JUMP 3 ==SPLIT 4 ==SAVE 5 ==FIRST 6 ==LAST
 
   { ==b ==a [
-    [ SPLIT 1 a len 1 add ]
+    [ SPLIT 1 a len 1 add ] # FIXME this should be "2 add"?!
     a _ len dearray
     [ JUMP b len ]
     b _ len dearray
@@ -434,9 +434,10 @@
 
   |cat /sequence deff
 
-  { ==a [
+  { ==a [ # TODO measure separate + implementation performance impact
+    [ JUMP a len 1 add ]
     a _ len dearray
-    [ SPLIT a len neg 1 ]
+    [ SPLIT 1 a len neg ]
   ] } /star deff
 
   { ==p [
@@ -461,8 +462,9 @@
 
   { 1 -01 str .postfix } /tail deff
 
+  { 0 -01 * -101 head eq } "^" deff
   { deff }' /install deff
-  [ "(" ")" "[" "]" "-" "|" "^" "*" "." "$" ] { ==c
+  [ "(" ")" "[" "]" "-" "|" "^" "*" "+" "." "$" "\\" ] { ==c
     { _ head 0 c * eq } "^" c cat install
   } each
 
@@ -487,13 +489,16 @@
       ^) -01
       -0321 or or not
     } {
-      ^* {
+      { ^* } {
         l star =l
+        tail
+      } { ^+ } {
+        l l star sequence =l
         tail
       } {
         a l sequence =a
         atom =l
-      } ? *
+      } ifthenelse ifthenelse *
     } loop
     a l sequence
   } /seq deff
@@ -515,7 +520,7 @@
     } { ^[ } {
       tail
       ^^ {
-        tail chars ==nset
+        tail chars =*nset
         { nset not } ==set
         ^] not { "] expected" die } rep
         tail
@@ -534,10 +539,21 @@
     } { ^$ } {
       [ [ LAST ] ] =a
       tail
+    } { ^\ } {
+      tail
+      { ^d } {
+        { _ 0 "0" * ge -01 0 "9" * le and } terminal =a
+        tail
+      } { ^\ } {
+        { 0 "\\" * eq } terminal =a
+        tail
+      } {
+        "invalid character after \\ in regex" die
+      } ifthenelse ifthenelse *
     } {
       _ head { eq }_ terminal =a
       tail
-    } ifthenelse ifthenelse ifthenelse ifthenelse ifthenelse *
+    } ifthenelse ifthenelse ifthenelse ifthenelse ifthenelse ifthenelse *
 
     # "(atom end) re: " -101 cat dump
     a
@@ -545,8 +561,8 @@
 
   { # "(chars) re: " -101 cat dump
     ^] {
-      tail chars2 ==set
-      set { 0 "]" * eq } or =set "TODO" die
+      tail chars2 =*s
+      { _ s -01 0 "]" * eq or } ==set
     }' {
       chars2 ==set
     }' ? *
@@ -555,8 +571,8 @@
 
   { # "(chars2) re: " -101 cat dump
     ^- {
-      tail chars2 ==set
-      set { 0 "-" * eq } or =set "TODO" die
+      tail chars2 =*s
+      { _ s -01 0 "-" * eq or } ==set
     }' {
       charsR ==set
     }' ? *
@@ -566,7 +582,9 @@
   { # "(charsR) re: " -101 cat dump
     charsN ==set
     { ^] not } {
-      charsN set or =set "TODO" die
+      set =*s1
+      charsN =*s2
+      { _ s1 -01 s2 or } =set
     } loop
     set
   } /charsR deff
@@ -653,7 +671,7 @@
           } { # FIRST
             position 0 eq { pc 1 add thread cloneThread clist .add } rep
           } { # LAST
-            position string len eq { pc 1 add thread cloneThread clist .add } rep
+            position maxPosition eq { pc 1 add thread cloneThread clist .add } rep
           }
         ] * *
         i 1 add =i
