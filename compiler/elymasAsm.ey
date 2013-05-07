@@ -624,6 +624,19 @@
     reg mem modrm00
   } /movbRegMem deff
 
+  { ==mem ==idx ==scale ==disp ==reg
+    reg bit8assert
+    mem bit64assert
+    idx bit64assert
+    disp 128 lt assert
+
+    reg regno %07 gt reg rexreqbyte mem regno %07 gt idx regno %07 gt or or or { 0 reg idx mem rex } rep
+    %88
+    reg /sib modrm01
+    scale idx mem sib
+    disp imm8
+  } /movbRegMemIndexScaleDisp8 deff
+
   { ==mem ==i
     mem bit64assert
     i 65536 lt assert
