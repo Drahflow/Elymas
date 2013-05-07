@@ -598,8 +598,10 @@
       %F0 /cl :andbImmReg
       %70 /cl :cmpbImmReg
       /arrayAssign :jeLbl8
+      %10 /cl :cmpbImmReg
+      /stringAssign :jeLbl8
 
-      "non-array passed to =[]" ::outputError
+      "non-array, non-string passed to =[]" ::outputError
       :ud2
 
       @arrayAssign
@@ -619,6 +621,26 @@
       # rdx == correct array index
 
       8 8 /rdx /rbx :popqMemIndexScaleDisp8 # directly pop into array cell
+
+      /r15 :pushqMem
+      8 /r15 :addqImm8Reg
+      :retn
+
+      @stringAssign
+      /rax :popqReg
+      8 /rax /rax :movqMemDisp8Reg
+
+      16 /rbx /rcx :movqMemDisp8Reg # load string length
+      /rdx /rdx :xorqRegReg
+      /rcx :divqReg
+
+      # rbx == string object on heap
+      # rdx == correct string offset
+
+      /rax :popqReg
+      8 /rax /rax :movqMemDisp8Reg # load int value
+      
+      /al 24 1 /rdx /rbx :movbRegMemIndexScaleDisp8
 
       /r15 :pushqMem
       8 /r15 :addqImm8Reg
@@ -955,8 +977,10 @@
       /inactive :jzLbl8
       1 /rdx :cmpqImm8Reg
       /active :jzLbl8
+      2 /rdx :cmpqImm8Reg
+      /active :jzLbl8
 
-      # TODO: "invalid activation mode"
+      "invalid activation mode in internalExecuteIdentifierUnquoted" ::outputError
       :ud2
 
       @unresolved
@@ -1000,13 +1024,16 @@
       /unresolved :jzLbl8
 
       0 /rdx :cmpqImm8Reg
-      /inactive :jzLbl8
+      /inactiveJump :jzLbl8
       1 /rdx :cmpqImm8Reg
       /active :jzLbl8
       2 /rdx :cmpqImm8Reg
       /quoteActive :jzLbl8
 
-      # TODO: "invalid activation mode"
+      @inactiveJump
+      /inactive :jmpLbl32
+
+      "invalid activation mode in internalExecuteIdentifier" ::outputError
       :ud2
 
       @unresolved
@@ -1377,7 +1404,7 @@
       1 /rdx :cmpqImm8Reg
       /active :jzLbl8
 
-      # TODO: "invalid activation mode"
+      "invalid activation mode in ." ::outputError
       :ud2
 
       @unresolved
