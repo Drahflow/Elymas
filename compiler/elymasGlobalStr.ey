@@ -24,7 +24,9 @@
       /rdx 8 /rax :movqRegMemDisp8
 
       # set exact length
-      16 /rax :popqMemDisp8
+      /rdi :popqReg
+      8 /rdi /rdi :movqMemDisp8Reg
+      /rdi 16 /rax :movqRegMemDisp8
 
       /rax :pushqReg
 

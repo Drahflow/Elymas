@@ -1921,6 +1921,30 @@
       # actual negation
       /rcx :popqReg
       8 /rcx /rcx :movqMemDisp8Reg
+      /rcx :notqReg
+      /rcx 8 /rax :movqRegMemDisp8
+
+      # push int address on program stack
+      /rax :pushqReg
+      /rbx :pushqReg
+      :retn
+    ]] _ /eybnot defv
+
+    # 0 -> integer
+    # 0 <- the numerically negated integer, i.e. 0 - x
+    [[
+      /rbx :popqReg
+
+      # allocate result int
+      16 /rdi :movqImmReg
+      ::internalAllocate /rax :movqImmReg
+      /rax :callqReg
+
+      # type zero does not need to be changed
+
+      # actual negation
+      /rcx :popqReg
+      8 /rcx /rcx :movqMemDisp8Reg
       /rcx :negqReg
       /rcx 8 /rax :movqRegMemDisp8
 
@@ -1928,7 +1952,7 @@
       /rax :pushqReg
       /rbx :pushqReg
       :retn
-    ]] /eyneg defv
+    ]] _ /eyneg defv
 
     # 0 -> integer
     # 0 <- the logically negated integer

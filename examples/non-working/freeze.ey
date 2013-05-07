@@ -1,0 +1,3 @@
+{
+  "Ohai!" die
+} "freeze.bin" sys .freeze

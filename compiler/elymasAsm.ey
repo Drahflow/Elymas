@@ -849,6 +849,14 @@
     /three reg modrm11
   } /negqReg deff
 
+  { ==reg
+    reg bit64assert
+
+    1 /none /none reg rex
+    %F7
+    /two reg modrm11
+  } /notqReg deff
+
   { ==mem ==i
     mem bit64assert
     i 256 lt assert

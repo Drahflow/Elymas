@@ -6,6 +6,9 @@
   2 _ ==RDWR
       bor bor ==RWMASK
 
+  64 ==OCREAT
+  1024 ==OAPPEND
+
   1 ==PROTREAD
   2 ==PROTWRITE
   4 ==PROTEXEC
@@ -25,6 +28,8 @@
       { flags RWMASK bnot band RDONLY bor =flags } /readonly deff
       { flags RWMASK bnot band WRONLY bor =flags } /writeonly deff
       { flags RWMASK bnot band RDWR bor =flags } /readwrite deff
+      { flags OCREAT bor =flags } /creating deff
+      { flags OAPPEND bor =flags } /appending deff
       { ==path
         fd 0 ge { "file already open" die } rep 
         path "\0" cat flags mode 0 0 0 OPEN sys .asm .syscall -- _ =fd
@@ -420,290 +425,408 @@
   { 0 dumpIndented }
 > -- /dump deff
 
-# regex support
-# ideas taken from http://swtch.com/~rsc/regexp/regexp3.html
-{
-  0 ==MATCH 1 ==TERM 2 ==JUMP 3 ==SPLIT 4 ==SAVE 5 ==FIRST 6 ==LAST
+# # regex support
+# # ideas taken from http://swtch.com/~rsc/regexp/regexp3.html
+# {
+#   0 ==MATCH 1 ==TERM 2 ==JUMP 3 ==SPLIT 4 ==SAVE 5 ==FIRST 6 ==LAST
+# 
+#   { ==b ==a [
+#     [ SPLIT 1 a len 1 add ] # FIXME this should be "2 add"?!
+#     a _ len dearray
+#     [ JUMP b len ]
+#     b _ len dearray
+#   ] } /alternative deff
+# 
+#   |cat /sequence deff
+# 
+#   { ==a [ # TODO measure separate + implementation performance impact
+#     [ JUMP a len 1 add ]
+#     a _ len dearray
+#     [ SPLIT 1 a len neg ]
+#   ] } /star deff
+# 
+#   { ==p [
+#     [ TERM p ]
+#   ] } /terminal deff
+# 
+#   { ==i ==a [
+#     [ SAVE i 2 mul ]
+#     a _ len dearray
+#     [ SAVE i 2 mul 1 add ]
+#   ] } /capture deff
+# 
+#   { [ ] } /empty deff
+# 
+#   { ==str
+#     str len 0 eq {
+#       1 neg
+#     } {
+#       0 str *
+#     } ? *
+#   } /head deff
+# 
+#   { 1 -01 str .postfix } /tail deff
+# 
+#   { 0 -01 * -101 head eq } "^" deff
+#   { deff }' /install deff
+#   [ "(" ")" "[" "]" "-" "|" "^" "*" "+" "." "$" "\\" ] { ==c
+#     { _ head 0 c * eq } "^" c cat install
+#   } each
+# 
+#   { # "(parse) re: " -101 cat dump
+# 
+#     seq ==a
+#     ^| {
+#       tail parse ==b
+#       a b alternative =a
+#     } rep
+#     a
+#   } /parse deff
+# 
+#   { # "(seq) re: " -101 cat dump
+# 
+#     empty _ ==a
+#             ==l
+# 
+#     { # "(seq loop) re: " -101 cat dump
+#       _ head 1 neg eq -01
+#       ^| -01
+#       ^) -01
+#       -0321 or or not
+#     } {
+#       { ^* } {
+#         l star =l
+#         tail
+#       } { ^+ } {
+#         l l star sequence =l
+#         tail
+#       } {
+#         a l sequence =a
+#         atom =l
+#       } ifthenelse ifthenelse *
+#     } loop
+#     a l sequence
+#   } /seq deff
+# 
+#   { ==e ==t =*i
+#     { i t e ? * }
+#   } /ifthenelse deff
+# 
+#   0 ==currentCapture
+#   
+#   { # "(atom) re: " -101 cat dump
+#     empty ==a
+# 
+#     { ^( } {
+#       tail parse currentCapture capture =a
+#       currentCapture 1 add =currentCapture
+#       ^) not { ") expected" die } rep
+#       tail
+#     } { ^[ } {
+#       tail
+#       ^^ {
+#         tail chars =*nset
+#         { nset not } ==set
+#         ^] not { "] expected" die } rep
+#         tail
+#       }' {
+#         chars ==set
+#         ^] not { "] expected" die } rep
+#         tail
+#       }' ? *
+#       set terminal =a
+#     } { ^. } {
+#       { -- 1 } terminal =a
+#       tail
+#     } { ^^ } {
+#       [ [ FIRST ] ] =a
+#       tail
+#     } { ^$ } {
+#       [ [ LAST ] ] =a
+#       tail
+#     } { ^\ } {
+#       tail
+#       { ^d } {
+#         { _ 0 "0" * ge -01 0 "9" * le and } terminal =a
+#         tail
+#       } { ^\ } {
+#         { 0 "\\" * eq } terminal =a
+#         tail
+#       } {
+#         "invalid character after \\ in regex" die
+#       } ifthenelse ifthenelse *
+#     } {
+#       _ head { eq }_ terminal =a
+#       tail
+#     } ifthenelse ifthenelse ifthenelse ifthenelse ifthenelse ifthenelse *
+# 
+#     # "(atom end) re: " -101 cat dump
+#     a
+#   } /atom deff
+# 
+#   { # "(chars) re: " -101 cat dump
+#     ^] {
+#       tail chars2 =*s
+#       { _ s -01 0 "]" * eq or } ==set
+#     }' {
+#       chars2 ==set
+#     }' ? *
+#     set
+#   } /chars deff
+# 
+#   { # "(chars2) re: " -101 cat dump
+#     ^- {
+#       tail chars2 =*s
+#       { _ s -01 0 "-" * eq or } ==set
+#     }' {
+#       charsR ==set
+#     }' ? *
+#     set
+#   } /chars2 deff
+# 
+#   { # "(charsR) re: " -101 cat dump
+#     charsN ==set
+#     { ^] not } {
+#       set =*s1
+#       charsN =*s2
+#       { _ s1 -01 s2 or } =set
+#     } loop
+#     set
+#   } /charsR deff
+# 
+#   { # "(charsN) re: " -101 cat dump
+#     _ head ==start
+#     tail
+#     ^- {
+#       tail
+#       _ head ==end
+#       tail
+#       { _ start ge -01 end le and } ==set
+#     }' {
+#       { start eq } ==set
+#     }' ? *
+#     set
+#   } /charsN deff
+# 
+#   { <
+#     0 ==pc
+#     [ 10 { 0 0 } rep ] ==captures
+#   > } /newThread deff
+# 
+#   |add /origadd deff
+# 
+#   # TODO think about implementation efficiency
+#   { < ==maxSize
+#     0 ==size
+#     [ maxSize { 0 } rep ] =*get
+#     [ maxSize { 1 } rep ] =*pcFree
+# 
+#     { ==thread
+#       thread .pc pcFree {
+#         thread size |get =[]
+#         0 thread .pc |pcFree =[]
+#         size 1 origadd =size
+#       } rep
+#     } /add deff
+# 
+#     {
+#       0 =size
+#       [ maxSize { 1 } rep ] =pcFree
+#     } /clear deff
+#   > } /threadList deff
+# 
+#   { ==thread ==newpc <
+#     newpc ==pc
+#     [ thread .captures 20 dearray ] ==captures
+#   > } /cloneThread deff
+# 
+#   { ==prog ==string
+#     0 ==position
+#     string len ==maxPosition
+#     0 ==done
+#     0 ==matched
+# 
+#     prog len _ threadList ==clist
+#                threadList ==nlist
+# 
+#     newThread _ ==thread clist .add
+# 
+#     { position maxPosition le done not and } {
+#       0 ==i
+#       { i clist .size lt done not and } {
+#         i clist .get _ =thread
+#                        .pc _ ==pc
+#                              prog * =*code
+#         0 code [
+#           { # MATCH
+#             1 =matched
+#             clist .clear
+#           } { # TERM
+#             position maxPosition lt {
+#               position string * 1 code * { pc 1 add thread cloneThread nlist .add } rep
+#             } rep
+#           } { # JUMP
+#             pc 1 code add thread cloneThread clist .add
+#           } { # SPLIT
+#             pc 1 code add thread cloneThread clist .add
+#             pc 2 code add thread cloneThread clist .add
+#           } { # SAVE
+#             position 1 code thread .captures =[]
+#             pc 1 add thread cloneThread clist .add
+#           } { # FIRST
+#             position 0 eq { pc 1 add thread cloneThread clist .add } rep
+#           } { # LAST
+#             position maxPosition eq { pc 1 add thread cloneThread clist .add } rep
+#           }
+#         ] * *
+#         i 1 add =i
+#       } loop
+# 
+#       clist nlist =clist =nlist
+#       nlist .clear
+#       position 1 add =position
+#     } loop
+# 
+#     matched {
+#       currentCapture ==i
+#       { i } { i 1 sub =i
+#         string
+#         i 2 mul       thread .captures * _ ==start -01 str .postfix
+#         i 2 mul 1 add thread .captures * start sub -01 str .inplacePrefix
+#       } loop
+#     } rep
+#     matched
+#   } /execute deff
+# 
+#   parse ==prog --
+#   [
+#     [ SPLIT 3 1 ]
+#     [ TERM { -- 1 } ]
+#     [ JUMP 2 neg ]
+#     prog _ len dearray
+#     [ MATCH ]
+#   ] =prog
+#   { prog execute }
+# } /enregex deff
+# 
+# { enregex * } /regex deff
 
-  { ==b ==a [
-    [ SPLIT 1 a len 1 add ] # FIXME this should be "2 add"?!
-    a _ len dearray
-    [ JUMP b len ]
-    b _ len dearray
-  ] } /alternative deff
+{ ==filename ==f
+  # hex decoding
+  { ==strNumber
+    strNumber len 2 neq { "not a valid hex-string" die } rep
+    1 0 { strNumber * 48 sub [ 0 1 2 3 4 5 6 7 8 9  0 0 0 0 0 0 0  10 11 12 13 14 15 ] * } -20*10* 16 mul add
+    strNumber dump
+    _ dump
+  } "%" defq
 
-  |cat /sequence deff
+  sys .file ==out
+  filename out _ .creating _ .writeonly .open
 
-  { ==a [ # TODO measure separate + implementation performance impact
-    [ JUMP a len 1 add ]
-    a _ len dearray
-    [ SPLIT 1 a len neg ]
-  ] } /star deff
-
-  { ==p [
-    [ TERM p ]
-  ] } /terminal deff
-
-  { ==i ==a [
-    [ SAVE i 2 mul ]
-    a _ len dearray
-    [ SAVE i 2 mul 1 add ]
-  ] } /capture deff
-
-  { [ ] } /empty deff
-
-  { ==str
-    str len 0 eq {
-      1 neg
-    } {
-      0 str *
-    } ? *
-  } /head deff
-
-  { 1 -01 str .postfix } /tail deff
-
-  { 0 -01 * -101 head eq } "^" deff
-  { deff }' /install deff
-  [ "(" ")" "[" "]" "-" "|" "^" "*" "+" "." "$" "\\" ] { ==c
-    { _ head 0 c * eq } "^" c cat install
-  } each
-
-  { # "(parse) re: " -101 cat dump
-
-    seq ==a
-    ^| {
-      tail parse ==b
-      a b alternative =a
-    } rep
-    a
-  } /parse deff
-
-  { # "(seq) re: " -101 cat dump
-
-    empty _ ==a
-            ==l
-
-    { # "(seq loop) re: " -101 cat dump
-      _ head 1 neg eq -01
-      ^| -01
-      ^) -01
-      -0321 or or not
-    } {
-      { ^* } {
-        l star =l
-        tail
-      } { ^+ } {
-        l l star sequence =l
-        tail
-      } {
-        a l sequence =a
-        atom =l
-      } ifthenelse ifthenelse *
-    } loop
-    a l sequence
-  } /seq deff
-
-  { ==e ==t =*i
-    { i t e ? * }
-  } /ifthenelse deff
-
-  0 ==currentCapture
-  
-  { # "(atom) re: " -101 cat dump
-    empty ==a
-
-    { ^( } {
-      tail parse currentCapture capture =a
-      currentCapture 1 add =currentCapture
-      ^) not { ") expected" die } rep
-      tail
-    } { ^[ } {
-      tail
-      ^^ {
-        tail chars =*nset
-        { nset not } ==set
-        ^] not { "] expected" die } rep
-        tail
-      }' {
-        chars ==set
-        ^] not { "] expected" die } rep
-        tail
-      }' ? *
-      set terminal =a
-    } { ^. } {
-      { -- 1 } terminal =a
-      tail
-    } { ^^ } {
-      [ [ FIRST ] ] =a
-      tail
-    } { ^$ } {
-      [ [ LAST ] ] =a
-      tail
-    } { ^\ } {
-      tail
-      { ^d } {
-        { _ 0 "0" * ge -01 0 "9" * le and } terminal =a
-        tail
-      } { ^\ } {
-        { 0 "\\" * eq } terminal =a
-        tail
-      } {
-        "invalid character after \\ in regex" die
-      } ifthenelse ifthenelse *
-    } {
-      _ head { eq }_ terminal =a
-      tail
-    } ifthenelse ifthenelse ifthenelse ifthenelse ifthenelse ifthenelse *
-
-    # "(atom end) re: " -101 cat dump
-    a
-  } /atom deff
-
-  { # "(chars) re: " -101 cat dump
-    ^] {
-      tail chars2 =*s
-      { _ s -01 0 "]" * eq or } ==set
-    }' {
-      chars2 ==set
-    }' ? *
-    set
-  } /chars deff
-
-  { # "(chars2) re: " -101 cat dump
-    ^- {
-      tail chars2 =*s
-      { _ s -01 0 "-" * eq or } ==set
-    }' {
-      charsR ==set
-    }' ? *
-    set
-  } /chars2 deff
-
-  { # "(charsR) re: " -101 cat dump
-    charsN ==set
-    { ^] not } {
-      set =*s1
-      charsN =*s2
-      { _ s1 -01 s2 or } =set
-    } loop
-    set
-  } /charsR deff
-
-  { # "(charsN) re: " -101 cat dump
-    _ head ==start
-    tail
-    ^- {
-      tail
-      _ head ==end
-      tail
-      { _ start ge -01 end le and } ==set
-    }' {
-      { start eq } ==set
-    }' ? *
-    set
-  } /charsN deff
-
-  { <
-    0 ==pc
-    [ 10 { 0 0 } rep ] ==captures
-  > } /newThread deff
-
-  |add /origadd deff
-
-  # TODO think about implementation efficiency
-  { < ==maxSize
-    0 ==size
-    [ maxSize { 0 } rep ] =*get
-    [ maxSize { 1 } rep ] =*pcFree
-
-    { ==thread
-      thread .pc pcFree {
-        thread size |get =[]
-        0 thread .pc |pcFree =[]
-        size 1 origadd =size
-      } rep
-    } /add deff
-
-    {
-      0 =size
-      [ maxSize { 1 } rep ] =pcFree
-    } /clear deff
-  > } /threadList deff
-
-  { ==thread ==newpc <
-    newpc ==pc
-    [ thread .captures 20 dearray ] ==captures
-  > } /cloneThread deff
-
-  { ==prog ==string
-    0 ==position
-    string len ==maxPosition
-    0 ==done
-    0 ==matched
-
-    prog len _ threadList ==clist
-               threadList ==nlist
-
-    newThread _ ==thread clist .add
-
-    { position maxPosition le done not and } {
-      0 ==i
-      { i clist .size lt done not and } {
-        i clist .get _ =thread
-                       .pc _ ==pc
-                             prog * =*code
-        0 code [
-          { # MATCH
-            1 =matched
-            clist .clear
-          } { # TERM
-            position maxPosition lt {
-              position string * 1 code * { pc 1 add thread cloneThread nlist .add } rep
-            } rep
-          } { # JUMP
-            pc 1 code add thread cloneThread clist .add
-          } { # SPLIT
-            pc 1 code add thread cloneThread clist .add
-            pc 2 code add thread cloneThread clist .add
-          } { # SAVE
-            position 1 code thread .captures =[]
-            pc 1 add thread cloneThread clist .add
-          } { # FIRST
-            position 0 eq { pc 1 add thread cloneThread clist .add } rep
-          } { # LAST
-            position maxPosition eq { pc 1 add thread cloneThread clist .add } rep
-          }
-        ] * *
-        i 1 add =i
-      } loop
-
-      clist nlist =clist =nlist
-      nlist .clear
-      position 1 add =position
-    } loop
-
-    matched {
-      currentCapture ==i
-      { i } { i 1 sub =i
-        string
-        i 2 mul       thread .captures * _ ==start -01 str .postfix
-        i 2 mul 1 add thread .captures * start sub -01 str .inplacePrefix
-      } loop
-    } rep
-    matched
-  } /execute deff
-
-  parse ==prog --
   [
-    [ SPLIT 3 1 ]
-    [ TERM { -- 1 } ]
-    [ JUMP 2 neg ]
-    prog _ len dearray
-    [ MATCH ]
-  ] =prog
-  { prog execute }
-} /enregex deff
+    ### elf header
+    # unsigned char e_ident[16]; /* ELF identification */
+    # Elf64_Half    e_type;      /* Object file type */
+    # Elf64_Half    e_machine;   /* Machine type */
+    # Elf64_Word    e_version;   /* Object file version */
+    # Elf64_Addr    e_entry;     /* Entry point address */
+    # Elf64_Off     e_phoff;     /* Program header offset */
+    # Elf64_Off     e_shoff;     /* Section header offset */
+    # Elf64_Word    e_flags;     /* Processor-specific flags */
+    # Elf64_Half    e_ehsize;    /* ELF header size */
+    # Elf64_Half    e_phentsize; /* Size of program header entry */
+    # Elf64_Half    e_phnum;     /* Number of program header entries */
+    # Elf64_Half    e_shentsize; /* Size of section header entry */
+    # Elf64_Half    e_shnum;     /* Number of section header entries */
+    # Elf64_Half    e_shstrndx;  /* Section name string table index */
 
-{ enregex * } /regex deff
+    # e_ident
+    %7F 0 1 2 "ELF" -30*20*10*  # elf identifier
+    %02                         # elfclass64
+    %01                         # elf version
+    %01                         # little endian encoding
+    %00 %00                     # Sys-V ABI
+    %00 %00 %00 %00 %00 %00 %00 # padding
+    # e_type
+    %02 %00                     # executable file
+    # e_machine
+    %3e %00                     # whatever, /bin/ls has this
+    # e_version
+    %01 %00 %00 %00             # always 1
+    # e_entry
+    %EE %EE %EE %EE %EE %EE %EE %EE # virtual address entry point
+    # e_phoff
+    %EE %EE %EE %EE %EE %EE %EE %EE # program header offset, file address
+    # this is a hack, overlay section 0 (reserved) with the elf header
+    # e_shoff
+    %00 %00 %00 %00 %00 %00 %00 %00 # section header offset, file address
+    # e_flags
+    %00 %00 %00 %00 # processor specific flags (from /bin/ls)
+    # e_ehsize
+    %40 %00 # header size
+    # e_phentsize
+    %38 %00 # program header entry size
+    # e_phnum
+    %EE %EE # program header entry count
+    # e_shentsize
+    %40 %00 # section header entry size
+    # e_shnum
+    %02 %00 # section header count
+    # e_shstrndx
+    %01 %00 # section header name table index in section headers table
+
+    ### section header
+    # Elf64_Word  sh_name;      /* Section name */
+    # Elf64_Word  sh_type;      /* Section type */
+    # Elf64_Xword sh_flags;     /* Section attributes */
+    # Elf64_Addr  sh_addr;      /* Virtual address in memory */
+    # Elf64_Off   sh_offset;    /* Offset in file */
+    # Elf64_Xword sh_size;      /* Size of section */
+    # Elf64_Word  sh_link;      /* Link to other section */
+    # Elf64_Word  sh_info;      /* Miscellaneous information */
+    # Elf64_Xword sh_addralign; /* Address alignment boundary */
+    # Elf64_Xword sh_entsize;   /* Size of entries, if section has table */
+
+    # sh_name
+    %00 %00 # zero offset into name table
+    # sh_type
+    %03 %00 # string table
+    # sh_flags
+    %00 %00 %00 %00 %00 %00 %00 %00 # no flags
+    # sh_addr
+    %00 %00 %00 %00 %00 %00 %00 %00 # not allocated in program memory
+    # sh_offset
+    %80 %00 %00 %00 %00 %00 %00 %00 # file offset
+    # sh_size
+    %10 %00 %00 %00 %00 %00 %00 %00 # size
+    # sh_linke
+    %00 %00 # not related to anything
+    # sh_info
+    %00 %00 # no extra info
+    # sh_addralign
+    %01 %00 %00 %00 %00 %00 %00 %00 # unaligned
+    # sh_entsize
+    %00 %00 %00 %00 %00 %00 %00 %00 # no entries
+
+    ### section names
+    0 14 range { "0123456789ABCDE" * } each %00
+
+    ### program header
+    # Elf64_Word       p_type;          /* Type of segment */
+    # Elf64_Word       p_flags;         /* Segment attributes */
+    # Elf64_Off        p_offset;        /* Offset in file */
+    # Elf64_Addr       p_vaddr;         /* Virtual address in memory */
+    # Elf64_Addr       p_paddr;         /* Reserved */
+    # Elf64_Xword      p_filesz;        /* Size of segment in file */
+    # Elf64_Xword      p_memsz;         /* Size of segment in memory */
+    # Elf64_Xword      p_align;         /* Alignment of segment */
+  ] ==fileData
+
+  fileData len str .alloc ==buffer
+  0 fileData len 1 sub range { ==i i fileData * i buffer =[] } each
+
+  buffer out .writeall
+  out .close
+} /freeze sys .deff
 
 # vim: syn=elymas
