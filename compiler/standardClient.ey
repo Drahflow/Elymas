@@ -716,101 +716,42 @@
   { ==strNumber
     strNumber len 2 neq { "not a valid hex-string" die } rep
     1 0 { strNumber * 48 sub [ 0 1 2 3 4 5 6 7 8 9  0 0 0 0 0 0 0  10 11 12 13 14 15 ] * } -20*10* 16 mul add
-    strNumber dump
-    _ dump
   } "%" defq
+
+  { _ 0 ge assert 8 { _ 256 mod -01 256 div } rep -- } /uint64 deff
+  { _ 0 lt { 4294967296 add } rep 4294967295 band 4 { _ 256 mod -01 256 div } rep -- } /uint32 deff
+  { _ 0 lt { 65536 add } rep 65535 band 2 { _ 256 mod -01 256 div } rep -- } /uint16 deff
+  { _ 0 lt { 256 add } rep 255 band } /uint8 deff
 
   sys .file ==out
   filename out _ .creating _ .writeonly .open
 
   [
-    ### elf header
-    # unsigned char e_ident[16]; /* ELF identification */
-    # Elf64_Half    e_type;      /* Object file type */
-    # Elf64_Half    e_machine;   /* Machine type */
-    # Elf64_Word    e_version;   /* Object file version */
-    # Elf64_Addr    e_entry;     /* Entry point address */
-    # Elf64_Off     e_phoff;     /* Program header offset */
-    # Elf64_Off     e_shoff;     /* Section header offset */
-    # Elf64_Word    e_flags;     /* Processor-specific flags */
-    # Elf64_Half    e_ehsize;    /* ELF header size */
-    # Elf64_Half    e_phentsize; /* Size of program header entry */
-    # Elf64_Half    e_phnum;     /* Number of program header entries */
-    # Elf64_Half    e_shentsize; /* Size of section header entry */
-    # Elf64_Half    e_shnum;     /* Number of section header entries */
-    # Elf64_Half    e_shstrndx;  /* Section name string table index */
+    <
+      ".null" ==name
+      0 ==nameOffset { =nameOffset } /setNameOffset deff
+      0 ==dataOffset { =dataOffset } /setDataOffset deff
+      0 ==type # reserved first section
+      0 ==flags # none
+      0 ==addr # not loaded
+      0 ==link # no associated section
+      0 ==entsize # no entries
+      [ ] ==data
+    > <
+      ".strtab" ==name
+      0 ==nameOffset { =nameOffset } /setNameOffset deff
+      0 ==dataOffset { =dataOffset } /setDataOffset deff
+      3 ==type # string table
+      0 ==flags # none
+      0 ==addr # not loaded
+      0 ==link # no associated section
+      0 ==entsize # no entries
+      [ ] ==data # to be filled later
+      { =data } /setData deff
+    > _ ==stringTable
+  ] ==sections
 
-    # e_ident
-    %7F 0 1 2 "ELF" -30*20*10*  # elf identifier
-    %02                         # elfclass64
-    %01                         # elf version
-    %01                         # little endian encoding
-    %00 %00                     # Sys-V ABI
-    %00 %00 %00 %00 %00 %00 %00 # padding
-    # e_type
-    %02 %00                     # executable file
-    # e_machine
-    %3e %00                     # whatever, /bin/ls has this
-    # e_version
-    %01 %00 %00 %00             # always 1
-    # e_entry
-    %EE %EE %EE %EE %EE %EE %EE %EE # virtual address entry point
-    # e_phoff
-    %EE %EE %EE %EE %EE %EE %EE %EE # program header offset, file address
-    # this is a hack, overlay section 0 (reserved) with the elf header
-    # e_shoff
-    %00 %00 %00 %00 %00 %00 %00 %00 # section header offset, file address
-    # e_flags
-    %00 %00 %00 %00 # processor specific flags (from /bin/ls)
-    # e_ehsize
-    %40 %00 # header size
-    # e_phentsize
-    %38 %00 # program header entry size
-    # e_phnum
-    %EE %EE # program header entry count
-    # e_shentsize
-    %40 %00 # section header entry size
-    # e_shnum
-    %02 %00 # section header count
-    # e_shstrndx
-    %01 %00 # section header name table index in section headers table
-
-    ### section header
-    # Elf64_Word  sh_name;      /* Section name */
-    # Elf64_Word  sh_type;      /* Section type */
-    # Elf64_Xword sh_flags;     /* Section attributes */
-    # Elf64_Addr  sh_addr;      /* Virtual address in memory */
-    # Elf64_Off   sh_offset;    /* Offset in file */
-    # Elf64_Xword sh_size;      /* Size of section */
-    # Elf64_Word  sh_link;      /* Link to other section */
-    # Elf64_Word  sh_info;      /* Miscellaneous information */
-    # Elf64_Xword sh_addralign; /* Address alignment boundary */
-    # Elf64_Xword sh_entsize;   /* Size of entries, if section has table */
-
-    # sh_name
-    %00 %00 # zero offset into name table
-    # sh_type
-    %03 %00 # string table
-    # sh_flags
-    %00 %00 %00 %00 %00 %00 %00 %00 # no flags
-    # sh_addr
-    %00 %00 %00 %00 %00 %00 %00 %00 # not allocated in program memory
-    # sh_offset
-    %80 %00 %00 %00 %00 %00 %00 %00 # file offset
-    # sh_size
-    %10 %00 %00 %00 %00 %00 %00 %00 # size
-    # sh_linke
-    %00 %00 # not related to anything
-    # sh_info
-    %00 %00 # no extra info
-    # sh_addralign
-    %01 %00 %00 %00 %00 %00 %00 %00 # unaligned
-    # sh_entsize
-    %00 %00 %00 %00 %00 %00 %00 %00 # no entries
-
-    ### section names
-    0 14 range { "0123456789ABCDE" * } each %00
-
+  {
     ### program header
     # Elf64_Word       p_type;          /* Type of segment */
     # Elf64_Word       p_flags;         /* Segment attributes */
@@ -820,7 +761,108 @@
     # Elf64_Xword      p_filesz;        /* Size of segment in file */
     # Elf64_Xword      p_memsz;         /* Size of segment in memory */
     # Elf64_Xword      p_align;         /* Alignment of segment */
-  ] ==fileData
+
+    # p_type
+    %01 %00 %00 %00 # loadable segment
+    # p_flags
+    %07 %00 %00 %00 # read | write | execute
+    # p_offset
+    %EE %EE %EE %EE %EE %EE %EE %EE # offset in file
+    # p_vaddr
+    %EE %EE %EE %EE %EE %EE %EE %EE # virtual addr in memory
+    # p_paddr
+    %00 %00 %00 %00 %00 %00 %00 %00 # reserved
+    # p_filesz
+    %EE %EE %EE %EE %EE %EE %EE %EE # size of segment in file
+    # p_memsz
+    %EE %EE %EE %EE %EE %EE %EE %EE # size of segment in memory
+    # p_align
+    %10 %00 %00 %00 %00 %00 %00 %00 # alignment
+  } /programHeader deff
+
+  [
+    ### elf header
+    # unsigned char e_ident[16]; /* ELF identification */
+    %7F 0 1 2 "ELF" -30*20*10*  # elf identifier
+    %02                         # elfclass64
+    %01                         # elf version
+    %01                         # little endian encoding
+    %00 %00                     # Sys-V ABI
+    %00 %00 %00 %00 %00 %00 %00 # padding
+    # Elf64_Half    e_type;      /* Object file type */
+    %02 %00                     # executable file
+    # Elf64_Half    e_machine;   /* Machine type */
+    %3E %00                     # whatever, /bin/ls has this
+    # Elf64_Word    e_version;   /* Object file version */
+    %01 %00 %00 %00             # always 1
+    # Elf64_Addr    e_entry;     /* Entry point address */
+    %EE %EE %EE %EE %EE %EE %EE %EE # virtual address entry point
+    # Elf64_Off     e_phoff;     /* Program header offset */
+    sections len %40 mul %40 add uint64
+    # Elf64_Off     e_shoff;     /* Section header offset */
+    %40 uint64
+    # Elf64_Word    e_flags;     /* Processor-specific flags */
+    %00 %00 %00 %00 # processor specific flags (from /bin/ls)
+    # Elf64_Half    e_ehsize;    /* ELF header size */
+    %40 %00 # header size
+    # Elf64_Half    e_phentsize; /* Size of program header entry */
+    %38 %00 # program header entry size
+    # Elf64_Half    e_phnum;     /* Number of program header entries */
+    %01 %00 # program header entry count
+    # Elf64_Half    e_shentsize; /* Size of section header entry */
+    %40 %00 # section header entry size
+    # Elf64_Half    e_shnum;     /* Number of section header entries */
+    %02 %00 # section header count
+    # Elf64_Half    e_shstrndx;  /* Section name string table index */
+    %01 %00 # section header name table index in section headers table
+
+    < 1 ==nameOffset
+      [
+        %00 # initial zero byte of string table
+        ### section names
+
+        sections { ==s
+          s .name ==n
+          0 n len 1 sub range { n * } each %00
+          nameOffset s .setNameOffset
+          nameOffset n len add 1 add =nameOffset
+        } each
+      ] stringTable .setData
+    > -- <
+      # %40 == section header size, %38 == program header size
+      sections len %40 mul %78 add ==dataOffset
+      sections { ==s
+        dataOffset s .setDataOffset
+        dataOffset s .data len add =dataOffset
+      } each
+    > --
+
+    sections { ==s
+      ### section header
+      # Elf64_Word  sh_name;      /* Section name */
+      s .nameOffset uint32
+      # Elf64_Word  sh_type;      /* Section type */
+      s .type uint32
+      # Elf64_Xword sh_flags;     /* Section attributes */
+      s .flags uint64
+      # Elf64_Addr  sh_addr;      /* Virtual address in memory */
+      s .addr uint64
+      # Elf64_Off   sh_offset;    /* Offset in file */
+      s .dataOffset uint64
+      # Elf64_Xword sh_size;      /* Size of section */
+      s .data len uint64
+      # Elf64_Word  sh_link;      /* Link to other section */
+      s .link uint32
+      # Elf64_Word  sh_info;      /* Miscellaneous information */
+      0 uint32
+      # Elf64_Xword sh_addralign; /* Address alignment boundary */
+      1 uint64
+      # Elf64_Xword sh_entsize;   /* Size of entries, if section has table */
+      0 uint64
+    } each
+
+    programHeader
+  ] sections { .data cat } each ==fileData
 
   fileData len str .alloc ==buffer
   0 fileData len 1 sub range { ==i i fileData * i buffer =[] } each
