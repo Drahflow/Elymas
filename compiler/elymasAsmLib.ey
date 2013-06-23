@@ -20,7 +20,8 @@
   > ==SYSCALL
 
   { =*def ==struct
-    struct values |cat fold :arrayToCode .base ==address
+    struct values |cat fold :arrayToCode _ :globalAllocations .register
+                                           .base ==address
     struct keys { address -101 def struct -01 . len address add =address } each
   } /allocateOffsetStruct deff
 
@@ -88,6 +89,9 @@
 
     # current parser quote state
     [ %00 %00 %00 %00 %00 %00 %00 %00 ] ==currentQuoted
+
+    # global allocation list
+    [ :globalAllocations .base :imm64 ] ==globalAllocationList
   > { defv }' allocateOffsetStruct
 
   { _ =*array len _ 4 div ==largeMoves
@@ -142,7 +146,7 @@
     # rax <- address of allocated chunk
     #        chunk will have GC length header initialized correctly
     # FIXME put a real allocator here
-    [
+    [[
       /rbx :pushqReg
       /rdi :pushqReg
       unusedHeapStart /rax :movqImmReg
@@ -154,29 +158,40 @@
       heapEnd /rax :movqImmReg
       /rax /rdi :movqMemReg
       /rdi /rcx :cmpqRegReg
-      [
-        4096 4096 mul /rsi :movqImmReg
-        /rsi /rdi :addqRegReg
-        /rdi /rax :movqRegMem
-        /rsi /rdi :subqRegReg
+      /memAvailable :jbeLbl8
 
-        SYSCALL .mmap /rax :movqImmReg
-        # /rdi already fine
-        # /rsi already fine
-        < { MMAP -01 . } "!" deff
-          !PROT_READ !PROT_WRITE !PROT_EXEC bor bor /rdx :movqImmReg
-          !MAP_PRIVATE !MAP_FIXED !MAP_ANONYMOUS bor bor /r10 :movqImmReg
-        > --
-        /r8 :movqImmOOBReg %FF %FF %FF %FF %FF %FF %FF %FF
-        0 /r9 :movqImmReg
-        :syscall
-      ] |len { :jbeRel8 } -21*0*221* dearray # FIXME move to labelResolve
+      4096 4096 mul /rsi :movqImmReg # size of new block
+      /rsi /rdi :addqRegReg
+      /rdi /rax :movqRegMem
+      /rsi /rdi :subqRegReg
+
+      # record new block in global allocation list
+      globalAllocationList /rax :movqImmReg
+      /rax /rax :movqMemReg
+      16 /rax :addqImm8Mem
+      /rax /rax :addqMemReg
+      16 /rax :subqImm8Reg
+      /rdi /rax :movqRegMem
+      /rsi 8 /rax :movqRegMemDisp8
+
+      SYSCALL .mmap /rax :movqImmReg
+      # /rdi already fine
+      # /rsi already fine
+      < { MMAP -01 . } "!" deff
+        !PROT_READ !PROT_WRITE !PROT_EXEC bor bor /rdx :movqImmReg
+        !MAP_PRIVATE !MAP_FIXED !MAP_ANONYMOUS bor bor /r10 :movqImmReg
+      > --
+      /r8 :movqImmOOBReg %FF %FF %FF %FF %FF %FF %FF %FF
+      0 /r9 :movqImmReg
+      :syscall
+
+      @memAvailable
       /rbx /rax :movqRegReg
       /rdi :popqReg
       /rdi /rax :movqRegMem
       /rbx :popqReg
       :retn
-    ] /internalAllocate defv
+    ]] /internalAllocate defv
 
     # compare two strings
     # rdi -> address of first string

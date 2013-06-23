@@ -1,6 +1,7 @@
 <
   4096 ==PAGESIZE
   16777216 ==STACKSIZE
+  65536 ==GLOBALALLOCSSIZE
   128 ==STACKSTART
 
   # hex decoding
@@ -214,6 +215,15 @@
     /zero reg modrm11
     i imm8
   } /addqImm8Reg deff
+
+  { ==reg ==mem
+    reg bit64assert
+    mem bit64assert
+
+    1 reg /none mem rex
+    %03
+    reg mem modrm00
+  } /addqMemReg deff
 
   { ==reg ==mem ==disp
     reg bit64assert
@@ -728,6 +738,18 @@
     1 idx mem sib
   } /movqMemIndexReg deff
 
+  { ==reg ==mem ==idx ==scale ==disp
+    reg bit64assert
+    mem bit64assert
+    idx bit64assert
+
+    1 reg idx mem rex
+    %8B
+    reg /sib modrm01
+    scale idx mem sib
+    disp imm8
+  } /movqMemIndexScaleDisp8Reg deff
+
   { ==reg ==mem
     reg bit64assert
     mem bit64assert
@@ -1122,14 +1144,52 @@
     src dst modrm11
   } /xorqRegReg deff
 
+  # global alloc list layout
+  # %0 : next unused byte of global alloc list as an offset from beginning of list
+  # %8 : <unused>
+  # %10 : base of this very alloc
+  # %18 : size of this very alloc
+  # %20... : <base> <size> of next allocs
+  <
+    { # ==addr
+      [ -01 7 add 8 { _ sys .asm .peek -01 1 sub } rep -- ] { -01 256 mul add } fold
+    } /peekImm64 deff
+
+    { ==addr ==value
+      [ value imm64 ] { addr sys .asm .poke addr 1 add =addr } each
+    } /pokeImm64 deff
+
+    GLOBALALLOCSSIZE sys .asm .alloc ==allocs
+    allocs .base ==i
+    [
+      %20 imm64
+      0 imm64
+      allocs .base imm64
+      allocs .size imm64
+    ] { i sys .asm .poke i 1 add =i } each
+
+    { ==block
+      allocs .base peekImm64 ==nextOffset
+      nextOffset 16 add _
+        GLOBALALLOCSSIZE gt { "Global allocation list full." die } rep
+        allocs .base pokeImm64
+      allocs .base nextOffset add =nextOffset
+
+      block .base nextOffset       pokeImm64
+      block .size nextOffset 8 add pokeImm64
+    } /register deff
+
+    { allocs .base } /base deff
+  > ==globalAllocations
+
   # global stack layout
   # 0 - STACKSTART  : global variables
   #              %0 : current stack pointer
   # STACKSTART - ...: real stack
   [ /mainStack /mainCallStack ] {
     <
-      STACKSIZE sys .asm .alloc ==stack
-
+      STACKSIZE sys .asm .alloc _ globalAllocations .register
+                                  ==stack
       stack .base ==i
       [
         stack .base STACKSIZE add imm64
@@ -1139,7 +1199,8 @@
     > -12 ==
   }' each
 
-  STACKSIZE sys .asm .alloc .base ==quoteEncodingBuffer
+  STACKSIZE sys .asm .alloc _ globalAllocations .register
+                              .base ==quoteEncodingBuffer
 
   { ==opcodes
     opcodes len 1 sub PAGESIZE div 1 add PAGESIZE mul sys .asm .alloc /codearea defv

@@ -110,12 +110,135 @@
       8 /r15 :addqImm8Reg
       :retn
     ]] /eysyscall defv
+
+    # returns the number of allocations in the global allocation list
+    # 0 <- number of allocations registered
+    [[
+      /rbx :popqReg
+      # allocate return integer
+      16 /rdi :movqImmReg
+      ::internalAllocate /rax :movqImmReg
+      /rax :callqReg
+      /rax :pushqReg
+
+      ::globalAllocationList /rdx :movqImmReg
+      /rdx /rdx :movqMemReg
+      /rdx /rdx :movqMemReg
+      4 /rdx :shrqImm8Reg
+      /rdx :decqReg
+      /rdx 8 /rax :movqRegMemDisp8
+
+      /rbx :pushqReg
+      :retn
+    ]] /eyglobalAllocCount defv
+
+    # returns the base address of a global allocation
+    # 0 -> number of allocation
+    # 0 <- allocation base address
+    [[
+      /rbx :popqReg
+
+      # allocate return integer
+      16 /rdi :movqImmReg
+      ::internalAllocate /rax :movqImmReg
+      /rax :callqReg
+
+      /rcx :popqReg
+      /rax :pushqReg
+
+      8 /rcx /rcx :movqMemDisp8Reg
+
+      ::globalAllocationList /rdx :movqImmReg
+      /rdx /rdx :movqMemReg
+      /rcx :incqReg
+      4 /rcx :shlqImm8Reg
+
+      /rcx /rdx /rdx :movqMemIndexReg
+      /rdx 8 /rax :movqRegMemDisp8
+
+      /rbx :pushqReg
+      :retn
+    ]] /eyglobalAllocBase defv
+
+    # returns the size of a global allocation
+    # 0 -> number of allocation
+    # 0 <- allocation size
+    [[
+      /rbx :popqReg
+
+      # allocate return integer
+      16 /rdi :movqImmReg
+      ::internalAllocate /rax :movqImmReg
+      /rax :callqReg
+
+      /rcx :popqReg
+      /rax :pushqReg
+
+      8 /rcx /rcx :movqMemDisp8Reg
+
+      ::globalAllocationList /rdx :movqImmReg
+      /rdx /rdx :movqMemReg
+      /rcx :incqReg
+      4 /rcx :shlqImm8Reg
+
+      8 1 /rcx /rdx /rdx :movqMemIndexScaleDisp8Reg
+      /rdx 8 /rax :movqRegMemDisp8
+
+      /rbx :pushqReg
+      :retn
+    ]] /eyglobalAllocSize defv
+
+    # get raw code execution address from function object
+    # 0 -> function object
+    # 0 <- address of first instruction
+    [[
+      /rbx :popqReg
+
+      # allocate return integer
+      16 /rdi :movqImmReg
+      ::internalAllocate /rax :movqImmReg
+      /rax :callqReg
+
+      /rdx :popqReg
+      24 /rdx /rdx :movqMemDisp8Reg
+      8 /rdx :addqImm8Reg
+      /rdx 8 /rax :movqRegMemDisp8
+
+      /rax :pushqReg
+      /rbx :pushqReg
+      :retn
+    ]] /eyrawCodeAddress defv
+
+    # (template) program boot sequence after freeze
+    [[
+      /rsp :movqImmOOBReg %EE %EE %EE %EE %EE %EE %EE %EE
+      /r15 :movqImmOOBReg %EE %EE %EE %EE %EE %EE %EE %EE
+
+      |ey* /rax :movqImmReg
+      /rax :callqReg
+      :ud2
+    ]] /eyprogramStart defv
   > _ ==globalFunctions { defv }' ::allocateOffsetStruct
+
+  <
+    # patch programStart to current program state
+    [[
+      /rbx :popqReg
+
+      eyprogramStart /rax :movqImmReg
+      /rsp 2 /rax :movqRegMemDisp8
+      /r15 12 /rax :movqRegMemDisp8
+
+      /rbx :pushqReg
+      :retn
+    ]] /eypatchProgramStart defv
+  > _ ==globalFunctions2 { defv }' ::allocateOffsetStruct
 
   "asm" enterSubScope
 
   [
     globalFunctions keys eydeff { | }' createScopeEntries
+    globalFunctions2 keys eydeff { | }' createScopeEntries
     createScopeExtensionEntries
   ] :execute
 
