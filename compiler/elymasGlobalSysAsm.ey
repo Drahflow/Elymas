@@ -211,8 +211,17 @@
 
     # (template) program boot sequence after freeze
     [[
-      /rsp :movqImmOOBReg %EE %EE %EE %EE %EE %EE %EE %EE
-      /r15 :movqImmOOBReg %EE %EE %EE %EE %EE %EE %EE %EE
+      /rsp :movqImmOOBReg %EE %EE %EE %EE %EE %EE %EE %EE # 10
+      /r15 :movqImmOOBReg %EE %EE %EE %EE %EE %EE %EE %EE # 20
+      ::heapEnd /rax :movqImmReg # 30
+      /rbx :movqImmOOBReg %EE %EE %EE %EE %EE %EE %EE %EE # 40
+      /rbx /rax :movqRegMem # 43
+      ::unusedHeapStart /rax :movqImmReg # 53
+      /rbx :movqImmOOBReg %EE %EE %EE %EE %EE %EE %EE %EE # 63
+      /rbx /rax :movqRegMem # 66
+      ::currentScope /rax :movqImmReg # 76
+      /rbx :movqImmOOBReg %EE %EE %EE %EE %EE %EE %EE %EE # 86
+      /rbx /rax :movqRegMem # 89
 
       |ey* /rax :movqImmReg
       /rax :callqReg
@@ -228,6 +237,15 @@
       eyprogramStart /rax :movqImmReg
       /rsp 2 /rax :movqRegMemDisp8
       /r15 12 /rax :movqRegMemDisp8
+      ::heapEnd /rdx :movqImmReg
+      /rdx /rdx :movqMemReg
+      /rdx 32 /rax :movqRegMemDisp8
+      ::unusedHeapStart /rdx :movqImmReg
+      /rdx /rdx :movqMemReg
+      /rdx 55 /rax :movqRegMemDisp8
+      ::currentScope /rdx :movqImmReg
+      /rdx /rdx :movqMemReg
+      /rdx 78 /rax :movqRegMemDisp8
 
       /rbx :pushqReg
       :retn
