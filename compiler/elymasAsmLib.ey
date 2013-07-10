@@ -77,12 +77,17 @@
   { [ } "[[" deff
   { ] :labelResolve stringResolve } "]]" deff
 
+  { %00 %00 %00 %00 %00 %60 %00 %00 } /HEAPBASE deff
+  { %00 %00 %00 %00 %00 %50 %00 %00 } /BLOCKBASE deff
+  { %00 %00 %00 %00 %00 %40 %00 %00 } /MARKBASE deff
+  4096 16 mul 8 mul ==ALLOCCHUNKSIZE
+
   <
     # current end of heap memory (grows upwards)
-    [ %00 %00 %00 %00 %00 %60 %00 %00 ] ==heapEnd
+    [ HEAPBASE ] ==heapEnd
 
     # next free byte at end of heap
-    [ %00 %00 %00 %00 %00 %60 %00 %00 ] ==unusedHeapStart
+    [ HEAPBASE ] ==unusedHeapStart
     
     # current parser scope
     [ %00 %00 %00 %00 %00 %00 %00 %00 ] ==currentScope
@@ -145,25 +150,201 @@
     # rdi -> size of chunk in bytes
     # rax <- address of allocated chunk
     #        chunk will have GC length header initialized correctly
-    # FIXME put a real allocator here
+    # FIXME actually implement mark and sweep
     [[
       /rbx :pushqReg
+
+      @searchForFreeBlock
+
+      # run through block bitmap until sufficiently many zeroes are found
+      # if yes, allocate block
+      /rax :movqImmOOBReg HEAPBASE
+      heapEnd /rbp :movqImmReg
+      0 /rbp /rbp :movqMemDisp8Reg
+      /rax /rbp :subqRegReg
+      # rbp now holds number of bytes in heap
+      4 /rbp :shrqImm8Reg
+      # rbp now holds number of 16 byte cells in heap
+
+      /rbx /rbx :xorqRegReg
+      # rbx == index of cell currently tested
+
+      @startFreeBlockScan
+      /rsi /rsi :xorqRegReg
+      # rsi > 0  =>  currently counting block extent of free block
+
+      @testBlockBitLoop
+      /rbx /rbp :cmpqRegReg
+      /markPhase :jbeLbl32
+
+      /rbx /rax :movqRegReg
+      3 /rax :shrqImm8Reg # extract byte
+      /rdx :movqImmOOBReg BLOCKBASE
+      /rdx /rax /al :movbMemIndexReg
+      /rbx /rcx :movqRegReg
+      7 /cl :andbImmReg
+      /cl :incbReg
+      /rax :shrqClReg
+      /nonFreeBlock :jcLbl8 # block not free
+      /rsi /rsi :andqRegReg
+      /currentlyCounting :jnzLbl8
+
+      /rbx /rax :movqRegReg
+      3 /rax :shrqImm8Reg # extract byte
+      /rdx :movqImmOOBReg MARKBASE
+      /rdx /rax /al :movbMemIndexReg
+      /rbx /rcx :movqRegReg
+      7 /cl :andbImmReg
+      /cl :incbReg
+      /rax :shrqClReg
+      /nonFreeBlock :jncLbl8 # block not marked, i.e. just block extent
+
+      @currentlyCounting
+      16 /rsi :addqImm8Reg
+      /rsi /rdi :cmpqRegReg
+      /freeBlockFound :jbeLbl8
+
+      /rbx :incqReg
+      /testBlockBitLoop :jmpLbl8
+
+      @nonFreeBlock
+      /rbx :incqReg
+      /startFreeBlockScan :jmpLbl8
+
+      @freeBlockFound
+      # rdi == size of block to allocate
+      # rbx == last cell of free block of sufficient size
+
+      # split block if necessary
+      /rbx :incqReg
+      /rbx /rbp :cmpqRegReg
+      /dontSplit :jbeLbl8
+
+      %FE /rsi :movqImmReg
+      /rbx /rcx :movqRegReg
+      7 /cl :andbImmReg
+      /sil :rolbClReg # rsi now contains mask bit for block/mark in byte (reset bit at relevant position)
+
+      /rbx /rax :movqRegReg
+      3 /rax :shrqImm8Reg
+      /rdx :movqImmOOBReg BLOCKBASE
+      1 /rdx /rax /sil :orbMemIndexScaleReg # sil now { mask block bor }
+      /rsi :notqReg # sil now { mask block bor bnot }
+      /rdx :movqImmOOBReg MARKBASE
+      /sil 1 /rdx /rax :orbRegMemIndexScale # set mark bit if block bit was zero
+
+      @dontSplit
+      # mark block as used (-> white)
+      /rdi /rsi :movqRegReg
+      /rsi :decqReg
+      4 /rsi :shrqImm8Reg
+      /rsi :incqReg
+      /rsi /rbx :subqRegReg
+
+      1 /rsi :movqImmReg
+      /rbx /rcx :movqRegReg
+      7 /cl :andbImmReg
+      /rsi :shlqClReg # rsi now contains mask bit for block/mark in byte (set bit at relevant position)
+
+      /rbx /rax :movqRegReg
+      3 /rax :shrqImm8Reg
+      /rdx :movqImmOOBReg BLOCKBASE
+      /sil 1 /rdx /rax :orbRegMemIndexScale # set block bit
+      /rsi :notqReg # sil now { mask bnot }
+      /rdx :movqImmOOBReg MARKBASE
+      /sil 1 /rdx /rax :andbRegMemIndexScale # reset mark bit
+
+      # ensure the new block is marked as block extend throughout in the bitmaps
+      /rbx :pushqReg
       /rdi :pushqReg
-      unusedHeapStart /rax :movqImmReg
-      /rax /rcx :movqMemReg
-      /rcx /rbx :movqRegReg
-      /rcx /rdx :movqRegReg
-      /rdi /rcx :addqRegReg
-      /rcx /rax :movqRegMem
+
+      /rdi :decqReg
+      4 /rdi :shrqImm8Reg
+
+      @markBlockFree
+      /rdi /rdi :andqRegReg
+      /markedBlockFree :jzLbl8
+      /rdi :decqReg
+      /rbx :incqReg
+
+      1 /rsi :movqImmReg
+      /rbx /rcx :movqRegReg
+      7 /cl :andbImmReg
+      /rsi :shlqClReg # rsi now contains mask bit for block/mark in byte (set bit at relevant position)
+      /rsi :notqReg # (reset bit at relevant position)
+
+      /rbx /rax :movqRegReg
+      3 /rax :shrqImm8Reg
+      /rdx :movqImmOOBReg BLOCKBASE
+      /sil 1 /rdx /rax :andbRegMemIndexScale # reset block bit
+      /rdx :movqImmOOBReg MARKBASE
+      /sil 1 /rdx /rax :andbRegMemIndexScale # reset mark bit
+      /markBlockFree :jmpLbl8
+
+      @markedBlockFree
+      /rdi :popqReg
+      /rbx :popqReg
+
+      # prepare block length and GC header (-> light grey)
+      4 /rbx :shlqImm8Reg
+      /rax :movqImmOOBReg HEAPBASE
+      /rbx /rax :addqRegReg
+      /rdi /rax :movqRegMem
+      %08 7 /rax :movbImmMemDisp8
+
+      /rbx :popqReg
+      :retn
+
+      @markPhase
+      # start from stack and mark all reachable blocks
+
+      # perform bitmap magic to free blocks
+
+      # retry running through block bitmap and find a zero run
+      
+      # allocate next chunk of memory from the operating system
+      /rdi :pushqReg
+
       heapEnd /rax :movqImmReg
       /rax /rdi :movqMemReg
-      /rdi /rcx :cmpqRegReg
-      /memAvailable :jbeLbl8
-
-      4096 4096 mul /rsi :movqImmReg # size of new block
+      ALLOCCHUNKSIZE /rsi :movqImmReg # size of new block
       /rsi /rdi :addqRegReg
       /rdi /rax :movqRegMem
       /rsi /rdi :subqRegReg
+      /mmapBlock :callqLbl32
+
+      # also allocate block and mark bitmaps
+      heapEnd /rax :movqImmReg
+      /rax /rdi :movqMemReg
+      /rax :movqImmOOBReg HEAPBASE
+      /rax /rdi :subqRegReg
+      7 /rdi :shrqImm8Reg
+      ALLOCCHUNKSIZE 128 div /rsi :movqImmReg
+      /rsi /rdi :subqRegReg
+      /rax :movqImmOOBReg BLOCKBASE
+      /rax /rdi :addqRegReg
+      /mmapBlock :callqLbl32
+
+      heapEnd /rax :movqImmReg
+      /rax /rdi :movqMemReg
+      /rax :movqImmOOBReg HEAPBASE
+      /rax /rdi :subqRegReg
+      7 /rdi :shrqImm8Reg
+      ALLOCCHUNKSIZE 128 div /rsi :movqImmReg
+      /rsi /rdi :subqRegReg
+      /rax :movqImmOOBReg MARKBASE
+      /rax /rdi :addqRegReg
+      /rdi :pushqReg
+      /mmapBlock :callqLbl32
+      /rdi :popqReg
+      %01 /rdi :movbImmMem # mark whole block free
+
+      /rdi :popqReg
+      /searchForFreeBlock :jmpLbl32
+
+      @mmapBlock
+      # rdi == target address
+      # rsi == size in bytes
 
       # record new block in global allocation list
       globalAllocationList /rax :movqImmReg
@@ -185,12 +366,54 @@
       0 /r9 :movqImmReg
       :syscall
 
-      @memAvailable
-      /rbx /rax :movqRegReg
-      /rdi :popqReg
-      /rdi /rax :movqRegMem
-      /rbx :popqReg
+      # TODO error handling
+
       :retn
+
+#      /rbx :pushqReg
+#      /rdi :pushqReg
+#      unusedHeapStart /rax :movqImmReg
+#      /rax /rcx :movqMemReg
+#      /rcx /rbx :movqRegReg
+#      /rcx /rdx :movqRegReg
+#      /rdi /rcx :addqRegReg
+#      /rcx /rax :movqRegMem
+#      heapEnd /rax :movqImmReg
+#      /rax /rdi :movqMemReg
+#      /rdi /rcx :cmpqRegReg
+#      /memAvailable :jbeLbl8
+#
+#      4096 4096 mul /rsi :movqImmReg # size of new block
+#      /rsi /rdi :addqRegReg
+#      /rdi /rax :movqRegMem
+#      /rsi /rdi :subqRegReg
+#
+#      # record new block in global allocation list
+#      globalAllocationList /rax :movqImmReg
+#      /rax /rax :movqMemReg
+#      16 /rax :addqImm8Mem
+#      /rax /rax :addqMemReg
+#      16 /rax :subqImm8Reg
+#      /rdi /rax :movqRegMem
+#      /rsi 8 /rax :movqRegMemDisp8
+#
+#      SYSCALL .mmap /rax :movqImmReg
+#      # /rdi already fine
+#      # /rsi already fine
+#      < { MMAP -01 . } "!" deff
+#        !PROT_READ !PROT_WRITE !PROT_EXEC bor bor /rdx :movqImmReg
+#        !MAP_PRIVATE !MAP_FIXED !MAP_ANONYMOUS bor bor /r10 :movqImmReg
+#      > --
+#      /r8 :movqImmOOBReg %FF %FF %FF %FF %FF %FF %FF %FF
+#      0 /r9 :movqImmReg
+#      :syscall
+#
+#      @memAvailable
+#      /rbx /rax :movqRegReg
+#      /rdi :popqReg
+#      /rdi /rax :movqRegMem
+#      /rbx :popqReg
+#      :retn
     ]] /internalAllocate defv
 
     # compare two strings

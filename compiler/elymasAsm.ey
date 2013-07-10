@@ -1,6 +1,6 @@
 <
   4096 ==PAGESIZE
-  16777216 ==STACKSIZE
+  4096 16 mul 8 mul ==STACKSIZE
   65536 ==GLOBALALLOCSSIZE
   128 ==STACKSTART
 
@@ -63,7 +63,9 @@
   } /rex deff
 
   { =mem =reg
-    mem [ /spl /sp /esp /rsp /bpl /bp /ebp /rbp ] streq any not assert
+    mem [ /spl /sp /esp /rsp /bpl /bp /ebp /rbp ] streq any {
+      "modrm00 not possible on rsp / rbp and their partial registers" die
+    } rep
 
                     %00
     mem regno       %07 band add
@@ -109,6 +111,8 @@
   { _ 0 lt { 65536 add } rep 65535 band 2 { _ 256 mod -01 256 div } rep -- } /imm16 deff
   { _ 0 lt { 256 add } rep 255 band } /imm8 deff
 
+  { %66 } /width16 deff
+
   # label handling
   < { defv }' /put deff > ==labels
   [ ] ==labelHoles
@@ -121,8 +125,8 @@
     ] _ len ==offset
     labelHoles [ {
       labels l . offset 1 add sub
-      _ 128 lt assert
-      _ 128 neg ge assert
+      _ 128 lt not { "8 bit relative label out of range: " l cat die } rep
+      _ 128 neg ge not { "8 bit relative label out of range: " l cat die } rep
       imm8 offset -102 =[] } ] cat =labelHoles
     [ -011 len dearray %00
   } /labelRel8 deff
@@ -131,8 +135,8 @@
     ] _ len ==offset
     labelHoles [ {
       labels l . offset 2 add sub
-      _ 32768 lt assert
-      _ 32768 neg ge assert
+      _ 32768 lt not { "16 bit relative label out of range: " l cat die } rep
+      _ 32768 neg ge not { "16 bit relative label out of range: " l cat die } rep
       imm16 offset [ 0 1 ] add 2 dearray -204314 =[] =[] } ] cat =labelHoles
     [ -011 len dearray %00 %00
   } /labelRel16 deff
@@ -141,8 +145,8 @@
     ] _ len ==offset
     labelHoles [ {
       labels l . offset 4 add sub
-      _ 2147483648 lt assert
-      _ 2147483648 neg ge assert
+      _ 2147483648 lt not { "32 bit relative label out of range: " l cat die } rep
+      _ 2147483648 neg ge not { "32 bit relative label out of range" l cat die } rep
       imm32 offset [ 0 1 2 3 ] add 4 dearray -408518628738 =[] =[] =[] =[] } ] cat =labelHoles
     [ -011 len dearray %00 %00 %00 %00
   } /labelRel32 deff
@@ -156,7 +160,7 @@
     opcodes
   } /labelResolve deff
 
-  { < ==name ==opcode
+  { < ==opcode ==name
     { ==offset
       offset 128 neg ge assert
       offset 128 lt assert
@@ -169,11 +173,30 @@
 
       opcode
       lbl labelRel8
-      _ 128 neg ge not { lbl " out of Lbl8 reach" cat die } rep
-      _ 128 lt not { lbl " out of Lbl8 reach" cat die } rep
     } name "Lbl8" cat
     > -- 2 |deff rep
   }' /defJmpRel8 deff
+  
+  { "opcode only exists on AMD cpus (and has 'interesting' semantics even there)" die } /defJmpRel16 deff
+
+  { < ==opcode ==name
+    { ==offset
+      offset 2147483648 neg ge assert
+      offset 2147483648 lt assert
+
+      %0F
+      opcode
+      offset imm32
+    } name "Rel32" cat
+
+    { ==lbl
+
+      %0F
+      opcode
+      lbl labelRel32
+    } name "Lbl32" cat
+    > -- 2 |deff rep
+  }' /defJmpRel32 deff
 
   # instructions
   { ==reg ==mem
@@ -245,6 +268,39 @@
     src dst modrm11
   } /addqRegReg deff
 
+  { ==mem ==idx ==scale ==reg
+    reg bit8assert
+    mem bit64assert
+    idx bit64assert
+
+    reg regno %07 gt reg rexreqbyte mem regno %07 gt idx regno %07 gt or or or { 0 reg idx mem rex } rep
+    %20
+    reg /sib modrm00
+    scale idx mem sib
+  } /andbRegMemIndexScale deff
+
+  { ==mem ==i
+    mem bit8assert
+    i 256 lt assert
+
+    mem regno %07 gt mem rexreqbyte or { 0 /none /none mem rex } rep
+    %80
+    /four mem modrm00
+    i imm8
+  } /andbImmMem deff
+
+  { ==mem ==disp ==i
+    mem bit8assert
+    disp 128 lt assert
+    i 256 lt assert
+
+    mem regno %07 gt mem rexreqbyte or { 0 /none /none mem rex } rep
+    %80
+    /four mem modrm01
+    disp imm8
+    i imm8
+  } /andbImmMemDisp8 deff
+
   { ==reg =i
     reg bit8assert
     i 256 lt assert
@@ -267,7 +323,7 @@
   { ==lbl
     %E8
     lbl labelRel32
-  } /callLbl32 deff
+  } /callqLbl32 deff
 
   { ==reg
     reg bit64assert
@@ -509,6 +565,14 @@
     /six reg modrm11
   } /divqReg deff
 
+  { ==reg
+    reg bit8assert
+
+    1 /none /none reg rex
+    %FE
+    /zero reg modrm11
+  } /incbReg deff
+
   { ==mem
     mem bit64assert
 
@@ -525,25 +589,35 @@
     /zero reg modrm11
   } /incqReg deff
 
-  %E2 /loop defJmpRel8
+  /loop %E2 defJmpRel8
 
-  %EB /jmp defJmpRel8
+  /jmp %EB defJmpRel8
+
+  { ==lbl
+    "opcode only exists on AMD cpus (and has 'interesting' semantics even there)" die
+    width16
+    %E9
+    lbl labelRel16
+  } /jmpLbl16 deff
+
   { ==lbl
     %E9
     lbl labelRel32
   } /jmpLbl32 deff
 
-  %77 /ja defJmpRel8
-  %72 /jb defJmpRel8
-  %76 /jbe defJmpRel8
-  %74 /je defJmpRel8
-  %7E /jle defJmpRel8
-  %73 /jnb defJmpRel8
-  %75 /jne defJmpRel8
-  %79 /jns defJmpRel8
-  %75 /jnz defJmpRel8
-  %78 /js defJmpRel8
-  %74 /jz defJmpRel8
+  /ja  _ %77 defJmpRel8 %87 defJmpRel32
+  /jb  _ %72 defJmpRel8 %82 defJmpRel32
+  /jc  _ %72 defJmpRel8 %82 defJmpRel32
+  /jbe _ %76 defJmpRel8 %86 defJmpRel32
+  /je  _ %74 defJmpRel8 %84 defJmpRel32
+  /jle _ %7E defJmpRel8 %8E defJmpRel32
+  /jnb _ %73 defJmpRel8 %83 defJmpRel32
+  /jnc _ %73 defJmpRel8 %83 defJmpRel32
+  /jne _ %75 defJmpRel8 %85 defJmpRel32
+  /jns _ %79 defJmpRel8 %89 defJmpRel32
+  /jnz _ %75 defJmpRel8 %85 defJmpRel32
+  /js  _ %78 defJmpRel8 %88 defJmpRel32
+  /jz  _ %74 defJmpRel8 %84 defJmpRel32
 
   { ==reg ==mem ==idx ==scale ==disp
     reg bit32assert
@@ -624,6 +698,17 @@
     reg mem modrm01
     disp imm8
   } /movbMemDisp8Reg deff
+
+  { ==reg ==mem ==idx
+    reg bit8assert
+    mem bit64assert
+    idx bit64assert
+
+    reg regno %07 gt reg rexreqbyte mem regno %07 gt idx regno %07 gt or or or { 0 reg idx mem rex } rep
+    %8A
+    reg /sib modrm00
+    1 idx mem sib
+  } /movbMemIndexReg deff
 
   { ==mem ==reg
     reg bit8assert
@@ -871,6 +956,10 @@
     /three reg modrm11
   } /negqReg deff
 
+  {
+    %90
+  } /nop deff
+
   { ==reg
     reg bit64assert
 
@@ -878,6 +967,28 @@
     %F7
     /two reg modrm11
   } /notqReg deff
+
+  { ==mem ==idx ==scale ==reg
+    reg bit8assert
+    mem bit64assert
+    idx bit64assert
+
+    reg regno %07 gt reg rexreqbyte mem regno %07 gt idx regno %07 gt or or or { 0 reg idx mem rex } rep
+    %08
+    reg /sib modrm00
+    scale idx mem sib
+  } /orbRegMemIndexScale deff
+
+  { ==reg ==mem ==idx ==scale
+    reg bit8assert
+    mem bit64assert
+    idx bit64assert
+
+    reg regno %07 gt reg rexreqbyte mem regno %07 gt idx regno %07 gt or or or { 0 reg idx mem rex } rep
+    %0A
+    reg /sib modrm00
+    scale idx mem sib
+  } /orbMemIndexScaleReg deff
 
   { ==mem ==i
     mem bit64assert
@@ -995,6 +1106,30 @@
     %C3
   } /retn deff
 
+  { ==reg
+    reg bit8assert
+
+    reg regno %07 gt reg rexreqbyte or { 0 reg /none /none rex } rep
+    %D2
+    /zero reg modrm11
+  } /rolbClReg deff
+
+  { ==reg
+    reg bit64assert
+
+    1 /none /none reg rex
+    %D3
+    /zero reg modrm11
+  } /rolqClReg deff
+
+  { ==reg
+    reg bit64assert
+
+    1 /none /none reg rex
+    %D3
+    /four reg modrm11
+  } /shlqClReg deff
+
   { ==reg ==i
     reg bit64assert
     i 64 lt assert
@@ -1012,6 +1147,14 @@
     %D1
     /five reg modrm11
   } /shrq1Reg deff
+
+  { ==reg
+    reg bit64assert
+
+    1 /none /none reg rex
+    %D3
+    /five reg modrm11
+  } /shrqClReg deff
 
   { ==reg ==i
     reg bit64assert
