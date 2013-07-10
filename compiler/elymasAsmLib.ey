@@ -166,7 +166,9 @@
       4 /rbp :shrqImm8Reg
       # rbp now holds number of 16 byte cells in heap
 
-      /rbx /rbx :xorqRegReg
+      unusedHeapStart /rbx :movqImmReg
+      /rbx /rbx :movqMemReg
+      # /rbx /rbx :xorqRegReg
       # rbx == index of cell currently tested
 
       @startFreeBlockScan
@@ -214,6 +216,9 @@
       @freeBlockFound
       # rdi == size of block to allocate
       # rbx == last cell of free block of sufficient size
+
+      unusedHeapStart /rax :movqImmReg
+      /rbx /rax :movqRegMem
 
       # split block if necessary
       /rbx :incqReg
@@ -296,6 +301,12 @@
       :retn
 
       @markPhase
+      /rdi :pushqReg
+
+      unusedHeapStart /rax :movqImmReg
+      /rbx /rbx :xorqRegReg
+      /rbx /rax :movqRegMem
+
       # start from stack and mark all reachable blocks
 
       # perform bitmap magic to free blocks
@@ -303,8 +314,6 @@
       # retry running through block bitmap and find a zero run
       
       # allocate next chunk of memory from the operating system
-      /rdi :pushqReg
-
       heapEnd /rax :movqImmReg
       /rax /rdi :movqMemReg
       ALLOCCHUNKSIZE /rsi :movqImmReg # size of new block
