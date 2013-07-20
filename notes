@@ -1,5 +1,3 @@
-RegEx stuff: http://sebfisch.github.com/haskell-regexp/
-
 = Expressions =
 
 0 1 2...  -> just push themselves on the stack

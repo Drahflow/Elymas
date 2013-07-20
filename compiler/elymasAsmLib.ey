@@ -146,18 +146,59 @@
       :retn
     ] /internalDumpErrorString defv
 
+    # compare two strings
+    # rdi -> address of first string
+    # rsi -> address of second string
+    # rax <- 1 if both strings are equal, 0 otherwise
+    [
+      internalStringEqualsCode _ len dearray
+      :retn
+    ] /internalStringEquals defv
+  > { defv }' allocateOffsetStruct
+
+  { ==str
+    /rdi :movqImmOOBReg str string
+    internalDumpErrorString /rax :movqImmReg
+    /rax :callqReg
+  } /outputError deff
+
+  <
     # allocate a chunk of memory
+    # inspiration from http://wiki.luajit.org/new-garbage-collector
     # rdi -> size of chunk in bytes
     # rax <- address of allocated chunk
     #        chunk will have GC length header initialized correctly
-    # FIXME actually implement mark and sweep
     [[
       /rbx :pushqReg
+      /rdi :pushqReg # FIXME testing
+      /markAndSweep :callqLbl32 # FIXME testing
+      /rdi :popqReg # FIXME testing
+      /rdi :pushqReg
+      /searchForFreeBlock :callqLbl32
+      /rax /rax :andqRegReg
+      /success :jnzLbl32
+      /markAndSweep :callqLbl32
 
-      @searchForFreeBlock
+      @allocateFromSystemLoop
+      /rdi :popqReg
+      /rdi :pushqReg
+      /searchForFreeBlock :callqLbl32
+      /rax /rax :andqRegReg
+      /success :jnzLbl32
+      /allocateFromSystem :callqLbl32
+      /allocateFromSystemLoop :jmpLbl8
+
+      @success
+      /rdi :popqReg
+      /rbx :popqReg
+      :retn
 
       # run through block bitmap until sufficiently many zeroes are found
       # if yes, allocate block
+      @searchForFreeBlock
+      # rdi == size of chunk in bytes
+      # rax == address of allocated chunk or zero if no free block was found
+
       /rax :movqImmOOBReg HEAPBASE
       heapEnd /rbp :movqImmReg
       0 /rbp /rbp :movqMemDisp8Reg
@@ -177,7 +218,7 @@
 
       @testBlockBitLoop
       /rbx /rbp :cmpqRegReg
-      /markPhase :jbeLbl32
+      /noFreeBlockAvailable :jbeLbl32
 
       /rbx /rax :movqRegReg
       3 /rax :shrqImm8Reg # extract byte
@@ -260,6 +301,7 @@
       /sil 1 /rdx /rax :andbRegMemIndexScale # reset mark bit
 
       # ensure the new block is marked as block extend throughout in the bitmaps
+      # TODO reconnect free blocks while scanning instead
       /rbx :pushqReg
       /rdi :pushqReg
 
@@ -297,23 +339,311 @@
       /rdi /rax :movqRegMem
       %08 7 /rax :movbImmMemDisp8
 
-      /rbx :popqReg
+      # zero rest of block # TODO eliminate this one day
+      /rax :pushqReg
+      /rdi /rcx :movqRegReg
+      /rax /rdi :movqRegReg
+      3 /rcx :shrqImm8Reg
+      /rcx :decqReg
+      8 /rdi :addqImm8Reg
+      /rax /rax :xorqRegReg
+      :reprcx :stosq
+      /rax :popqReg
+
       :retn
 
-      @markPhase
-      /rdi :pushqReg
+      @noFreeBlockAvailable
+      /rax /rax :xorqRegReg
+      :retn
 
+      # run through global state and mark reachable objects
+      @markAndSweep
       unusedHeapStart /rax :movqImmReg
       /rbx /rbx :xorqRegReg
       /rbx /rax :movqRegMem
 
+      # zero mark bitmap
+      /rax :movqImmOOBReg HEAPBASE
+      heapEnd /rcx :movqImmReg
+      /rcx /rcx :movqMemReg
+      /rax /rcx :subqRegReg
+      # rcx now holds number of bytes in heap
+      10 /rcx :shrqImm8Reg
+      /noResetNecessary :jzLbl8
+      # rcx now holds number of quadwords in mark bitmap
+      #   (16 bytes per cell -> shift by 4
+      #    8 cells per byte -> shift by 3
+      #    8 bytes per quadword -> shift by 3)
+      /rsi :movqImmOOBReg BLOCKBASE
+      /rdi :movqImmOOBReg MARKBASE
+      @resetMarkLoop
+      /rsi /rax :movqMemReg
+      /rax :notqReg
+      /rax /rdi :andqRegMem
+      8 /rsi :addqImm8Reg
+      8 /rdi :addqImm8Reg
+      /resetMarkLoop :loopLbl8
+      @noResetNecessary
+
+      # start from current scope and mark all reachable blocks
+      currentScope /rdi :movqImmReg
+      /rdi /rdi :movqMemReg
+      /markObject :callqLbl32
+
       # start from stack and mark all reachable blocks
+      :mainStack .base :STACKSIZE add /rdi :movqImmReg
+      @loopThroughMainStack
+      8 /rdi :subqImm8Reg
+      /rdi :pushqReg
+      /rdi /rdi :movqMemReg
+      /markObject :callqLbl32
+      /rdi :popqReg
+      /rdi /rsp :cmpqRegReg
+      /loopThroughMainStack :jbLbl8
 
-      # perform bitmap magic to free blocks
+      :mainCallStack .base :STACKSIZE add /rdi :movqImmReg
+      @loopThroughCallStack
+      8 /rdi :subqImm8Reg
+      /rdi :pushqReg
+      /rdi /rdi :movqMemReg
+      /markObject :callqLbl32
+      /rdi :popqReg
+      /rdi /r15 :cmpqRegReg
+      /loopThroughCallStack :jbLbl8
 
-      # retry running through block bitmap and find a zero run
+      # start from encoding buffer and mark all reachable blocks
+      # TODO clear encoding buffer in the allocating functions (or mark via :ud2 at beginning)
+      :quoteEncodingBuffer /rdi :movqImmReg
+      :STACKSIZE 8 sub /rcx :movqImmReg
+      @loopThroughEncodingBuffer
+      /rdi :pushqReg
+      /rdi /rdi :movqMemReg
+      /markObject :callqLbl32
+      /rdi :popqReg
+      /rdi :incqReg
+      /loopThroughEncodingBuffer :loopLbl8
+
+      # free unmarked blocks
+      /rax :movqImmOOBReg HEAPBASE
+      heapEnd /rcx :movqImmReg
+      /rcx /rcx :movqMemReg
+      /rax /rcx :subqRegReg
+      # rcx now holds number of bytes in heap
+      10 /rcx :shrqImm8Reg
+      # rcx now holds number of quadwords in mark bitmap
+      #   (16 bytes per cell -> shift by 4
+      #    8 cells per byte -> shift by 3
+      #    8 bytes per quadword -> shift by 3)
+      /noFreeNecessary :jzLbl8
+      /rdi :movqImmOOBReg BLOCKBASE
+      /rsi :movqImmOOBReg MARKBASE
+      @freeLoop
+      /rsi /rax :movqMemReg
+      /rdi /rbx :movqMemReg
+      /rax /rdi :andqRegMem
+      /rbx /rsi :orqRegMem # TODO change this to xorqRegMem to auto-clear mark bits
+      8 /rsi :addqImm8Reg
+      8 /rdi :addqImm8Reg
+      /freeLoop :loopLbl8
+      @noFreeNecessary
+      :retn
+
+      @markObjectDone
+      :retn
+
+      # recursively mark this object reachable
+      @markObject
+      # rdi == address of a reachable object or some other random bits
+      heapEnd /rax :movqImmReg
+      /rax /rax :movqMemReg
+      /rbx :movqImmOOBReg HEAPBASE
+      /rdi /rax :cmpqRegReg
+      /markObjectDone :jbeLbl32 # pointing above the heap
+      /rdi /rbx :cmpqRegReg
+      /markObjectDone :jaLbl32 # pointing below the heap
+      15 /dil :testbImmReg
+      /markObjectDone :jnzLbl32 # pointing to unaligned address
       
+      /rdi /rdx :movqRegReg
+      /rbx /rdx :subqRegReg
+      # rdx == byte offset relative to heap begin
+      4 /rdx :shrqImm8Reg
+      # rdx == cell index of first 16-byte cell of object
+
+      1 /rsi :movqImmReg
+      /rdx /rcx :movqRegReg
+      7 /cl :andbImmReg
+      /rsi :shlqClReg # rsi now contains mask bit for block/mark in byte (set bit at relevant position)
+      /rdx /rcx :movqRegReg
+      3 /rcx :shrqImm8Reg # rcx holds byte address for block/mark byte in bitmaps
+      /rax :movqImmOOBReg BLOCKBASE
+      /sil 1 /rcx /rax :testbRegMemIndexScale # test block bit
+      /markObjectDone :jzLbl8 # not pointing to an object
+      /rax :movqImmOOBReg MARKBASE
+      /sil 1 /rcx /rax :testbRegMemIndexScale # test mark bit
+      /markObjectDone :jnzLbl8 # already marked
+      /sil 1 /rcx /rax :orbRegMemIndexScale # set mark bit
+
+      /rax /rax :xorqRegReg
+      7 /rdi /al :movbMemDisp8Reg
+      %F0 /al :andbImmReg
+      4 /rax :shrqImm8Reg
+      /markInteger :jzLbl32
+      /rax :decqReg
+      /markString :jzLbl32
+      /rax :decqReg
+      /markScope :jzLbl32
+      /rax :decqReg
+      /markNameTable :jzLbl32
+      /rax :decqReg
+      /markExtensionArea :jzLbl32
+      /rax :decqReg
+      /markFunction :jzLbl32
+      /rax :decqReg
+      /markFunctionCode :jzLbl32
+      /rax :decqReg
+      /markArray :jzLbl32
+      /rax :decqReg
+      /markFunctionType :jzLbl32
+
+      /rax /rbx :movqRegReg # for easier inspection
+      "unknown object type during mark phase" outputError
+      :ud2
+      
+      @markInteger
+      # "integer marked\n" outputError
+      :retn
+
+      @markString
+      # internalDumpErrorString /rax :movqImmReg
+      # /rax :callqReg
+      # " string marked\n" outputError
+      :retn
+
+      @markScope
+      # /rdi :pushqReg
+      # "scope marked\n" outputError
+      # /rdi :popqReg
+
+      /rdi /ecx :movlMemReg
+      8 /rcx :subqImm8Reg
+      @markScopeLoop
+      /rdi :pushqReg
+      /rcx :pushqReg
+      /rdi /rcx /rdi :movqMemIndexReg
+      /markObject :callqLbl32
+      /rcx :popqReg
+      /rdi :popqReg
+      8 /rcx :subqImm8Reg
+      /markScopeLoop :jnzLbl8
+      :retn
+
+      @markNameTable
+      # /rdi :pushqReg
+      # "name table marked\n" outputError
+      # /rdi :popqReg
+
+      8 /rdi /ecx :movlMemDisp8Reg
+      16 /rcx :subqImm8Reg
+      /markNameTableEmpty :jzLbl8
+      @markNameTableLoop
+      /rdi :pushqReg
+      /rcx :pushqReg
+      /rdi /rcx /rdi :movqMemIndexReg
+      /markObject :callqLbl32
+      /rcx :popqReg
+      /rdi :popqReg
+      16 /rcx :subqImm8Reg
+      /markNameTableLoop :jnzLbl8
+      @markNameTableEmpty
+      :retn
+
+      @markExtensionArea
+      # /rdi :pushqReg
+      # "extension area marked\n" outputError
+      # /rdi :popqReg
+
+      /rdi /ecx :movlMemReg
+      8 /rcx :subqImm8Reg
+      @markExtensionAreaLoop
+      /rdi :pushqReg
+      /rcx :pushqReg
+      /rdi /rcx /rdi :movqMemIndexReg
+      /markObject :callqLbl32
+      /rcx :popqReg
+      /rdi :popqReg
+      8 /rcx :subqImm8Reg
+      /markExtensionAreaLoop :jnzLbl8
+      :retn
+
+      @markFunction
+      # /rdi :pushqReg
+      # "function marked\n" outputError
+      # /rdi :popqReg
+
+      /rdi :pushqReg
+      /rdi :pushqReg
+      8 /rdi :addqImm8Reg
+      /rdi /rdi :movqMemReg
+      /markObject :callqLbl32
+      /rdi :popqReg
+      16 /rdi :addqImm8Reg
+      /rdi /rdi :movqMemReg
+      /markObject :callqLbl32
+      /rdi :popqReg
+      24 /rdi :addqImm8Reg
+      /rdi /rdi :movqMemReg
+      /markObject :jmpLbl32
+
+      @markFunctionCode
+      # /rdi :pushqReg
+      # "function code marked\n" outputError
+      # /rdi :popqReg
+
+      /rdi /ecx :movlMemReg
+      8 /rdi :addqImm8Reg
+      16 /rcx :subqImm8Reg
+      @markFunctionCodeLoop
+      /rdi :pushqReg
+      /rcx :pushqReg
+      /rdi /rdi :movqMemReg
+      /markObject :callqLbl32
+      /rcx :popqReg
+      /rdi :popqReg
+      /rdi :incqReg
+      /markFunctionCodeLoop :loopLbl8
+      :retn
+
+      @markArray
+      # /rdi :pushqReg
+      # "array marked\n" outputError
+      # /rdi :popqReg
+
+      /rdi /ecx :movlMemReg
+      8 /rcx :subqImm8Reg
+      /markArrayEmpty :jzLbl8
+      @markArrayLoop
+      /rdi :pushqReg
+      /rcx :pushqReg
+      /rdi /rcx /rdi :movqMemIndexReg
+      /markObject :callqLbl32
+      /rcx :popqReg
+      /rdi :popqReg
+      8 /rcx :subqImm8Reg
+      /markArrayLoop :jnzLbl8
+      @markArrayEmpty
+      :retn
+
+      @markFunctionType
+      /rdi :pushqReg
+      "function type marked FIXME\n" outputError
+      /rdi :popqReg
+
+      :ud2 # FIXME needs to be done
+      :retn
+
       # allocate next chunk of memory from the operating system
+      @allocateFromSystem
       heapEnd /rax :movqImmReg
       /rax /rdi :movqMemReg
       ALLOCCHUNKSIZE /rsi :movqImmReg # size of new block
@@ -347,9 +677,7 @@
       /mmapBlock :callqLbl32
       /rdi :popqReg
       %01 /rdi :movbImmMem # mark whole block free
-
-      /rdi :popqReg
-      /searchForFreeBlock :jmpLbl32
+      :retn
 
       @mmapBlock
       # rdi == target address
@@ -376,7 +704,6 @@
       :syscall
 
       # TODO error handling
-
       :retn
 
 #      /rbx :pushqReg
@@ -424,22 +751,7 @@
 #      /rbx :popqReg
 #      :retn
     ]] /internalAllocate defv
-
-    # compare two strings
-    # rdi -> address of first string
-    # rsi -> address of second string
-    # rax <- 1 if both strings are equal, 0 otherwise
-    [
-      internalStringEqualsCode _ len dearray
-      :retn
-    ] /internalStringEquals defv
   > { defv }' allocateOffsetStruct
-
-  { ==str
-    /rdi :movqImmOOBReg str string
-    internalDumpErrorString /rax :movqImmReg
-    /rax :callqReg
-  } /outputError deff
 
   <
     # resolve element from scope
@@ -449,7 +761,7 @@
     # rdx <- 0 if element is passive
     #        1 if element is active
     #        2 if element is quote-active
-    # rcx <- address of entry (i.e. where rdx was loaded from)
+    # rcx <- address of entry (i.e. where rax was loaded from)
     [[
       @retryWithParent
 

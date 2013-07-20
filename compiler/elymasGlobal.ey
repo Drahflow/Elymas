@@ -72,7 +72,7 @@
       /rax /rax :testqRegReg
       /found :jnzLbl8
 
-      "unresolved name: " ::outputError
+      "unresolved name in |: " ::outputError
       /rbx /rdi :movqRegReg
       ::internalDumpErrorString /rax :movqImmReg
       /rax :callqReg
@@ -113,6 +113,14 @@
         /r15 :popqMem
 
         /rdi :popqReg
+        
+        /rax :popqReg # CHECK this is just sanity checking
+        /rax :pushqReg
+        /rax /rax :testqRegReg
+        /realObject :jnzLbl8
+        "trying to store zero object address" ::outputError
+        :ud2
+        @realObject # CHECK end of checking
 
         # search for name in nametable
         ::currentScope /rax :movqImmReg
@@ -295,7 +303,7 @@
       /rax /rax :testqRegReg
       /found :jnzLbl8
 
-      "unresolved name: " ::outputError
+      "unresolved name in =: " ::outputError
       /rbx /rdi :movqRegReg
       ::internalDumpErrorString /rax :movqImmReg
       /rax :callqReg
@@ -953,7 +961,7 @@
   > _ ==globalFunctions { defv }' ::allocateOffsetStruct
 
   <
-    # resolve identifier without quoting considerations act accordingly
+    # resolve identifier without quoting considerations and act accordingly
     # 0 -> identifier to resolve
     [[
       8 /r15 :subqImm8Reg
@@ -966,6 +974,7 @@
       ::currentScope /rdi :movqImmReg
       /rdi /rdi :movqMemReg
       /r15 /rsi :movqMemReg
+
       ::internalResolve /rax :movqImmReg
       /rax :callqReg
 
@@ -984,7 +993,7 @@
       :ud2
 
       @unresolved
-      "unresolved name: " ::outputError
+      "unresolved name in internalExecuteIdentifierUnquoted: " ::outputError
       /r15 /rdi :movqMemReg
       ::internalDumpErrorString /rax :movqImmReg
       /rax :callqReg
@@ -1042,7 +1051,7 @@
       /rax /rax :testqRegReg
       /constructQuotedResolve :jnzLbl8
 
-      "unresolved name: " ::outputError
+      "unresolved name in internalExecuteIdentifier: " ::outputError
       /r15 /rdi :movqMemReg
       ::internalDumpErrorString /rax :movqImmReg
       /rax :callqReg
@@ -1342,12 +1351,12 @@
       8 /r15 :subqImm8Reg
       /r15 :popqMem
 
-      8 /r15 :subqImm8Reg
-      /r15 :popqMem
+      32 /r15 :subqImm8Reg
 
-      16 /r15 :subqImm8Reg
-      
+      16 /r15 :popqMemDisp8
+
       /rax :popqReg
+      /rax 24 /r15 :movqRegMemDisp8
       8 /rax /rcx :leaqMemDisp8Reg
       /rcx /r15 :movqRegMem
 
@@ -1358,6 +1367,7 @@
       # /r15 -> current array element
       # 8 /r15 -> address after last array element
       # 16 /r15 -> code to execute
+      # 24 /r15 -> array object (to keep the GC away)
 
       @loop
       /r15 /rax :movqMemReg
@@ -1374,7 +1384,7 @@
 
       @end
 
-      24 /r15 :addqImm8Reg
+      32 /r15 :addqImm8Reg
       /r15 :pushqMem
       8 /r15 :addqImm8Reg
       :retn
@@ -1408,7 +1418,7 @@
       :ud2
 
       @unresolved
-      "unresolved name: " ::outputError
+      "unresolved name in .: " ::outputError
       /r15 /rdi :movqMemReg
       ::internalDumpErrorString /rax :movqImmReg
       /rax :callqReg
@@ -1451,7 +1461,7 @@
       :retn
 
       @unresolved
-      "unresolved name: " ::outputError
+      "unresolved name in .|: " ::outputError
       /r15 /rdi :movqMemReg
       ::internalDumpErrorString /rax :movqImmReg
       /rax :callqReg

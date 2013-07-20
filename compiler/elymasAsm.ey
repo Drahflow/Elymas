@@ -279,6 +279,17 @@
     scale idx mem sib
   } /andbRegMemIndexScale deff
 
+  { ==reg ==mem ==idx ==scale
+    reg bit8assert
+    mem bit64assert
+    idx bit64assert
+
+    reg regno %07 gt reg rexreqbyte mem regno %07 gt idx regno %07 gt or or or { 0 reg idx mem rex } rep
+    %22
+    reg /sib modrm00
+    scale idx mem sib
+  } /andbMemIndexScaleReg deff
+
   { ==mem ==i
     mem bit8assert
     i 256 lt assert
@@ -320,6 +331,15 @@
     src dst modrm11
   } /andqRegReg deff
 
+  { ==mem ==reg
+    mem bit64assert
+    reg bit64assert
+
+    1 reg /none mem rex
+    %21
+    reg mem modrm00
+  } /andqRegMem deff
+
   { ==lbl
     %E8
     lbl labelRel32
@@ -332,6 +352,10 @@
     %FF
     /two reg modrm11
   } /callqReg deff
+
+  {
+    %FC
+  } /cld deff
 
   { ==dst ==src
     src bit64assert
@@ -606,6 +630,7 @@
   } /jmpLbl32 deff
 
   /ja  _ %77 defJmpRel8 %87 defJmpRel32
+  /jae _ %73 defJmpRel8 %83 defJmpRel32
   /jb  _ %72 defJmpRel8 %82 defJmpRel32
   /jc  _ %72 defJmpRel8 %82 defJmpRel32
   /jbe _ %76 defJmpRel8 %86 defJmpRel32
@@ -773,6 +798,16 @@
     %8B
     reg mem modrm00
   } /movlMemReg deff
+
+  { ==reg ==mem ==disp
+    reg bit32assert
+    mem bit64assert
+
+    reg regno %07 gt mem regno %07 gt or { 0 reg /none mem rex } rep
+    %8B
+    reg mem modrm01
+    disp imm8
+  } /movlMemDisp8Reg deff
 
   { ==reg ==i
     reg bit64assert
@@ -1019,6 +1054,15 @@
     src dst modrm11
   } /orqRegReg deff
 
+  { ==mem ==reg
+    reg bit64assert
+    mem bit64assert
+
+    1 reg /none mem rex
+    %09
+    reg mem modrm00
+  } /orqRegMem deff
+
   { ==mem
     mem regno %07 gt { 1 /none /none mem rex } rep
     %8F
@@ -1166,6 +1210,11 @@
     i imm8
   } /shrqImm8Reg deff
 
+  {
+    1 /none /none /none rex
+    %AB
+  } /stosq deff
+
   { ==reg ==i
     reg bit64assert
     i 256 lt assert
@@ -1218,11 +1267,22 @@
     %0F %05
   } /syscall deff
 
+  { ==mem ==idx ==scale ==reg
+    reg bit8assert
+    mem bit64assert
+    idx bit64assert
+
+    reg regno %07 gt reg rexreqbyte mem regno %07 gt idx regno %07 gt or or or { 0 reg idx mem rex } rep
+    %84
+    reg /sib modrm00
+    scale idx mem sib
+  } /testbRegMemIndexScale deff
+
   { ==reg =i
     reg bit8assert
     i 256 lt assert
 
-    reg regno %07 gt { 0 /none /none reg rex } rep
+    reg regno %07 gt reg rexreqbyte or { 0 /none /none reg rex } rep
     %F6
     /zero reg modrm11
     i imm8
