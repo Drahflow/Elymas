@@ -1,0 +1,8 @@
+"included" dump
+
+1 0 add
+{ -- 0 } /add deff
+
+{
+  "/home/drahflow/elymas/examples/working-compiler/include.test" include
+} rep
