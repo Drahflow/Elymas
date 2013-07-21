@@ -1,3 +1,6 @@
+"\"include\" dump\n" "([^\\n]*)\\n(.*)" regex
+dump dump dump
+
 "the quick brown fox jumps over the lazy dog"
 { "(the)(.*)" regex } { dump } loop
 "abcdefghijklmnopqrstuvwxyz"
