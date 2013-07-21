@@ -915,6 +915,7 @@
 
     # push current scope onto stack
     # switch current scope to its parent
+    # 0 <- scope just exited
     [
       /rbx :popqReg
       ::currentScope /rax :movqImmReg
@@ -926,6 +927,18 @@
 
       :retn
     ] /ey> defv
+
+    # push current scope onto stack
+    # 0 <- current scope
+    [
+      /rbx :popqReg
+
+      ::currentScope /rax :movqImmReg
+      /rax :pushqMem
+
+      /rbx :pushqReg
+      :retn
+    ] /eyscope defv
 
     # die
     # 0 -> object explaining what went wrong
