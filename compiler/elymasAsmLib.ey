@@ -170,9 +170,9 @@
     #        chunk will have GC length header initialized correctly
     [[
       /rbx :pushqReg
-      /rdi :pushqReg # FIXME testing
-      /markAndSweep :callqLbl32 # FIXME testing
-      /rdi :popqReg # FIXME testing
+      # /rdi :pushqReg # TODO remove these three lines once load-testing the GC seems unnecessary
+      # /markAndSweep :callqLbl32
+      # /rdi :popqReg
       /rdi :pushqReg
       /searchForFreeBlock :callqLbl32
       /rax /rax :andqRegReg
