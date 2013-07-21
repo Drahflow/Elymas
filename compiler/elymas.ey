@@ -2,12 +2,14 @@
 
 "standard.ey" include
 "elymasGlobal.ey" include
+"elymasTokenize.ey" include
 "elymasLexer.ey" include
 
 sys .argv len not { "Usage: ./elymas <input file.ey>" die } rep
 
 [
   "standard.ey"
+  "elymasTokenize.ey"
   "standardClient.ey"
   0 sys .argv *
 ] {

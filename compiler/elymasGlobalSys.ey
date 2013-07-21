@@ -1,7 +1,24 @@
 <
   "sys" enterSubScope
 
+  <
+    # handle an identifier in the current scope according to current quote level
+    # 0 -> identifier to handle
+    [[
+      8 /r15 :subqImm8Reg
+      /r15 :popqMem
+
+      internalExecuteIdentifier /rax :movqImmReg
+      /rax :callqReg
+
+      /r15 :pushqMem
+      8 /r15 :addqImm8Reg
+      :retn
+    ]] /eyexecuteIdentifier defv
+  > _ ==globalFunctions { defv }' ::allocateOffsetStruct
+
   [
+    globalFunctions keys eydeff { | }' createScopeEntries
     createScopeExtensionEntries
   ] :execute
 

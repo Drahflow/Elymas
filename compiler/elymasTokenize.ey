@@ -1,0 +1,46 @@
+<
+  <
+    [ /0 /1 /2 /3 /4 /5 /6 /7 /8 /9 ] ==digits
+
+    { 0 ==result
+      { "(.)(.*)" regex } {
+        { streq }_ digits -01 index result 10 mul add =result
+      } loop
+      result
+    }
+  > -- /base10decode deff
+
+  { /f deff -101 /s defv regex { f } { s } ? * } /rxparse deff
+
+  { ==TOKID ==TOKSTR ==TOKINT
+    " " cat
+    { < /handle deff /value defv > } /token deff
+    [ -01 { _ "" streq not } {
+      0 /matched defv { /f deff matched { -- } { { 1 =matched f } rxparse } ? * } /parse deff
+
+      "^ (.*)" { } parse
+      "^#" { "" } parse
+      "^(\\d+) +(.*)" { TOKINT token -01 } parse
+      "^\"(.*)" {
+        "" /str defv
+        { _ "^\"(.*)" regex { -01 -- 0 } { 1 } ? * } {
+          0 /strmatched defv { /f deff strmatched { -- } { { 1 =strmatched f } rxparse } ? * } /strparse deff
+
+          "^\\\\\\\\(.*)" { str "\\" cat =str } strparse
+          "^\\\\n(.*)" { str "\n" cat =str } strparse
+          "^\\\\0(.*)" { str "\0" cat =str } strparse
+          "^\\\\\"(.*)" { str "\"" cat =str } strparse
+          "^([^\"\\\\])(.*)" { str -01 cat =str } strparse
+          strmatched not { "Tokenization of string-like failed" die } rep
+        } loop
+        str TOKSTR token -01
+      } parse
+      "^([^a-zA-Z0-9 ]+)([a-zA-Z0-9][^ ]*) +(.*)" { -201 TOKSTR token " " -1203 cat cat } parse
+      "^([a-zA-Z0-9]+|[^a-zA-Z0-9 ]+) +(.*)" { TOKID token -01 } parse
+
+      matched not { "Tokenization failed: " -01 cat die } rep
+    } loop -- ]
+  } /tokenize deff
+> /elymas defv
+
+# vim: syn=elymas
