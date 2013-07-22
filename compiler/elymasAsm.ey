@@ -198,6 +198,258 @@
     > -- 2 |deff rep
   }' /defJmpRel32 deff
 
+  # generalized arithmethic 8086 instructions
+  # { cat _ { "executing " -01 cat dump }_ -102 ; -01 deff }' /defOp deff # debugging version
+  { cat deff }' /defOp deff
+  { ==opcode ==mnemonic
+    { ==dst ==src
+      src bit8assert
+      dst bit8assert
+
+      src regno %07 gt dst regno %07 gt src rexreqbyte dst rexreqbyte or or or { 0 src /none dst rex } rep
+      opcode
+      src dst modrm11
+    } mnemonic /bRegReg defOp
+
+    { ==mem ==reg
+      reg bit8assert
+      mem bit64assert
+
+      reg regno %07 gt reg rexreqbyte mem regno %07 gt or or { 0 reg /none mem rex } rep
+      opcode
+      reg mem modrm00
+    } mnemonic /bRegMem defOp
+
+    { ==mem ==idx ==scale ==reg
+      reg bit8assert
+      mem bit64assert
+      idx bit64assert
+
+      reg regno %07 gt reg rexreqbyte mem regno %07 gt idx regno %07 gt or or or { 0 reg idx mem rex } rep
+      opcode
+      reg /sib modrm00
+      scale idx mem sib
+    } mnemonic /bRegMemIndexScale defOp
+
+    { ==mem ==idx ==scale ==disp ==reg
+      reg bit8assert
+      mem bit64assert
+      idx bit64assert
+      disp 128 lt assert
+
+      reg regno %07 gt reg rexreqbyte mem regno %07 gt idx regno %07 gt or or or { 0 reg idx mem rex } rep
+      opcode
+      reg /sib modrm01
+      scale idx mem sib
+      disp imm8
+    } mnemonic /bRegMemIndexScaleDisp8 defOp
+
+    { ==reg ==mem ==disp
+      reg bit8assert
+      mem bit64assert
+      disp 128 lt assert
+
+      reg regno %07 gt reg rexreqbyte mem regno %07 gt or or { 0 reg /none mem rex } rep
+      opcode %02 add
+      reg mem modrm01
+      disp imm8
+    } mnemonic /bMemDisp8Reg defOp
+
+    { ==reg ==mem ==idx
+      reg bit8assert
+      mem bit64assert
+      idx bit64assert
+
+      reg regno %07 gt reg rexreqbyte mem regno %07 gt idx regno %07 gt or or or { 0 reg idx mem rex } rep
+      opcode %02 add
+      reg /sib modrm00
+      1 idx mem sib
+    } mnemonic /bMemIndexReg defOp
+
+    { ==reg ==mem ==idx ==scale
+      reg bit8assert
+      mem bit64assert
+      idx bit64assert
+
+      reg regno %07 gt reg rexreqbyte mem regno %07 gt idx regno %07 gt or or or { 0 reg idx mem rex } rep
+      opcode %02 add
+      reg /sib modrm00
+      scale idx mem sib
+    } mnemonic /bMemIndexScaleReg defOp
+  } /defAsmAddb deff
+
+  { ==opcode ==mnemonic
+    { ==dst ==src
+      dst bit64assert
+      src bit64assert
+
+      1 src /none dst rex
+      opcode
+      src dst modrm11
+    } mnemonic /qRegReg defOp
+
+    { ==mem ==reg
+      mem bit64assert
+      reg bit64assert
+
+      1 reg /none mem rex
+      opcode
+      reg mem modrm00
+    } mnemonic /qRegMem defOp
+
+    { ==mem ==disp ==reg
+      reg bit64assert
+      mem bit64assert
+      disp 128 lt assert
+
+      1 reg /none mem rex
+      opcode
+      reg mem modrm01
+      disp imm8
+    } mnemonic /qRegMemDisp8 defOp
+  
+    { ==mem ==idx ==reg
+      reg bit64assert
+      mem bit64assert
+      idx bit64assert
+
+      1 reg idx mem rex
+      opcode
+      reg /sib modrm00
+      1 idx mem sib
+    } mnemonic /qRegMemIndex defOp
+
+    { ==mem ==idx ==scale ==reg
+      reg bit64assert
+      mem bit64assert
+      idx bit64assert
+
+      1 reg idx mem rex
+      opcode
+      reg /sib modrm00
+      scale idx mem sib
+    } mnemonic /qRegMemIndexScale defOp
+
+    { ==reg ==mem
+      reg bit64assert
+      mem bit64assert
+
+      1 reg /none mem rex
+      opcode %02 add
+      reg mem modrm00
+    } mnemonic /qMemReg defOp
+
+    { ==reg ==mem ==disp
+      reg bit64assert
+      mem bit64assert
+      disp 128 lt assert
+
+      1 reg /none mem rex
+      opcode %02 add
+      reg mem modrm01
+      disp imm8
+    } mnemonic /qMemDisp8Reg defOp
+
+    { ==reg ==mem ==idx
+      reg bit64assert
+      mem bit64assert
+      idx bit64assert
+
+      1 reg idx mem rex
+      opcode %02 add
+      reg /sib modrm00
+      1 idx mem sib
+    } mnemonic /qMemIndexReg defOp
+
+    { ==reg ==mem ==idx ==scale
+      reg bit64assert
+      mem bit64assert
+      idx bit64assert
+
+      1 reg idx mem rex
+      opcode %02 add
+      reg /sib modrm00
+      scale idx mem sib
+    } mnemonic /qMemIndexScaleReg defOp
+
+    { ==reg ==mem ==idx ==scale ==disp
+      reg bit64assert
+      mem bit64assert
+      idx bit64assert
+
+      1 reg idx mem rex
+      opcode %02 add
+      reg /sib modrm01
+      scale idx mem sib
+      disp imm8
+    } mnemonic /qMemIndexScaleDisp8Reg defOp
+  } /defAsmAddq deff
+
+  { ==modrmOpcode ==mnemonic
+    { ==reg =i
+      reg bit8assert
+      i 256 lt assert
+
+      reg regno %07 gt reg rexreqbyte or { 0 /none /none reg rex } rep
+      %80
+      modrmOpcode reg modrm11
+      i imm8
+    } mnemonic /bImmReg defOp
+
+    { ==mem ==i
+      mem bit64assert
+      i 256 lt assert
+
+      mem regno %07 gt { 0 /none /none mem rex } rep
+      %80
+      modrmOpcode mem modrm00
+      i imm8
+    } mnemonic /bImmMem defOp
+
+    { ==mem ==disp ==i
+      mem bit64assert
+      disp 128 lt assert
+      i 256 lt assert
+
+      mem regno %07 gt { 0 /none /none mem rex } rep
+      %80
+      modrmOpcode mem modrm01
+      disp imm8
+      i imm8
+    } mnemonic /bImmMemDisp8 defOp
+
+    { ==reg ==i
+      reg bit64assert
+      i 256 lt assert
+
+      1 /none /none reg rex
+      %83
+      modrmOpcode reg modrm11
+      i imm8
+    } mnemonic /qImm8Reg defOp
+
+    { ==mem ==i
+      mem bit64assert
+      i 256 lt assert
+
+      1 /none /none mem rex
+      %83
+      modrmOpcode mem modrm00
+      i imm8
+    } mnemonic /qImm8Mem defOp
+
+    { ==mem ==disp ==i
+      mem bit64assert
+      i 256 lt assert
+
+      1 /none /none mem rex
+      %83
+      modrmOpcode mem modrm01
+      disp imm8
+      i imm8
+    } mnemonic /qImm8MemDisp8 defOp
+  } /defAsmAddImm deff
+
   # instructions
   { ==reg ==mem
     reg bit32assert
@@ -208,137 +460,12 @@
     reg mem modrm00
   } /addlMemReg deff
 
-  { ==mem ==i
-    mem bit64assert
-    i 256 lt assert
+  /add %01 defAsmAddq
+  /add /zero defAsmAddImm
 
-    1 /none /none mem rex
-    %83
-    /zero mem modrm00
-    i imm8
-  } /addqImm8Mem deff
-
-  { ==mem ==disp ==i
-    mem bit64assert
-    i 256 lt assert
-
-    1 /none /none mem rex
-    %83
-    /zero mem modrm01
-    disp imm8
-    i imm8
-  } /addqImm8MemDisp8 deff
-
-  { ==reg ==i
-    reg bit64assert
-    i 256 lt assert
-
-    1 /none /none reg rex
-    %83
-    /zero reg modrm11
-    i imm8
-  } /addqImm8Reg deff
-
-  { ==reg ==mem
-    reg bit64assert
-    mem bit64assert
-
-    1 reg /none mem rex
-    %03
-    reg mem modrm00
-  } /addqMemReg deff
-
-  { ==reg ==mem ==disp
-    reg bit64assert
-    mem bit64assert
-    disp 128 lt assert
-
-    1 reg /none mem rex
-    %03
-    reg mem modrm01
-    disp imm8
-  } /addqMemDisp8Reg deff
-
-  { ==dst ==src
-    dst bit64assert
-    src bit64assert
-
-    1 src /none dst rex
-    %01
-    src dst modrm11
-  } /addqRegReg deff
-
-  { ==mem ==idx ==scale ==reg
-    reg bit8assert
-    mem bit64assert
-    idx bit64assert
-
-    reg regno %07 gt reg rexreqbyte mem regno %07 gt idx regno %07 gt or or or { 0 reg idx mem rex } rep
-    %20
-    reg /sib modrm00
-    scale idx mem sib
-  } /andbRegMemIndexScale deff
-
-  { ==reg ==mem ==idx ==scale
-    reg bit8assert
-    mem bit64assert
-    idx bit64assert
-
-    reg regno %07 gt reg rexreqbyte mem regno %07 gt idx regno %07 gt or or or { 0 reg idx mem rex } rep
-    %22
-    reg /sib modrm00
-    scale idx mem sib
-  } /andbMemIndexScaleReg deff
-
-  { ==mem ==i
-    mem bit8assert
-    i 256 lt assert
-
-    mem regno %07 gt mem rexreqbyte or { 0 /none /none mem rex } rep
-    %80
-    /four mem modrm00
-    i imm8
-  } /andbImmMem deff
-
-  { ==mem ==disp ==i
-    mem bit8assert
-    disp 128 lt assert
-    i 256 lt assert
-
-    mem regno %07 gt mem rexreqbyte or { 0 /none /none mem rex } rep
-    %80
-    /four mem modrm01
-    disp imm8
-    i imm8
-  } /andbImmMemDisp8 deff
-
-  { ==reg =i
-    reg bit8assert
-    i 256 lt assert
-
-    reg regno %07 gt reg rexreqbyte or { 0 /none /none reg rex } rep
-    %80
-    /four reg modrm11
-    i imm8
-  } /andbImmReg deff
-
-  { ==dst ==src
-    dst bit64assert
-    src bit64assert
-
-    1 src /none dst rex
-    %21
-    src dst modrm11
-  } /andqRegReg deff
-
-  { ==mem ==reg
-    mem bit64assert
-    reg bit64assert
-
-    1 reg /none mem rex
-    %21
-    reg mem modrm00
-  } /andqRegMem deff
+  /and %20 defAsmAddb
+  /and %21 defAsmAddq
+  /and /four defAsmAddImm
 
   { ==lbl
     %E8
@@ -466,25 +593,6 @@
     %A7
   } /cmpsq deff
 
-  { ==reg =i
-    reg bit8assert
-    i 256 lt assert
-
-    reg regno %07 gt reg rexreqbyte or { 0 /none /none reg rex } rep
-    %80
-    /seven reg modrm11
-    i imm8
-  } /cmpbImmReg deff
-
-  { ==dst ==src
-    src bit8assert
-    dst bit8assert
-
-    src regno %07 gt dst regno %07 gt src rexreqbyte dst rexreqbyte or or or { 0 src /none dst rex } rep
-    %38
-    src dst modrm11
-  } /cmpbRegReg deff
-
   { ==mem ==reg
     reg bit32assert
     mem bit64assert
@@ -494,76 +602,9 @@
     reg mem modrm00
   } /cmplRegMem deff
 
-  { ==reg ==i
-    reg bit64assert
-    i 256 lt assert
-
-    1 /none /none reg rex
-    %83
-    /seven reg modrm11
-    i imm8
-  } /cmpqImm8Reg deff
-
-  { ==mem ==disp ==i
-    mem bit64assert
-    disp 128 lt assert
-    i 256 lt assert
-
-    1 /none /none mem rex
-    %83
-    /seven mem modrm01
-    disp imm8
-    i imm8
-  } /cmpqImm8MemDisp8 deff
-
-  { ==reg ==mem ==idx
-    reg bit64assert
-    mem bit64assert
-    idx bit64assert
-
-    1 reg idx mem rex
-    %3B
-    reg /sib modrm00
-    1 idx mem sib
-  } /cmpqMemIndexReg deff
-
-  { ==reg ==mem
-    reg bit64assert
-    mem bit64assert
-
-    1 reg /none mem rex
-    %3B
-    reg mem modrm00
-  } /cmpqMemReg deff
-
-  { ==reg ==mem ==disp
-    reg bit64assert
-    mem bit64assert
-    disp 128 lt assert
-
-    1 reg /none mem rex
-    %3B
-    reg mem modrm01
-    disp imm8
-  } /cmpqMemDisp8Reg deff
-
-  { ==mem ==reg
-    reg bit64assert
-    mem bit64assert
-
-    1 reg /none mem rex
-    %39
-    reg mem modrm00
-  } /cmpqRegMem deff
-
-  { ==dst ==src
-    dst bit64assert
-    src bit64assert
-
-    1 src /none dst rex
-    %39
-    src dst modrm11
-  } /cmpqRegReg deff
+  /cmp %38 defAsmAddb
+  /cmp %39 defAsmAddq
+  /cmp /seven defAsmAddImm
 
   { ==mem
     mem bit64assert
@@ -713,56 +754,12 @@
     i imm8
   } /movbImmMemDisp8 deff
 
-  { ==reg ==mem ==disp
-    reg bit8assert
-    mem bit64assert
-    disp 128 lt assert
-
-    reg regno %07 gt reg rexreqbyte mem regno %07 gt or or { 0 reg /none mem rex } rep
-    %8A
-    reg mem modrm01
-    disp imm8
-  } /movbMemDisp8Reg deff
-
-  { ==reg ==mem ==idx
-    reg bit8assert
-    mem bit64assert
-    idx bit64assert
-
-    reg regno %07 gt reg rexreqbyte mem regno %07 gt idx regno %07 gt or or or { 0 reg idx mem rex } rep
-    %8A
-    reg /sib modrm00
-    1 idx mem sib
-  } /movbMemIndexReg deff
-
-  { ==mem ==reg
-    reg bit8assert
-    mem bit64assert
-
-    reg regno %07 gt reg rexreqbyte mem regno %07 gt or or { 0 reg /none mem rex } rep
-    %88
-    reg mem modrm00
-  } /movbRegMem deff
-
-  { ==mem ==idx ==scale ==disp ==reg
-    reg bit8assert
-    mem bit64assert
-    idx bit64assert
-    disp 128 lt assert
-
-    reg regno %07 gt reg rexreqbyte mem regno %07 gt idx regno %07 gt or or or { 0 reg idx mem rex } rep
-    %88
-    reg /sib modrm01
-    scale idx mem sib
-    disp imm8
-  } /movbRegMemIndexScaleDisp8 deff
-
   { ==mem ==i
     mem bit64assert
     i 65536 lt assert
 
     mem regno %07 gt { 0 /none /none mem rex } rep
-    %66
+    width16
     %C7
     /zero mem modrm00
     i imm16
@@ -836,99 +833,8 @@
     %B8 reg regno %07 band add
   } /movqImmOOBReg deff
 
-  { ==reg ==mem ==disp
-    reg bit64assert
-    mem bit64assert
-    disp 128 lt assert
-
-    1 reg /none mem rex
-    %8B
-    reg mem modrm01
-    disp imm8
-  } /movqMemDisp8Reg deff
-
-  { ==reg ==mem ==idx
-    reg bit64assert
-    mem bit64assert
-    idx bit64assert
-
-    1 reg idx mem rex
-    %8B
-    reg /sib modrm00
-    1 idx mem sib
-  } /movqMemIndexReg deff
-
-  { ==reg ==mem ==idx ==scale ==disp
-    reg bit64assert
-    mem bit64assert
-    idx bit64assert
-
-    1 reg idx mem rex
-    %8B
-    reg /sib modrm01
-    scale idx mem sib
-    disp imm8
-  } /movqMemIndexScaleDisp8Reg deff
-
-  { ==reg ==mem
-    reg bit64assert
-    mem bit64assert
-
-    1 reg /none mem rex
-    %8B
-    reg mem modrm00
-  } /movqMemReg deff
-
-  { ==mem ==reg
-    reg bit64assert
-    mem bit64assert
-
-    1 reg /none mem rex
-    %89
-    reg mem modrm00
-  } /movqRegMem deff
-
-  { ==mem ==disp ==reg
-    reg bit64assert
-    mem bit64assert
-    disp 128 lt assert
-
-    1 reg /none mem rex
-    %89
-    reg mem modrm01
-    disp imm8
-  } /movqRegMemDisp8 deff
-  
-  { ==mem ==idx ==reg
-    reg bit64assert
-    mem bit64assert
-    idx bit64assert
-
-    1 reg idx mem rex
-    %89
-    reg /sib modrm00
-    1 idx mem sib
-  } /movqRegMemIndex deff
-
-  { ==mem ==idx ==scale ==reg
-    reg bit64assert
-    mem bit64assert
-    idx bit64assert
-
-    1 reg idx mem rex
-    %89
-    reg /sib modrm00
-    scale idx mem sib
-  } /movqRegMemIndexScale deff
-
-  { ==dst ==src
-    src bit64assert
-    dst bit64assert
-
-    1 src /none dst rex
-    %89
-    src dst modrm11
-  } /movqRegReg deff
+  /mov %88 defAsmAddb
+  /mov %89 defAsmAddq
 
   {
     %A4
@@ -1003,65 +909,9 @@
     /two reg modrm11
   } /notqReg deff
 
-  { ==mem ==idx ==scale ==reg
-    reg bit8assert
-    mem bit64assert
-    idx bit64assert
-
-    reg regno %07 gt reg rexreqbyte mem regno %07 gt idx regno %07 gt or or or { 0 reg idx mem rex } rep
-    %08
-    reg /sib modrm00
-    scale idx mem sib
-  } /orbRegMemIndexScale deff
-
-  { ==reg ==mem ==idx ==scale
-    reg bit8assert
-    mem bit64assert
-    idx bit64assert
-
-    reg regno %07 gt reg rexreqbyte mem regno %07 gt idx regno %07 gt or or or { 0 reg idx mem rex } rep
-    %0A
-    reg /sib modrm00
-    scale idx mem sib
-  } /orbMemIndexScaleReg deff
-
-  { ==mem ==i
-    mem bit64assert
-    i 256 lt assert
-
-    %80
-    /one mem modrm00
-    i imm8
-  } /orbImmMem deff
-
-  { ==mem ==disp ==i
-    mem bit64assert
-    i 256 lt assert
-    disp 128 lt assert
-
-    %80
-    /one mem modrm01
-    disp imm8
-    i imm8
-  } /orbImmMemDisp8 deff
-
-  { ==dst ==src
-    dst bit64assert
-    src bit64assert
-
-    1 src /none dst rex
-    %09
-    src dst modrm11
-  } /orqRegReg deff
-
-  { ==mem ==reg
-    reg bit64assert
-    mem bit64assert
-
-    1 reg /none mem rex
-    %09
-    reg mem modrm00
-  } /orqRegMem deff
+  /or %08 defAsmAddb
+  /or %09 defAsmAddq
+  /or /one defAsmAddImm
 
   { ==mem
     mem regno %07 gt { 1 /none /none mem rex } rep
@@ -1215,27 +1065,6 @@
     %AB
   } /stosq deff
 
-  { ==reg ==i
-    reg bit64assert
-    i 256 lt assert
-
-    1 /none /none reg rex
-    %83
-    /five reg modrm11
-    i imm8
-  } /subqImm8Reg deff
-
-  { ==reg ==mem ==disp
-    reg bit64assert
-    mem bit64assert
-    disp 128 lt assert
-
-    1 reg /none mem rex
-    %2B
-    reg mem modrm01
-    disp imm8
-  } /subqMemDisp8Reg deff
-
   { ==reg ==mem
     reg bit32assert
     mem bit64assert
@@ -1245,23 +1074,8 @@
     reg mem modrm00
   } /sublMemReg deff
 
-  { ==reg ==mem
-    reg bit64assert
-    mem bit64assert
-
-    1 reg /none mem rex
-    %2B
-    reg mem modrm00
-  } /subqMemReg deff
-
-  { ==dst ==src
-    dst bit64assert
-    src bit64assert
-
-    1 src /none dst rex
-    %29
-    src dst modrm11
-  } /subqRegReg deff
+  /sub %29 defAsmAddq
+  /sub /five defAsmAddImm
 
   {
     %0F %05
@@ -1320,32 +1134,7 @@
     src dst modrm11
   } /xchgqRegReg deff
 
-  { ==reg ==mem
-    reg bit64assert
-    mem bit64assert
-
-    1 reg /none mem rex
-    %33
-    reg mem modrm00
-  } /xorqMemReg deff
-
-  { ==mem ==reg
-    reg bit64assert
-    mem bit64assert
-
-    1 reg /none mem rex
-    %31
-    reg mem modrm00
-  } /xorqRegMem deff
-
-  { ==dst ==src
-    dst bit64assert
-    src bit64assert
-
-    1 src /none dst rex
-    %31
-    src dst modrm11
-  } /xorqRegReg deff
+  /xor %31 defAsmAddq
 
   # global alloc list layout
   # %0 : next unused byte of global alloc list as an offset from beginning of list
