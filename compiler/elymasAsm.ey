@@ -201,6 +201,39 @@
   # generalized arithmethic 8086 instructions
   # { cat _ { "executing " -01 cat dump }_ -102 ; -01 deff }' /defOp deff # debugging version
   { cat deff }' /defOp deff
+  <
+    # base register only
+    { < _ bit64assert ==base /none ==idx { ==r
+        r base modrm00
+      } /encode deff >
+    } ==Mem
+    # base register plus 8 bit displacement
+    { < _ bit64assert ==base _ 128 lt assert ==disp /none ==idx { ==r
+        r base modrm01
+        disp imm8
+      } /encode deff >
+    } ==MemDisp8
+    # base and index register
+    { < _ bit64assert ==base _ bit64assert ==idx { ==r
+        r /sib modrm00
+        1 idx base sib
+      } /encode deff >
+    } ==MemIndex
+    # base and scaled index register
+    { < _ bit64assert ==base _ bit64assert ==idx ==scale { ==r
+        r /sib modrm00
+        scale idx base sib
+      } /encode deff >
+    } ==MemIndexScale
+    # base and scaled index register plus 8 bit displacement
+    { < _ bit64assert ==base _ bit64assert ==idx ==scale _ 128 lt assert ==disp { ==r
+        r /sib modrm01
+        scale idx base sib
+        disp imm8
+      } /encode deff >
+    } ==MemIndexScaleDisp8
+  > ==memoryAddressingVariants
+
   { ==opcode ==mnemonic
     { ==dst ==src
       src bit8assert
@@ -211,71 +244,25 @@
       src dst modrm11
     } mnemonic /bRegReg defOp
 
-    { ==mem ==reg
-      reg bit8assert
-      mem bit64assert
+    memoryAddressingVariants keys { ==variant memoryAddressingVariants variant . =*parse
+      { parse ==mem ==reg
+        reg bit8assert
 
-      reg regno %07 gt reg rexreqbyte mem regno %07 gt or or { 0 reg /none mem rex } rep
-      opcode
-      reg mem modrm00
-    } mnemonic /bRegMem defOp
+        reg regno %07 gt reg rexreqbyte mem .base regno %07 gt mem .idx regno %07 gt or or or
+          { 0 reg mem .idx mem .base rex } rep
+        opcode
+        reg mem .encode
+      } mnemonic /bReg variant cat defOp
 
-    { ==mem ==idx ==scale ==reg
-      reg bit8assert
-      mem bit64assert
-      idx bit64assert
+      { ==reg parse ==mem
+        reg bit8assert
 
-      reg regno %07 gt reg rexreqbyte mem regno %07 gt idx regno %07 gt or or or { 0 reg idx mem rex } rep
-      opcode
-      reg /sib modrm00
-      scale idx mem sib
-    } mnemonic /bRegMemIndexScale defOp
-
-    { ==mem ==idx ==scale ==disp ==reg
-      reg bit8assert
-      mem bit64assert
-      idx bit64assert
-      disp 128 lt assert
-
-      reg regno %07 gt reg rexreqbyte mem regno %07 gt idx regno %07 gt or or or { 0 reg idx mem rex } rep
-      opcode
-      reg /sib modrm01
-      scale idx mem sib
-      disp imm8
-    } mnemonic /bRegMemIndexScaleDisp8 defOp
-
-    { ==reg ==mem ==disp
-      reg bit8assert
-      mem bit64assert
-      disp 128 lt assert
-
-      reg regno %07 gt reg rexreqbyte mem regno %07 gt or or { 0 reg /none mem rex } rep
-      opcode %02 add
-      reg mem modrm01
-      disp imm8
-    } mnemonic /bMemDisp8Reg defOp
-
-    { ==reg ==mem ==idx
-      reg bit8assert
-      mem bit64assert
-      idx bit64assert
-
-      reg regno %07 gt reg rexreqbyte mem regno %07 gt idx regno %07 gt or or or { 0 reg idx mem rex } rep
-      opcode %02 add
-      reg /sib modrm00
-      1 idx mem sib
-    } mnemonic /bMemIndexReg defOp
-
-    { ==reg ==mem ==idx ==scale
-      reg bit8assert
-      mem bit64assert
-      idx bit64assert
-
-      reg regno %07 gt reg rexreqbyte mem regno %07 gt idx regno %07 gt or or or { 0 reg idx mem rex } rep
-      opcode %02 add
-      reg /sib modrm00
-      scale idx mem sib
-    } mnemonic /bMemIndexScaleReg defOp
+        reg regno %07 gt reg rexreqbyte mem .base regno %07 gt mem .idx regno %07 gt or or or
+          { 0 reg mem .idx mem .base rex } rep
+        opcode %02 add
+        reg mem .encode
+      } mnemonic /b variant cat /Reg cat defOp
+    } each
   } /defAsmAddb deff
 
   { ==opcode ==mnemonic
@@ -288,101 +275,23 @@
       src dst modrm11
     } mnemonic /qRegReg defOp
 
-    { ==mem ==reg
-      mem bit64assert
-      reg bit64assert
+    memoryAddressingVariants keys { ==variant memoryAddressingVariants variant . =*parse
+      { parse ==mem ==reg
+        reg bit64assert
 
-      1 reg /none mem rex
-      opcode
-      reg mem modrm00
-    } mnemonic /qRegMem defOp
+        1 reg mem .idx mem .base rex
+        opcode
+        reg mem .encode
+      } mnemonic /qReg variant cat defOp
 
-    { ==mem ==disp ==reg
-      reg bit64assert
-      mem bit64assert
-      disp 128 lt assert
+      { ==reg parse ==mem
+        reg bit64assert
 
-      1 reg /none mem rex
-      opcode
-      reg mem modrm01
-      disp imm8
-    } mnemonic /qRegMemDisp8 defOp
-  
-    { ==mem ==idx ==reg
-      reg bit64assert
-      mem bit64assert
-      idx bit64assert
-
-      1 reg idx mem rex
-      opcode
-      reg /sib modrm00
-      1 idx mem sib
-    } mnemonic /qRegMemIndex defOp
-
-    { ==mem ==idx ==scale ==reg
-      reg bit64assert
-      mem bit64assert
-      idx bit64assert
-
-      1 reg idx mem rex
-      opcode
-      reg /sib modrm00
-      scale idx mem sib
-    } mnemonic /qRegMemIndexScale defOp
-
-    { ==reg ==mem
-      reg bit64assert
-      mem bit64assert
-
-      1 reg /none mem rex
-      opcode %02 add
-      reg mem modrm00
-    } mnemonic /qMemReg defOp
-
-    { ==reg ==mem ==disp
-      reg bit64assert
-      mem bit64assert
-      disp 128 lt assert
-
-      1 reg /none mem rex
-      opcode %02 add
-      reg mem modrm01
-      disp imm8
-    } mnemonic /qMemDisp8Reg defOp
-
-    { ==reg ==mem ==idx
-      reg bit64assert
-      mem bit64assert
-      idx bit64assert
-
-      1 reg idx mem rex
-      opcode %02 add
-      reg /sib modrm00
-      1 idx mem sib
-    } mnemonic /qMemIndexReg defOp
-
-    { ==reg ==mem ==idx ==scale
-      reg bit64assert
-      mem bit64assert
-      idx bit64assert
-
-      1 reg idx mem rex
-      opcode %02 add
-      reg /sib modrm00
-      scale idx mem sib
-    } mnemonic /qMemIndexScaleReg defOp
-
-    { ==reg ==mem ==idx ==scale ==disp
-      reg bit64assert
-      mem bit64assert
-      idx bit64assert
-
-      1 reg idx mem rex
-      opcode %02 add
-      reg /sib modrm01
-      scale idx mem sib
-      disp imm8
-    } mnemonic /qMemIndexScaleDisp8Reg defOp
+        1 reg mem .idx mem .base rex
+        opcode %02 add
+        reg mem .encode
+      } mnemonic /q variant cat /Reg cat defOp
+    } each
   } /defAsmAddq deff
 
   { ==modrmOpcode ==mnemonic
@@ -396,28 +305,6 @@
       i imm8
     } mnemonic /bImmReg defOp
 
-    { ==mem ==i
-      mem bit64assert
-      i 256 lt assert
-
-      mem regno %07 gt { 0 /none /none mem rex } rep
-      %80
-      modrmOpcode mem modrm00
-      i imm8
-    } mnemonic /bImmMem defOp
-
-    { ==mem ==disp ==i
-      mem bit64assert
-      disp 128 lt assert
-      i 256 lt assert
-
-      mem regno %07 gt { 0 /none /none mem rex } rep
-      %80
-      modrmOpcode mem modrm01
-      disp imm8
-      i imm8
-    } mnemonic /bImmMemDisp8 defOp
-
     { ==reg ==i
       reg bit64assert
       i 256 lt assert
@@ -428,26 +315,26 @@
       i imm8
     } mnemonic /qImm8Reg defOp
 
-    { ==mem ==i
-      mem bit64assert
-      i 256 lt assert
+    memoryAddressingVariants keys { ==variant memoryAddressingVariants variant . =*parse
+      { parse ==mem ==i
+        i 256 lt assert
 
-      1 /none /none mem rex
-      %83
-      modrmOpcode mem modrm00
-      i imm8
-    } mnemonic /qImm8Mem defOp
+        mem .base regno %07 gt mem .idx regno %07 gt or
+          { 0 /none mem .idx mem .base rex } rep
+        %80
+        modrmOpcode mem .encode
+        i imm8
+      } mnemonic /bImm variant cat defOp
 
-    { ==mem ==disp ==i
-      mem bit64assert
-      i 256 lt assert
+      { parse ==mem ==i
+        i 256 lt assert
 
-      1 /none /none mem rex
-      %83
-      modrmOpcode mem modrm01
-      disp imm8
-      i imm8
-    } mnemonic /qImm8MemDisp8 defOp
+        1 /none mem .idx mem .base rex
+        %83
+        modrmOpcode mem .encode
+        i imm8
+      } mnemonic /qImm8 variant cat defOp
+    } each
   } /defAsmAddImm deff
 
   # instructions
@@ -698,39 +585,15 @@
     disp imm8
   } /lealMemIndexScaleDisp8Reg deff
 
-  { ==reg ==mem ==disp
-    reg bit64assert
-    mem bit64assert
-    disp 128 lt assert
+  memoryAddressingVariants keys { ==variant memoryAddressingVariants variant . =*parse
+    { ==reg parse ==mem
+      reg bit64assert
 
-    1 reg /none mem rex
-    %8D
-    reg mem modrm01
-    disp imm8
-  } /leaqMemDisp8Reg deff
-
-  { ==reg ==mem ==idx ==scale
-    reg bit64assert
-    mem bit64assert
-    idx bit64assert
-
-    1 reg idx mem rex
-    %8D
-    reg /sib modrm00
-    scale idx mem sib
-  } /leaqMemIndexScaleReg deff
-
-  { ==reg ==mem ==idx ==scale ==disp
-    reg bit64assert
-    mem bit64assert
-    idx bit64assert
-
-    1 reg idx mem rex
-    %8D
-    reg /sib modrm01
-    scale idx mem sib
-    disp imm8
-  } /leaqMemIndexScaleDisp8Reg deff
+      1 reg mem .idx mem .base rex
+      %8D
+      reg mem .encode
+    } /leaq variant /Reg cat defOp
+  } each
 
   { ==mem ==i
     mem bit64assert
@@ -913,75 +776,29 @@
   /or %09 defAsmAddq
   /or /one defAsmAddImm
 
-  { ==mem
-    mem regno %07 gt { 1 /none /none mem rex } rep
-    %8F
-    /zero mem modrm00
-  } /popqMem deff
-
-  { ==mem ==disp
-    mem regno %07 gt { 1 /none /none mem rex } rep
-    disp 128 lt assert
-
-    %8F
-    /zero mem modrm01
-    disp imm8
-  } /popqMemDisp8 deff
-
-  { ==mem ==idx ==scale
-    mem regno %07 gt idx regno %07 gt or { 1 /none idx mem rex } rep
-    %8F
-    /zero /sib modrm00
-    scale idx mem sib
-  } /popqMemIndexScale deff
-
-  { ==mem ==idx ==scale ==disp
-    mem regno %07 gt idx regno %07 gt or { 1 /none idx mem rex } rep
-    disp 128 lt assert
-    %8F
-    /zero /sib modrm01
-    scale idx mem sib
-    disp imm8
-  } /popqMemIndexScaleDisp8 deff
-
   { ==reg
     reg regno %07 gt { 1 /none /none reg rex } rep
     %58 reg regno %07 band add
   } /popqReg deff
 
-  { ==mem
-    mem regno %07 gt { 1 /none /none mem rex } rep
-    %FF
-    /six mem modrm00
-  } /pushqMem deff
-
-  { ==mem ==disp
-    mem regno %07 gt { 1 /none /none mem rex } rep
-    %FF
-    /six mem modrm01
-    disp imm8
-  } /pushqMemDisp8 deff
-
-  { ==mem ==idx ==scale
-    mem regno %07 gt idx regno %07 gt or { 1 /none idx mem rex } rep
-    %FF
-    /six /sib modrm00
-    scale idx mem sib
-  } /pushqMemIndexScale deff
-
-  { ==mem ==idx ==scale ==disp
-    mem regno %07 gt idx regno %07 gt or { 1 /none idx mem rex } rep
-    disp 128 lt assert
-    %FF
-    /six /sib modrm01
-    scale idx mem sib
-    disp imm8
-  } /pushqMemIndexScaleDisp8 deff
-
   { ==reg
     reg regno %07 gt { 1 /none /none reg rex } rep
     %50 reg regno %07 band add
   } /pushqReg deff
+
+  memoryAddressingVariants keys { ==variant memoryAddressingVariants variant . =*parse
+    { parse ==mem
+      mem .base regno %07 gt mem .idx regno %07 gt or { 1 /none mem .idx mem .base rex } rep
+      %8F
+      /zero mem .encode
+    } /popq variant defOp
+
+    { parse ==mem
+      mem .base regno %07 gt mem .idx regno %07 gt or { 1 /none mem .idx mem .base rex } rep
+      %FF
+      /six mem .encode
+    } /pushq variant defOp
+  } each
 
   { ==imm
     %68
