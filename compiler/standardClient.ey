@@ -741,7 +741,7 @@
 { enregex * } /regex deff
 
 { ==filename # ==f (left on the stack and executed from sys .asm .programStart)
-  sys .asm .patchProgramStart
+  sys .asm .patchProgramStart ==frozenAllocationCount
 
   # hex decoding
   { ==strNumber
@@ -789,7 +789,7 @@
   ] ==metaSections
 
   [
-    0 sys .asm .globalAllocCount 1 sub range { ==i
+    0 frozenAllocationCount 1 sub range { ==i
       <
         ".[1;31m-[33m=[32m#[34m=[35m-[0m" ==name
         0 ==nameOffset { =nameOffset } /setNameOffset deff

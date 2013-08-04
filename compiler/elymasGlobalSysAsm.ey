@@ -222,6 +222,9 @@
       ::currentScope /rax :movqImmReg # 76
       /rbx :movqImmOOBReg %EE %EE %EE %EE %EE %EE %EE %EE # 86
       /rbx /rax :movqRegMem # 89
+      :globalAllocations .base /rax :movqImmReg # 99
+      /rbx :movqImmOOBReg %EE %EE %EE %EE %EE %EE %EE %EE # 109
+      /rbx /rax :movqRegMem # 112
 
       # empty encoding buffer to ensure the GC does not follow residue from freeze into unallocated memory
       :quoteEncodingBuffer /rdi :movqImmReg
@@ -242,6 +245,7 @@
     # correct number of things from the stack to make the sys .freeze execution transparent
     # TODO: actually do this (e.g. by recoding the freeze startup in assembly)
     # TODO: ... for now just flush the call stack on freeze
+    # returns the number of allocations according to frozen alloc list fill state
     [[
       /rbx :popqReg
 
@@ -260,6 +264,20 @@
       /rdx /rdx :movqMemReg
       16 /rdx /rdx :movqMemDisp8Reg # unwind one scope
       /rdx 78 /rax :movqRegMemDisp8
+      :globalAllocations .base /rdx :movqImmReg
+      /rdx /rdx :movqMemReg
+      /rdx :pushqReg # store allocation count for later return value
+      /rdx 101 /rax :movqRegMemDisp8
+
+      16 /rdi :movqImmReg
+      ::internalAllocate /rax :movqImmReg
+      /rax :callqReg
+      # type zero does not need to be changed
+      /rdx :popqReg
+      4 /rdx :shrqImm8Reg
+      /rdx :decqReg
+      /rdx 8 /rax :movqRegMemDisp8 # store value
+      /rax :pushqReg
 
       /rbx :pushqReg
       :retn

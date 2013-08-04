@@ -96,7 +96,7 @@
     [ %00 %00 %00 %00 %00 %00 %00 %00 ] ==currentQuoted
 
     # global allocation list
-    [ :globalAllocations .base :imm64 ] ==globalAllocationList
+    [ :globalAllocations .base :imm64 ] ==globalAllocationList # FIXME what is this for? directly use :globalAllocations
   > { defv }' allocateOffsetStruct
 
   { _ =*array len _ 4 div ==largeMoves
