@@ -223,6 +223,13 @@
       /rbx :movqImmOOBReg %EE %EE %EE %EE %EE %EE %EE %EE # 86
       /rbx /rax :movqRegMem # 89
 
+      # empty encoding buffer to ensure the GC does not follow residue from freeze into unallocated memory
+      :quoteEncodingBuffer /rdi :movqImmReg
+      :STACKSIZE 8 sub /rcx :movqImmReg
+      3 /rcx :shrqImm8Reg
+      /rax /rax :xorqRegReg
+      :reprcx :stosq
+
       |ey* /rax :movqImmReg
       /rax :callqReg
       :ud2
@@ -231,12 +238,18 @@
 
   <
     # patch programStart to current program state
+    # this function must be called first in sys .freeze because it has to unwind the exactly
+    # correct number of things from the stack to make the sys .freeze execution transparent
+    # TODO: actually do this (e.g. by recoding the freeze startup in assembly)
+    # TODO: ... for now just flush the call stack on freeze
     [[
       /rbx :popqReg
 
       eyprogramStart /rax :movqImmReg
       /rsp 2 /rax :movqRegMemDisp8
-      /r15 12 /rax :movqRegMemDisp8
+      # /r15 12 /rax :movqRegMemDisp8 # TODO: something like this (but correctly adjusted) would be right
+      :mainCallStack .base :STACKSIZE add /rdx :movqImmReg # TODO whereas this just flushes the stack
+      /rdx 12 /rax :movqRegMemDisp8
       ::heapEnd /rdx :movqImmReg
       /rdx /rdx :movqMemReg
       /rdx 32 /rax :movqRegMemDisp8
@@ -245,6 +258,7 @@
       /rdx 55 /rax :movqRegMemDisp8
       ::currentScope /rdx :movqImmReg
       /rdx /rdx :movqMemReg
+      16 /rdx /rdx :movqMemDisp8Reg # unwind one scope
       /rdx 78 /rax :movqRegMemDisp8
 
       /rbx :pushqReg

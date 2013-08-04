@@ -86,7 +86,7 @@
     # current end of heap memory (grows upwards)
     [ HEAPBASE ] ==heapEnd
 
-    # next free byte at end of heap
+    # index of next cell likely to be free
     [ HEAPBASE ] ==unusedHeapStart
     
     # current parser scope
