@@ -1,3 +1,0 @@
-#!/usr/bin/env elymas
-
-{ "/proc/self/fd/0" include }' "interpreter.bin" sys .freeze

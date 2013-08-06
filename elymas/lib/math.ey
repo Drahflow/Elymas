@@ -1,0 +1,27 @@
+# Discrete mathematics useful in computer stuff
+# More complicated stuff in sublibs
+
+<
+  # converts an array of digits into an integer
+  # i.e. [ 1 2 3 ] 10 unbase => 321
+  # i.e. [ ] 10 unbase => 0
+  # 0 -> base to convert from
+  # 1 -> array of digits
+  # 0 <- resulting integer
+  { ==b
+    _ len _ ==l dearray
+    0 l { b mul add } rep
+  } /unbase deff
+
+  # converts an integer into an array of digits
+  # i.e. 123 10 base => [ 3 2 1 ]
+  # i.e. 0 10 base => [ ]
+  # 0 <- base to convert to
+  # 1 <- integer to convert
+  # 0 -> resulting array of digits
+  { ==b
+    [ -01 { _ } { _ b mod -01 b div } loop -- ]
+  } /base deff
+> /math defv
+
+# vim: syn=elymas

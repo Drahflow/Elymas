@@ -1,0 +1,14 @@
+# The idea of bin is to define manipulation routines for strings used
+# as binary data structures
+
+<
+  # 0 -> string
+  # 0 <- string from 9th byte onwards
+  # 1 <- first 8 bytes of string interpreted as 64bit unsigned int
+  { ==s
+    [ [ 0 1 2 3 4 5 6 7 ] s each ] 256 math .unbase
+    8 s str .postfix
+  } /scanu64 deff
+> /bin defv
+
+# vim: syn=elymas

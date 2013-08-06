@@ -280,3 +280,43 @@ Maybe ; should act differently when getting a string, or use another single char
 
 Uses: Categorical operators over Set
 Anyway: This should be handled by a library, use escape mechanism for ;
+
+== Musings about the API ==
+
+sys .file
+sys .net
+sys .net .tcpip
+
+  "127.0.0.1" 80 connect
+  "www.google.de" 80 connect
+
+sys .poll
+  create -> p
+  file userdata p .add
+  file p .remove
+  timeout p .poll
+
+sys .linux
+
+str
+  ... "format" sprintf
+  string "format" sscanf 
+  end string prefix
+    { 0 end string infix }
+  start string postfix
+    { start string len infix }
+  start end string infix
+    { start end range string * }
+
+str .encode
+  string from to encode
+
+str .utf8
+
+bin
+  ... "format" bprintf
+  string "format" bscanf
+
+math
+  [ 1 2 3 ] 16 unbase -> 1+2*16+3*16*16
+  12345 10 base -> [ 5 4 3 2 1 ]
