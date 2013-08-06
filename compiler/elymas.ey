@@ -9,8 +9,8 @@ sys .argv len not { "Usage: ./elymas <input file.ey>" die } rep
 
 [
   "standard.ey"
-  "elymasTokenize.ey"
   "standardClient.ey"
+  "elymasTokenize.ey"
   0 sys .argv *
 ] {
   sys .file -0010 .open

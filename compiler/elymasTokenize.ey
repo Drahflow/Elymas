@@ -10,7 +10,7 @@
     }
   > -- /base10decode deff
 
-  { /f deff -101 /s defv regex { f } { s } ? * } /rxparse deff
+  { /f deff /re deff _ /s defv re { f } { s } ? * } /rxparse deff
 
   { ==TOKID ==TOKSTR ==TOKINT
     " " cat
@@ -18,25 +18,25 @@
     [ -01 { _ "" streq not } {
       0 /matched defv { /f deff matched { -- } { { 1 =matched f } rxparse } ? * } /parse deff
 
-      "^ (.*)" { } parse
-      "^#" { "" } parse
-      "^(\\d+) +(.*)" { TOKINT token -01 } parse
-      "^\"(.*)" {
+      { "^ (.*)" regex } { } parse
+      { "^#" regex } { "" } parse
+      { "^(\\d+) +(.*)" regex } { TOKINT token -01 } parse
+      { "^\"(.*)" regex } {
         "" /str defv
         { _ "^\"(.*)" regex { -01 -- 0 } { 1 } ? * } {
           0 /strmatched defv { /f deff strmatched { -- } { { 1 =strmatched f } rxparse } ? * } /strparse deff
 
-          "^\\\\\\\\(.*)" { str "\\" cat =str } strparse
-          "^\\\\n(.*)" { str "\n" cat =str } strparse
-          "^\\\\0(.*)" { str "\0" cat =str } strparse
-          "^\\\\\"(.*)" { str "\"" cat =str } strparse
-          "^([^\"\\\\])(.*)" { str -01 cat =str } strparse
+          { "^\\\\\\\\(.*)" regex } { str "\\" cat =str } strparse
+          { "^\\\\n(.*)" regex } { str "\n" cat =str } strparse
+          { "^\\\\0(.*)" regex } { str "\0" cat =str } strparse
+          { "^\\\\\"(.*)" regex } { str "\"" cat =str } strparse
+          { "^([^\"\\\\])(.*)" regex } { str -01 cat =str } strparse
           strmatched not { "Tokenization of string-like failed" die } rep
         } loop
         str TOKSTR token -01
       } parse
-      "^([^a-zA-Z0-9 ]+)([a-zA-Z0-9][^ ]*) +(.*)" { -201 TOKSTR token " " -1203 cat cat } parse
-      "^([a-zA-Z0-9]+|[^a-zA-Z0-9 ]+) +(.*)" { TOKID token -01 } parse
+      { "^([^a-zA-Z0-9 ]+)([a-zA-Z0-9][^ ]*) +(.*)" regex } { -201 TOKSTR token " " -1203 cat cat } parse
+      { "^([a-zA-Z0-9]+|[^a-zA-Z0-9 ]+) +(.*)" regex } { TOKID token -01 } parse
 
       matched not { "Tokenization failed: " -01 cat die } rep
     } loop -- ]

@@ -431,7 +431,7 @@
   { 0 dumpIndented }
 > -- /dump deff
 
-# # regex support
+## regex support
 # ideas taken from http://swtch.com/~rsc/regexp/regexp3.html
 {
   0 ==MATCH 1 ==TERM 2 ==JUMP 3 ==SPLIT 4 ==SAVE 5 ==FIRST 6 ==LAST
@@ -666,8 +666,13 @@
 
   { ==thread ==newpc <
     newpc ==pc
-    [ thread .captures 20 dearray ] ==captures
+    thread .captures ==captures
   > } /cloneThread deff
+
+  { ==thread ==newpc <
+    newpc ==pc
+    [ thread .captures 20 dearray ] ==captures
+  > } /fullCloneThread deff
 
   { ==prog ==string
     0 ==position
@@ -700,8 +705,9 @@
             pc 1 code add thread cloneThread clist .add
             pc 2 code add thread cloneThread clist .add
           } { # SAVE
-            position 1 code thread .captures =[]
-            pc 1 add thread cloneThread clist .add
+            pc 1 add thread fullCloneThread ==newThread
+            position 1 code newThread .captures =[]
+            newThread clist .add
           } { # FIRST
             position 0 eq { pc 1 add thread cloneThread clist .add } rep
           } { # LAST
@@ -738,7 +744,13 @@
   { prog execute }
 } /enregex deff
 
-{ enregex * } /regex deff
+{
+  quoted {
+    _ sys .typed .type 1 eq {
+      enregex
+    } { |enregex "*" | } ? *
+  } { enregex * } ? *
+} /regex defq
 
 { ==filename # ==f (left on the stack and executed from sys .asm .programStart)
   sys .asm .patchProgramStart ==frozenAllocationCount
