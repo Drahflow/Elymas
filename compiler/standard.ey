@@ -7,6 +7,12 @@
   } quoted { } { * } ? *
 } "}_" defq
 
+{ deff }' " globalDeff" deff # this is not for public usage
+{
+  { -01 < /o defv { o -01 . } > -12 } quoted { } { * } ? *
+  quoted { |deff } " globalDeff" | ? *
+} /via defq
+
 { -1110 ; ==f =*a len _
   {
     0 a
