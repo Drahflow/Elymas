@@ -1,5 +1,6 @@
-# The idea of sys .linux is to define an isomorphic yet
+# The idea of sys .linux is to define an near-isomorphic yet
 # elymas-style interface to syscalls
+# argument order tends to follow kernel API
 
 <
   43  ==ACCEPT
@@ -306,15 +307,59 @@
   1   ==WRITE
   20  ==WRITEV
 
+  0 ==errno
+  
+  bin .scan "->" via
+
+  # defines a syscall which has identical argument order
+  # to kernel API and returns the raw return value
+  { # ==name ==f
+    -01 
+    { sys .asm .syscall =errno } ;
+    -01 
+    deff
+  }' /defStdSyscall deff
+
+  { 0 0 0 0 0 CLOSE } /close defStdSyscall
+
   # 0 <- raw return value
   # 1 <- seconds since 1970
   # 2 <- microseconds since 1970
   {
     # struct timeval takes 16 bytes on a x64
-    16 str .alloc ==timeval
-    timeval 0 0 0 0 0 GETTIMEOFDAY sys .asm .syscall --
-    timeval bin .scanu64 bin .scanu64 -123
+    16 str .alloc ==buf
+    buf 0 0 0 0 0 GETTIMEOFDAY sys .asm .syscall =errno
+    buf ->u64 -01 ->u64
+    -023
   } /gettimeofday deff
+
+  # 0 -> path to stat
+  # 0 <- raw return value
+  # 1 <- (struct stat)-like scope
+  {
+    # struct stat takes 144 bytes on a x64
+    144 str .alloc ==buf
+    buf 0 0 0 0 STAT sys .asm .syscall =errno
+    buf <
+      ->u64 ==dev
+      ->u64 ==ino
+      ->u64 ==mode
+      ->u64 ==nlink
+      ->u64 ==uid
+      ->u64 ==gid
+      ->u64 ==rdev
+      ->u64 ==size
+      ->u64 ==blksize
+      ->u64 ==blocks
+      ->u64 ==atime
+      ->u64 ==mtime
+      ->u64 ==ctime
+    > -02
+  } /stat deff
+
+  { 0 0 0 OPEN } /open defStdSyscall
+  { 0 0 0 READ } /read defStdSyscall
+  { 0 0 0 WRITE } /write defStdSyscall
 > /linux sys .defv
 
 # vim: syn=elymas

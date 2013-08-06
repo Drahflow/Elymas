@@ -2,13 +2,21 @@
 # as binary data structures
 
 <
-  # 0 -> string
-  # 0 <- string from 9th byte onwards
-  # 1 <- first 8 bytes of string interpreted as 64bit unsigned int
-  { ==s
-    [ [ 0 1 2 3 4 5 6 7 ] s each ] 256 math .unbase
-    8 s str .postfix
-  } /scanu64 deff
+  <
+    # 0 -> number of bytes to combine into unsigned int
+    # 1 -> string
+    # 0 <- string from (w+1)th byte onwards
+    # 1 <- first w bytes of string interpreted as unsigned int
+    { ==w ==s
+      w s str .postfix
+      [ 0 w range s each ] 256 math .unbase
+    } /uw deff
+
+    { 8 uw } /u64 deff
+    { 4 uw } /u32 deff
+    { 2 uw } /u16 deff
+    { 1 uw } /u8 deff
+  > /scan defv
 > /bin defv
 
 # vim: syn=elymas
