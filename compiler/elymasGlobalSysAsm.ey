@@ -52,12 +52,12 @@
 
     # conduct a syscall
     # 0 -> syscall number, rax before entry
-    # 1 -> rdi before entry
-    # 2 -> rsi before entry
-    # 3 -> rdx before entry
-    # 4 -> r10 before entry
-    # 5 -> r8 before entry
-    # 6 -> r9 before entry
+    # 1 -> r9 before entry
+    # 2 -> r8 before entry
+    # 3 -> r10 before entry
+    # 4 -> rdx before entry
+    # 5 -> rsi before entry
+    # 6 -> rdi before entry
     # 0 <- rdx after syscall
     # 1 <- rax after syscall
     [[
