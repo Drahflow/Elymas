@@ -16,13 +16,13 @@
 { -1110 ; ==f =*a len _
   {
     0 a
-    1 -102 1 sub range f each
+    1 -102 range f each
     }' { "fold on empty array" die }'
   ? *
 } /fold deff
 
 { _ =*a len
-  [ 1 -1202 range { -110 sub a -01 }' each -- ]
+  [ 1 -1202 1 add range { -110 sub a -01 }' each -- ] # TODO: rethink this one, seems overly complicated
 } /reverse deff
 
 { |or fold } /any deff

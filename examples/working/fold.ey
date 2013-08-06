@@ -3,7 +3,7 @@
 { ==f ==a a len ==l
   l {
     0 a *
-    1 l 1 sub range { a * f * } each
+    1 l range { a * f * } each
     } { "fold on empty array" die }
   ? *
 } /fold deff

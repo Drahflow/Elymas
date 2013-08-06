@@ -832,7 +832,7 @@
     ]] /eydearray defv
 
     # create an array containing a continuous range of ints
-    # 0 -> last element included in range
+    # 0 -> first element after range
     # 1 -> first element included in range
     [[
       8 /r15 :subqImm8Reg
@@ -844,7 +844,7 @@
       8 /r15 :subqImm8Reg
       /r15 :popqMem
 
-      # 8 /r15 == last element
+      # 8 /r15 == after last element
       # /r15 == first element
 
       8 /r15 /rdi :movqMemDisp8Reg
@@ -863,7 +863,6 @@
 
       @positiveRange
       3 /rdi :shlqImm8Reg
-      8 /rdi :addqImm8Reg # one extra element, TODO: consider whether this is actually a good idea
       ::internalAllocateArray /rax :movqImmReg
       /rax :callqReg
 
@@ -871,11 +870,11 @@
 
       8 /rax /rdi :leaqMemDisp8Reg # fill target
       8 /r15 /rax :movqMemDisp8Reg
-      8 /rax /rax :movqMemDisp8Reg # largest element
+      8 /rax /rax :movqMemDisp8Reg # largest element + 1
 
       @fill
       /rax /rbx :cmpqRegReg
-      /done :jaLbl8
+      /done :jaeLbl8
 
       /rax :pushqReg
       /rdi :pushqReg

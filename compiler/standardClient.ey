@@ -223,7 +223,7 @@
       [ ] ==viewPortOffset
 
       # Phase 1
-      0 inputs len 1 sub range reverse {
+      0 inputs len range reverse {
         # print "Analyzing arg: %d"
         inputs * typeStack ==formalTypeStack
         _ ==c typeStack ==concreteTypeStack
@@ -236,8 +236,8 @@
         # "       Type Stack: @$concreteTypeStack\n" print
 
         1 neg concreteTypeStack * isVariableType {
-          1 concreteTypeStack len range { ==viewPortSize
-            [ 0 viewPortSize 1 sub range { concreteTypeStack * } each ] ==typeViewPort # explicit each here
+          1 concreteTypeStack len 1 add range { ==viewPortSize
+            [ 0 viewPortSize range { concreteTypeStack * } each ] ==typeViewPort # explicit each here
             # "@$formalTypeStack vs. @$concreteTypeStack\n" print
 
             formalTypeStack concreteTypeStack typeMismatchCount ==viewPortMatch # FIXME this line seems fishy
@@ -270,9 +270,9 @@
 
       # Phase 2,
       [
-        0 viewPortOffset len 1 sub range { ==i
+        0 viewPortOffset len range { ==i
           i concreteArgs * typeStack ==remaining
-          [ 0 i viewPortOffset * 1 sub range { remaining * } each ] # explicit each here
+          [ 0 i viewPortOffset * range { remaining * } each ] # explicit each here
         } each
       ] ==toBeAbstractedTypes
 
@@ -283,7 +283,7 @@
         # no types need to be abstracted, function can be called
         concreteArgs _ dump _ len dearray f
         "attempting to call function (w.o. abstraction)" dump
-        0 concreteArgs len 1 sub range { ==i
+        0 concreteArgs len range { ==i
           i concreteArgs * sys .typed .type _ dump
           i inputs       * sys .typed .type _ dump
           neq { "invalid input type at argument index " dump i dump "" die } rep
@@ -294,7 +294,7 @@
         [ ] ==stageCalls # which functions to call in each stage
         [ ] ==loops # undef for lambda abstraction, loop bound source for loops
 
-        0 toBeAbstractedTypes len 1 sub range reverse { ==i
+        0 toBeAbstractedTypes len range reverse { ==i
           { i toBeAbstractedTypes * len } {
             # TODO: create a decent shift
             [ i toBeAbstractedTypes * reverse _ len dearray ==type ] reverse i toBeAbstractedTypes =[]
@@ -302,7 +302,7 @@
               1 neg ==iterationSource
               type isIterableType { i =iterationSource } rep
 
-              0 i 1 sub range reverse { ==j
+              0 i range reverse { ==j
                 j toBeAbstractedTypes * len not not {
                   0 j toBeAbstractedTypes * * type commonIterationType # -> <type> <any exists>
                   { =type
@@ -789,7 +789,7 @@
   ] ==metaSections
 
   [
-    0 frozenAllocationCount 1 sub range { ==i
+    0 frozenAllocationCount range { ==i
       <
         ".[1;31m-[33m=[32m#[34m=[35m-[0m" ==name
         0 ==nameOffset { =nameOffset } /setNameOffset deff
@@ -814,7 +814,7 @@
 
       [ metaSections allocSections ] { { ==s
         s .name ==n
-        0 n len 1 sub range { n * } each %00
+        0 n len range { n * } each %00
         nameOffset s .setNameOffset
         nameOffset n len add 1 add =nameOffset
       } each } each
@@ -920,7 +920,7 @@
   ] metaSections { .data cat } each ==fileData
 
   fileData len str .alloc ==buffer
-  0 fileData len 1 sub range { ==i i fileData * i buffer =[] } each
+  0 fileData len range { ==i i fileData * i buffer =[] } each
 
   buffer out .writeall
 

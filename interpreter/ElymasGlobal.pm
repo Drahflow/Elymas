@@ -603,7 +603,7 @@ EOPERL
       $s = $s->[0];
       $e = $e->[0];
 
-      push @$data, [[map { [$_, 'int'] } $s .. $e], ['array', '[]', [['range', 0, $e - $s]], ['int']]];
+      push @$data, [[map { [$_, 'int'] } $s .. $e - 1], ['array', '[]', [['range', 0, $e - $s - 1]], ['int']]];
     }, ['func', 'seq'], 'active'],
   'loop' => [sub {
       my ($data, $scope) = @_;

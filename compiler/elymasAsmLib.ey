@@ -42,7 +42,7 @@
     stringValues [ str ] cat =stringValues
     stringHoles [ { ==allocatedStrings ==opcodes
       [ allocatedStrings str . :imm64 ] =*bytesToPatch
-      0 7 range { _ bytesToPatch -01 offset add opcodes =[] } each
+      0 8 range { _ bytesToPatch -01 offset add opcodes =[] } each
     } ] cat =stringHoles
     [ -011 len dearray %00 %00 %00 %00 %00 %00 %00 %00
   } /string deff
@@ -64,7 +64,7 @@
     ] _ len ==offset
     linkHoles [ { =*resolve
       [ what resolve :imm64 ] =*bytesToPatch
-      0 7 range { _ bytesToPatch -01 where resolve offset add add sys .asm .poke } each
+      0 8 range { _ bytesToPatch -01 where resolve offset add add sys .asm .poke } each
     } ] cat =linkHoles
     [ -011 len dearray %00 %00 %00 %00 %00 %00 %00 %00
   } /linkAbs64 deff
@@ -1051,9 +1051,9 @@
 
       exactLength 0 neq {
         # load string contents
-        0 exactLength 1 sub 8 div range { 8 mul ==i
+        0 exactLength 1 sub 8 div 1 add range { 8 mul ==i
           8 /rax :addqImm8Reg
-          /rdx :movqImmOOBReg i _ 7 add range v 8 dearray
+          /rdx :movqImmOOBReg i _ 8 add range v 8 dearray
           /rdx /rax :movqRegMem
         } each
       } rep
@@ -1106,7 +1106,7 @@
     { ==objAddr
       "  \"" sys .out .writestr
       objAddr 16 add peekImm64 ==length
-      objAddr 24 add _ length add 1 sub range peekImm8 ASCII * |cat fold sys .out .writestr
+      objAddr 24 add _ length add range peekImm8 ASCII * |cat fold sys .out .writestr
       "\"\n" sys .out .writestr
     } /stringDump deff
 
@@ -1168,7 +1168,7 @@
       objAddr       peekImm32
       objAddr 4 add peekImm32 16777215 band 4294967296 mul
         add 8 div ==length
-      0 length 1 sub range { 8 mul objAddr add memDump } each
+      0 length range { 8 mul objAddr add memDump } each
 
       objAddr 7 add peekImm8 16 div
       [
@@ -1197,7 +1197,7 @@
           value       peekImm32
           value 4 add peekImm32 16777215 band 4294967296 mul
             add 8 div ==length
-          0 length 1 sub range { 8 mul value add memDump } each
+          0 length range { 8 mul value add memDump } each
         } rep
         addr 8 add =addr
       } loop

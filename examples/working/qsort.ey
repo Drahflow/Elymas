@@ -6,7 +6,7 @@
   end a * /pivot defv
   start /store defv
 
-  start end 1 sub range { /i defv
+  start end range { /i defv
     i a * pivot lt {
       store _ i a swap
               1 add =store
