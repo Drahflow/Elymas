@@ -659,6 +659,18 @@ sub installGlobal1IntFunction {
     }, ['func', $name, ['int'], ['int']], 'active'];
 }
 
+# TODO: maybe support optimization semantics in the interpreter as well one day
+$globalScope->{'defvs'} = $globalScope->{'defv'};
+$globalScope->{'deffs'} = $globalScope->{'deff'};
+$globalScope->{'defvt'} = $globalScope->{'defv'};
+$globalScope->{'defft'} = $globalScope->{'deff'};
+$globalScope->{'defvst'} = $globalScope->{'defv'};
+$globalScope->{'deffst'} = $globalScope->{'deff'};
+$globalScope->{'defvc'} = $globalScope->{'defv'};
+$globalScope->{'deffc'} = $globalScope->{'deff'};
+$globalScope->{'defvd'} = $globalScope->{'defv'};
+$globalScope->{'deffd'} = $globalScope->{'deff'};
+
 sub installGlobal2IntFunction {
   my ($name, $code) = @_;
 

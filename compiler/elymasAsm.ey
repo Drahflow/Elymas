@@ -354,6 +354,11 @@
   /and %21 defAsmAddq
   /and /four defAsmAddImm
 
+  { ==off
+    %E8
+    off imm32
+  } /callqRel32 deff
+
   { ==lbl
     %E8
     lbl labelRel32
@@ -571,6 +576,14 @@
   /jnz _ %75 defJmpRel8 %85 defJmpRel32
   /js  _ %78 defJmpRel8 %88 defJmpRel32
   /jz  _ %74 defJmpRel8 %84 defJmpRel32
+
+  { ==reg
+    reg bit64assert
+
+    reg regno %07 gt { 1 /none /none reg rex } rep
+    %FF
+    /four reg modrm11
+  } /jmpqReg deff
 
   { ==reg ==mem ==idx ==scale ==disp
     reg bit32assert

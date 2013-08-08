@@ -758,9 +758,14 @@
     # rdi -> address of scope on the heap
     # rsi -> address of element name on the heap
     # rax <- address of element on the heap (0 if nonexistant)
-    # rdx <- 0 if element is passive
-    #        1 if element is active
-    #        2 if element is quote-active
+    # rdx <- %xy
+    #        y 0 eq if element is passive
+    #        y 1 eq if element is active
+    #        y 2 eq if element is quote-active
+    #        x 1 band if element is static
+    #        x 2 band if element is type constant
+    #        x 4 band if element is constant
+    #        x 8 band if element is deep constant
     # rcx <- address of entry (i.e. where rax was loaded from)
     [[
       @retryWithParent

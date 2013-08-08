@@ -1,5 +1,7 @@
-|defv "==" deff
-|deff "=*" deff
+|defvst "==" deffd
+|deffst "=*" deffd
+|defvc "==:" deffd
+|deffc "=*:" deffd
 
 { "}" | *
   { /f deff /x defv
@@ -7,10 +9,10 @@
   } quoted { } { * } ? *
 } "}_" defq
 
-{ deff }' " globalDeff" deff # this is not for public usage
+{ deffst }' " globalDeff" deffd # this is not for public usage
 {
-  { -01 < /o defv { o -01 . } > -12 } quoted { } { * } ? *
-  quoted { |deff } " globalDeff" | ? *
+  { -01 < ==o { o -01 . } > -12 } quoted { } { * } ? *
+  quoted { |deffst } " globalDeff" | ? *
 } /via defq
 
 { -1110 ; ==f =*a len _
@@ -19,21 +21,21 @@
     1 -102 range f each
     }' { "fold on empty array" die }'
   ? *
-} /fold deff
+} /fold deffd
 
 { _ =*a len
   [ 1 -1202 1 add range { -110 sub a -01 }' each -- ] # TODO: rethink this one, seems overly complicated
-} /reverse deff
+} /reverse deffd
 
-{ |or fold } /any deff
-{ |and fold } /all deff
+{ |or fold } /any deffd
+{ |and fold } /all deffd
 
 { =*p {
   [ -01 { _ p { } { -- } ? * } each ]
-} } /engrep deff
+} } /engrep deffd
 
-{ engrep * } /grep deff
-{ -110 ; engrep |dom -20*1* } /indices deff
+{ engrep * } /grep deffd
+{ -110 ; engrep |dom -20*1* } /indices deffd
 
 { =*p _ =*a len ==l
   1 neg ==r
@@ -45,21 +47,21 @@
       1 add
   } loop --
   r
-} /index deff
+} /index deffd
 
 {
   not { "Assertion failure" die } rep
-} /assert deff
+} /assert deffd
 
 { ==s
   [ s keys { s -01 . } each ]
-} /values deff
+} /values deffd
 
 { _ =*conds len ==max
   0 ==i { i max lt } {
     i conds { i 1 add conds * max =i } { } ? *
     i 2 add =i
   } loop
-} /conds deff
+} /conds deffd
 
 # vim: syn=elymas

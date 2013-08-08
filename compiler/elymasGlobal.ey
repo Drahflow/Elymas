@@ -103,184 +103,187 @@
       :retn
     ] /ey? defv
 
-    { ==activation
-      # create a new entry in the current scope for the given name
-      # mark that entry's default action according to activation
-      # 0 -> name, string
-      # 1 -> object
-      [[
-        8 /r15 :subqImm8Reg
-        /r15 :popqMem
+    # create a new entry in the current scope for the given name
+    # mark that entry's default action according to activation
+    # 0 -> activation
+    # 1 -> name, string
+    # 2 -> object
+    [[
+      8 /r15 :subqImm8Reg
+      /r15 :popqMem
 
-        /rdi :popqReg
-        
-        /rax :popqReg # CHECK this is just sanity checking
-        /rax :pushqReg
-        /rax /rax :testqRegReg
-        /realObject :jnzLbl8
-        "trying to store zero object address" ::outputError
-        :ud2
-        @realObject # CHECK end of checking
+      8 /r15 :subqImm8Reg
+      /r15 :popqMem # /r15 now points to activation
 
-        # search for name in nametable
-        ::currentScope /rax :movqImmReg
-        /rax /rbx :movqMemReg # rbx == start of scope in heap
-        8 /rbx /rdx :movqMemDisp8Reg # rdx == start of nametable in heap
-        8 /rbx /rsi :movqMemDisp8Reg # rsi == start of nametable in heap
-        8 /rsi /rsi :addqMemDisp8Reg # rsi == end of nametable in heap (according to fill)
+      /rdi :popqReg
+      
+      /rax :popqReg # CHECK this is just sanity checking
+      /rax :pushqReg
+      /rax /rax :testqRegReg
+      /realObject :jnzLbl8
+      "trying to store zero object address" ::outputError
+      :ud2
+      @realObject # CHECK end of checking
 
-        @nameSearch
-        16 /rdx :addqImm8Reg
+      # search for name in nametable
+      ::currentScope /rax :movqImmReg
+      /rax /rbx :movqMemReg # rbx == start of scope in heap
+      8 /rbx /rdx :movqMemDisp8Reg # rdx == start of nametable in heap
+      8 /rbx /rsi :movqMemDisp8Reg # rsi == start of nametable in heap
+      8 /rsi /rsi :addqMemDisp8Reg # rsi == end of nametable in heap (according to fill)
 
-        # rsi: end of nametable
-        # rdx: current element of nametable
+      @nameSearch
+      16 /rdx :addqImm8Reg
 
-        /rdx /rsi :cmpqRegReg
-        /nameUndefined :jbeLbl8
+      # rsi: end of nametable
+      # rdx: current element of nametable
 
-        /rdx :pushqReg
-        /rsi :pushqReg
-        /rdi :pushqReg
-        /rcx :pushqReg
-        /rdx /rsi :movqMemReg
-        ::internalStringEqualsCode _ len dearray
-        /rcx :popqReg
-        /rdi :popqReg
-        /rsi :popqReg
-        /rdx :popqReg
-        /rax /rax :testqRegReg
-        /nameOffsetKnown :jnzLbl8
+      /rdx /rsi :cmpqRegReg
+      /nameUndefined :jbeLbl8
 
-        # if not exists, insert
-        @nameUndefined
-        8 /rbx /rdx :movqMemDisp8Reg # rdx == start of nametable in heap
-        /rdx /eax :movlMemReg # add memory length to obtain memory end
-        /rax /rdx :addqRegReg
+      /rdx :pushqReg
+      /rsi :pushqReg
+      /rdi :pushqReg
+      /rcx :pushqReg
+      /rdx /rsi :movqMemReg
+      ::internalStringEqualsCode _ len dearray
+      /rcx :popqReg
+      /rdi :popqReg
+      /rsi :popqReg
+      /rdx :popqReg
+      /rax /rax :testqRegReg
+      /nameOffsetKnown :jnzLbl8
 
-        /rsi /rdx :cmpqRegReg
-        /enlargeNameTable :jbeLbl8
+      # if not exists, insert
+      @nameUndefined
+      8 /rbx /rdx :movqMemDisp8Reg # rdx == start of nametable in heap
+      /rdx /eax :movlMemReg # add memory length to obtain memory end
+      /rax /rdx :addqRegReg
 
-        # insert into name table
-        @insertIntoNameTable
-        /rdi /rsi :movqRegMem
-        activation 8 /rsi :movqImm32MemDisp8 # set default activation mode
-        8 /rbx /rdx :movqMemDisp8Reg # rdx == start of nametable in heap
-        16 8 /rdx :addqImm8MemDisp8 # increment fill
-        /rsi /rdx :movqRegReg
-        /nameOffsetKnown :jmpLbl8
+      /rsi /rdx :cmpqRegReg
+      /enlargeNameTable :jbeLbl8
 
-        @enlargeNameTable
-        # if name table is already full, double size
-        8 /rbx /rdx :movqMemDisp8Reg # rdx == start of nametable in heap
-        /rdi :pushqReg
-        /rdx :pushqReg
-        /rdx /edi :movlMemReg # load current length
-        /rdi /rdi :addqRegReg
+      # insert into name table
+      @insertIntoNameTable
+      /rdi /rsi :movqRegMem
+      /r15 /rax :movqMemReg
+      8 /rax /rax :movqMemDisp8Reg # load int value
+      /rax 8 /rsi :movqRegMemDisp8 # set default activation mode
+      8 /rbx /rdx :movqMemDisp8Reg # rdx == start of nametable in heap
+      16 8 /rdx :addqImm8MemDisp8 # increment fill
+      /rsi /rdx :movqRegReg
+      /nameOffsetKnown :jmpLbl8
 
-        ::internalAllocate /rax :movqImmReg
-        /rax :callqReg
-        %30 7 /rax :orbImmMemDisp8 # set type
-        /rdx :popqReg
-        8 /rdx /rcx :movqMemDisp8Reg
-        /rcx 8 /rax :movqRegMemDisp8 # copy fill
+      @enlargeNameTable
+      # if name table is already full, double size
+      8 /rbx /rdx :movqMemDisp8Reg # rdx == start of nametable in heap
+      /rdi :pushqReg
+      /rdx :pushqReg
+      /rdx /edi :movlMemReg # load current length
+      /rdi /rdi :addqRegReg
 
-        16 /rdx /rsi :leaqMemDisp8Reg
-        16 /rax /rdi :leaqMemDisp8Reg
-        16 /rcx :subqImm8Reg
-        3 /rcx :shrqImm8Reg
-        :reprcx :movsq # copy content
+      ::internalAllocate /rax :movqImmReg
+      /rax :callqReg
+      %30 7 /rax :orbImmMemDisp8 # set type
+      /rdx :popqReg
+      8 /rdx /rcx :movqMemDisp8Reg
+      /rcx 8 /rax :movqRegMemDisp8 # copy fill
 
-        # rax == enlarged name table on heap
-        
-        /rax 8 /rbx :movqRegMemDisp8 # switch scope to new name table
+      16 /rdx /rsi :leaqMemDisp8Reg
+      16 /rax /rdi :leaqMemDisp8Reg
+      16 /rcx :subqImm8Reg
+      3 /rcx :shrqImm8Reg
+      :reprcx :movsq # copy content
 
-        # insert into name table
-        /rsi :popqReg
-        /rsi /rdi :xchgqRegReg
-        /insertIntoNameTable :jmpLbl8
-        
-        @nameOffsetKnown
-        8 /rbx /rdx :subqMemDisp8Reg # substract name table address
-        16 /rdx :subqImm8Reg # substract name table header size
-        /rdx :shrq1Reg # divide by 2 to get offset within scope
+      # rax == enlarged name table on heap
+      
+      /rax 8 /rbx :movqRegMemDisp8 # switch scope to new name table
 
-        # rdx == offset in scope
-        # top of stack: the object to store
+      # insert into name table
+      /rsi :popqReg
+      /rsi /rdi :xchgqRegReg
+      /insertIntoNameTable :jmpLbl8
+      
+      @nameOffsetKnown
+      8 /rbx /rdx :subqMemDisp8Reg # substract name table address
+      16 /rdx :subqImm8Reg # substract name table header size
+      /rdx :shrq1Reg # divide by 2 to get offset within scope
 
-        # update 
-        # if fits within main area, fine
-        32 /rdx :addqImm8Reg # add scope header size
-        /edx /rbx :cmplRegMem
-        /inDataArea :jaLbl8
+      # rdx == offset in scope
+      # top of stack: the object to store
 
-        # update within extension area
-        /rbx /edx :sublMemReg # substract scope length
-        24 /rbx /rdi :movqMemDisp8Reg # load extension area pointer
-        8 /rdx :addqImm8Reg # add extension area header length
+      # update 
+      # if fits within main area, fine
+      32 /rdx :addqImm8Reg # add scope header size
+      /edx /rbx :cmplRegMem
+      /inDataArea :jaLbl8
 
-        # if extension area is non-existent, create
-        /rdi /rdi :testqRegReg
-        /extensionAreaExists :jnzLbl8
+      # update within extension area
+      /rbx /edx :sublMemReg # substract scope length
+      24 /rbx /rdi :movqMemDisp8Reg # load extension area pointer
+      8 /rdx :addqImm8Reg # add extension area header length
 
-        /rdx :pushqReg
-        INITIALEXTENSIONSIZE /rdi :movqImmReg
-        ::internalAllocate /rax :movqImmReg
-        /rax :callqReg
-        /rdx :popqReg
+      # if extension area is non-existent, create
+      /rdi /rdi :testqRegReg
+      /extensionAreaExists :jnzLbl8
 
-        %40 7 /rax :orbImmMemDisp8 # set type
+      /rdx :pushqReg
+      INITIALEXTENSIONSIZE /rdi :movqImmReg
+      ::internalAllocate /rax :movqImmReg
+      /rax :callqReg
+      /rdx :popqReg
 
-        /rax /rdi :movqRegReg
-        /rdi 24 /rbx :movqRegMemDisp8 # store new extension area
-        /inExtensionArea :jmpLbl8
+      %40 7 /rax :orbImmMemDisp8 # set type
 
-        @extensionAreaExists
+      /rax /rdi :movqRegReg
+      /rdi 24 /rbx :movqRegMemDisp8 # store new extension area
+      /inExtensionArea :jmpLbl8
 
-        # if extension area is full, double size
-        /edx /rdi :cmplRegMem
-        /inExtensionArea :jaLbl8
+      @extensionAreaExists
 
-        # indeed full
-        /rdi :pushqReg
-        /rdx :pushqReg
-        /rdi /edi :movlMemReg
-        /rdi /rdi :addqRegReg
-        ::internalAllocate /rax :movqImmReg
-        /rax :callqReg
-        /rdx :popqReg
-        /rdi :popqReg
+      # if extension area is full, double size
+      /edx /rdi :cmplRegMem
+      /inExtensionArea :jaLbl8
 
-        %40 7 /rax :orbImmMemDisp8 # set type
+      # indeed full
+      /rdi :pushqReg
+      /rdx :pushqReg
+      /rdi /edi :movlMemReg
+      /rdi /rdi :addqRegReg
+      ::internalAllocate /rax :movqImmReg
+      /rax :callqReg
+      /rdx :popqReg
+      /rdi :popqReg
 
-        /rdi /rsi :movqRegReg
-        /rax /rdi :movqRegReg
-        /rdi 24 /rbx :movqRegMemDisp8 # store new extension area
+      %40 7 /rax :orbImmMemDisp8 # set type
 
-        /rdi :pushqReg
-        /rsi /ecx :movlMemReg # load length as copy count
-        8 /rsi :addqImm8Reg
-        8 /rdi :addqImm8Reg
+      /rdi /rsi :movqRegReg
+      /rax /rdi :movqRegReg
+      /rdi 24 /rbx :movqRegMemDisp8 # store new extension area
 
-        8 /rcx :subqImm8Reg # substract header length
-        3 /rcx :shrqImm8Reg
-        :reprcx :movsq # copy content
-        /rdi :popqReg
+      /rdi :pushqReg
+      /rsi /ecx :movlMemReg # load length as copy count
+      8 /rsi :addqImm8Reg
+      8 /rdi :addqImm8Reg
 
-        @inExtensionArea
-        /rdi /rbx :movqRegReg
+      8 /rcx :subqImm8Reg # substract header length
+      3 /rcx :shrqImm8Reg
+      :reprcx :movsq # copy content
+      /rdi :popqReg
 
-        @inDataArea
+      @inExtensionArea
+      /rdi /rbx :movqRegReg
 
-        /rax :popqReg
-        /rax /rbx /rdx :movqRegMemIndex # save entry pointer
+      @inDataArea
 
-        /r15 :pushqMem
-        8 /r15 :addqImm8Reg
-        :retn
-      ]]
-    } 0 -101* /eydefv defv
-      1 -101* /eydeff defv
-      2  -01* /eydefq defv
+      /rax :popqReg
+      /rax /rbx /rdx :movqRegMemIndex # save entry pointer
+
+      8 /r15 :addqImm8Reg
+      /r15 :pushqMem
+      8 /r15 :addqImm8Reg
+      :retn
+    ]] /eydef defv
 
     # assign to a scope variable
     # 0 -> name to assign to
@@ -994,11 +997,14 @@
       /unresolved :jzLbl8
       /rax :pushqReg
 
-      0 /rdx :cmpqImm8Reg
+      /rdx /rcx :movqRegReg
+      %0F /cl :andbImmReg
+
+      0 /cl :cmpbImmReg
       /inactive :jzLbl8
-      1 /rdx :cmpqImm8Reg
+      1 /cl :cmpbImmReg
       /active :jzLbl8
-      2 /rdx :cmpqImm8Reg
+      2 /cl :cmpbImmReg
       /active :jzLbl8
 
       "invalid activation mode in internalExecuteIdentifierUnquoted" ::outputError
@@ -1022,6 +1028,130 @@
       8 /r15 :addqImm8Reg
       :retn
     ]] /internalExecuteIdentifierUnquoted defv
+
+    # resolve identifier without quoting considerations and act accordingly
+    # after resolving it, patch the given code block to more efficiently call the name next time
+    # 0 -> address of code block
+    # 1 -> identifier to resolve
+    [[
+      8 /r15 :subqImm8Reg
+      /r15 :popqMem
+
+      8 /r15 :subqImm8Reg
+      /r15 :popqMem # store code block
+
+      8 /r15 :subqImm8Reg
+      /r15 :popqMem # store identifier
+      
+      # scope resolution
+      ::currentScope /rdi :movqImmReg
+      /rdi /rdi :movqMemReg
+      /r15 /rsi :movqMemReg
+
+      ::internalResolve /rax :movqImmReg
+      /rax :callqReg
+
+      /rax /rax :testqRegReg
+      /unresolved :jzLbl8
+      /rax :pushqReg
+
+      %40 /dl :testbImmReg
+      /patchConstant :jnzLbl8
+
+      /rdx /rcx :movqRegReg
+      %0F /cl :andbImmReg
+
+      0 /cl :cmpbImmReg
+      /inactive :jzLbl8
+      1 /cl :cmpbImmReg
+      /active :jzLbl8
+      2 /cl :cmpbImmReg
+      /active :jzLbl8
+
+      "invalid activation mode in internalExecuteIdentifierUnquotedAndPatchLateResolve" ::outputError
+      :ud2
+
+      @unresolved
+      "unresolved name in internalExecuteIdentifierUnquotedAndPatchLateResolve: " ::outputError
+      /r15 /rdi :movqMemReg
+      ::internalDumpErrorString /rax :movqImmReg
+      /rax :callqReg
+      :ud2
+
+      @active
+      |ey* /rax :movqImmReg
+      /rax :callqReg
+
+      @inactive
+      @done
+
+      16 /r15 :addqImm8Reg
+      /r15 :pushqMem
+      8 /r15 :addqImm8Reg
+      :retn
+
+      @patchConstant
+      %0F /dl :testbImmReg
+      /patchConstantPassive :jzLbl32
+      %01 /dl :testbImmReg
+      /patchConstantActive :jnzLbl32
+      %02 /dl :testbImmReg
+      /patchConstantQuoted :jnzLbl8
+
+      "invalid activation mode in internalExecuteIdentifierUnquotedAndPatchLateResolve@patchConstant" ::outputError
+      :ud2
+      
+      @patchConstantQuoted
+      "quote activation mode in internalExecuteIdentifierUnquotedAndPatchLateResolve@patchConstant" ::outputError
+      :ud2
+
+      @patchConstantActive
+      8 /r15 /rdi :movqMemDisp8Reg
+      8 /rdi :addqImm8Reg
+
+      [
+        /rbx :popqReg
+        /rax :movqImmOOBReg
+      ] ::loadToRdi
+      /rdi :popqMem
+      8 /rdi :addqImm8Reg
+      [
+        /rax :pushqReg
+        /rbx :pushqReg
+        |ey* /rax :movqImmReg
+        /rax :jmpqReg
+      ] ::loadToRdi
+
+      8 /r15 /rdi :movqMemDisp8Reg
+      8 /rdi :addqImm8Reg
+
+      16 /r15 :addqImm8Reg
+      /r15 :pushqMem
+      8 /r15 :addqImm8Reg
+      /rdi :jmpqReg # continue with freshly patched code
+
+      @patchConstantPassive
+      8 /r15 /rdi :movqMemDisp8Reg
+      8 /rdi :addqImm8Reg
+
+      [
+        /rax :movqImmOOBReg
+      ] ::loadToRdi
+      /rdi :popqMem
+      8 /rdi :addqImm8Reg
+      [
+        /rax :pushqReg
+        :retn
+      ] ::loadToRdi
+
+      8 /r15 /rdi :movqMemDisp8Reg
+      8 /rdi :addqImm8Reg
+
+      16 /r15 :addqImm8Reg
+      /r15 :pushqMem
+      8 /r15 :addqImm8Reg
+      /rdi :jmpqReg # continue with freshly patched code
+    ]] /internalExecuteIdentifierUnquotedAndPatchLateResolve defv
   > { defv }' ::allocateOffsetStruct
 
   <
@@ -1044,15 +1174,15 @@
       /rax /rax :testqRegReg
       /unresolved :jzLbl8
 
-      0 /rdx :cmpqImm8Reg
-      /inactiveJump :jzLbl8
-      1 /rdx :cmpqImm8Reg
-      /active :jzLbl8
-      2 /rdx :cmpqImm8Reg
-      /quoteActive :jzLbl8
+      /rdx /rcx :movqRegReg
+      %0F /cl :andbImmReg
 
-      @inactiveJump
-      /inactive :jmpLbl32
+      0 /cl :cmpbImmReg
+      /inactive :jzLbl32
+      1 /cl :cmpbImmReg
+      /active :jzLbl8
+      2 /cl :cmpbImmReg
+      /quoteActive :jzLbl8
 
       "invalid activation mode in internalExecuteIdentifier" ::outputError
       :ud2
@@ -1114,7 +1244,12 @@
 
       [
         /rax :pushqReg
-        internalExecuteIdentifierUnquoted /rax :movqImmReg
+        0 :callqRel32
+        /rax :popqReg
+        # 16 bytes code here, header length, and code block header
+        16 ::unscopingFunctionHeader len add 8 add /rax :subqImm8Reg
+        /rax :pushqReg
+        internalExecuteIdentifierUnquotedAndPatchLateResolve /rax :movqImmReg
         /rax :callqReg
       ] ::unscopingFunctionFooter cat ::loadToRdi
 
@@ -1135,6 +1270,43 @@
   > { defv }' ::allocateOffsetStruct
 
   <
+    # predefining defv, deff, defq # TODO think about moving this to standard(Client) one day
+    # 0 -> name, string
+    # 1 -> object
+    { ==activation
+      [[
+        8 /r15 :subqImm8Reg
+        /r15 :popqMem
+
+        16 /rdi :movqImmReg
+        ::internalAllocate /rax :movqImmReg
+        /rax :callqReg
+        /rax :pushqReg
+        activation /rdx :movqImmReg
+        /rdx 8 /rax :movqRegMemDisp8
+
+        eydef /rax :movqImmReg
+        /rax :callqReg
+
+        /r15 :pushqMem
+        8 /r15 :addqImm8Reg
+        :retn
+      ]]
+    } %00 -101* /eydefv defv
+      %01 -101* /eydeff defv
+      %02 -101* /eydefq defv
+      %10 -101* /eydefvs defv
+      %11 -101* /eydeffs defv
+      %20 -101* /eydefvt defv
+      %21 -101* /eydefft defv
+      %30 -101* /eydefvst defv
+      %31 -101* /eydeffst defv
+      %70 -101* /eydefvc defv
+      %71 -101* /eydeffc defv
+      %F0 -101* /eydefvd defv
+      %F1 -101* /eydeffd defv
+      --
+
     # concatenate two functions
     # 0 -> function g
     # 1 -> function f
@@ -1421,10 +1593,10 @@
       /unresolved :jzLbl8
       /rax :pushqReg
 
-      0 /rdx :cmpqImm8Reg
+      %0F /dl :testbImmReg
       /inactive :jzLbl8
-      1 /rdx :cmpqImm8Reg
-      /active :jzLbl8
+      %01 /dl :testbImmReg
+      /active :jnzLbl8
 
       "invalid activation mode in ." ::outputError
       :ud2
@@ -2086,13 +2258,13 @@
     ::currentScope /rdi :movqImmReg
     /rax /rdi :movqRegMem
 
-    globalFunctions keys eydeff { | }' createScopeEntries
-    globalFunctions2 keys eydeff { | }' createScopeEntries
-    globalFunctions3 keys eydeff { | }' createScopeEntries
+    globalFunctions keys eydeffd { | }' createScopeEntries
+    globalFunctions2 keys eydeffd { | }' createScopeEntries
+    globalFunctions3 keys eydeffd { | }' createScopeEntries
     globalMacros keys eydefq { | }' createScopeEntries
-    globalT11t1Functions keys eydeff t11t1 { | }' createTypedScopeEntries
-    globalT1t1Functions keys eydeff t1t1 { | }' createTypedScopeEntries
-    globalTaat1Functions keys eydeff taat1 { | }' createTypedScopeEntries
+    globalT11t1Functions keys eydeffd t11t1 { | }' createTypedScopeEntries
+    globalT1t1Functions keys eydeffd t1t1 { | }' createTypedScopeEntries
+    globalTaat1Functions keys eydeffd taat1 { | }' createTypedScopeEntries
   ] :execute
 
   { ==name
