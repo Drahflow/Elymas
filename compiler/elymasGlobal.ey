@@ -976,6 +976,33 @@
   > _ ==globalFunctions { defv }' ::allocateOffsetStruct
 
   <
+    # untyped scoped function jumppad
+    # rdi -> function code to call
+    # rsi -> scope to install
+    [[
+      8 /r15 :subqImm8Reg
+      /r15 :popqMem
+
+      ::currentScope /rax :movqImmReg
+      /rax /rcx :movqMemReg
+      8 /r15 :subqImm8Reg
+      /rcx /r15 :movqRegMem
+      /rsi /rax :movqRegMem
+
+      /rdi :callqReg
+
+      /r15 /rcx :movqMemReg
+      ::currentScope /rax :movqImmReg
+      /rcx /rax :movqRegMem
+      8 /r15 :addqImm8Reg
+
+      /r15 :pushqMem
+      8 /r15 :addqImm8Reg
+      :retn
+    ]] /internalConstantNormalFunctionScopedUntypedJumpPad defv
+  > { defv }' ::allocateOffsetStruct
+
+  <
     # resolve identifier without quoting considerations and act accordingly
     # 0 -> identifier to resolve
     [[
@@ -1106,6 +1133,14 @@
       :ud2
 
       @patchConstantActive
+      /rdx :popqReg # fetch resolved object
+      
+      7 /rdx /cl :movbMemDisp8Reg
+      %F0 /cl :andbImmReg
+      %50 /cl :cmpbImmReg
+      /patchConstantNormalFunction :jeLbl8
+
+      @patchConstantActiveGeneral
       8 /r15 /rdi :movqMemDisp8Reg
       8 /rdi :addqImm8Reg
 
@@ -1113,12 +1148,85 @@
         /rbx :popqReg
         /rax :movqImmOOBReg
       ] ::loadToRdi
-      /rdi :popqMem
+      /rdx /rdi :movqRegMem
       8 /rdi :addqImm8Reg
       [
         /rax :pushqReg
         /rbx :pushqReg
         |ey* /rax :movqImmReg
+        /rax :jmpqReg
+      ] ::loadToRdi
+
+      8 /r15 /rdi :movqMemDisp8Reg
+      8 /rdi :addqImm8Reg
+
+      16 /r15 :addqImm8Reg
+      /r15 :pushqMem
+      8 /r15 :addqImm8Reg
+      /rdi :jmpqReg # continue with freshly patched code
+
+      @patchConstantNormalFunction
+      8 /rdx /rcx :movqMemDisp8Reg
+      /rcx /rcx :testqRegReg
+      /patchConstantNormalFunctionUnscoped :jzLbl32
+
+      # @patchConstantNormalFunctionScoped
+      16 /rdx /rcx :movqMemDisp8Reg
+      /rcx /rcx :testqRegReg
+      /patchConstantNormalFunctionScopedUntyped :jzLbl32
+      /patchConstantActiveGeneral :jmpLbl32
+      
+      @patchConstantNormalFunctionScopedUntyped
+      8 /r15 /rdi :movqMemDisp8Reg
+      8 /rdi :addqImm8Reg
+
+      8 /rdx /rcx :movqMemDisp8Reg # load function scope
+
+      24 /rdx /rdx :movqMemDisp8Reg # load actual function code
+      8 /rdx :addqImm8Reg
+
+      [
+        /rsi :movqImmOOBReg
+      ] ::loadToRdi
+      /rcx /rdi :movqRegMem
+      8 /rdi :addqImm8Reg
+      [
+        /rdi :movqImmOOBReg
+      ] ::loadToRdi
+      /rdx /rdi :movqRegMem
+      8 /rdi :addqImm8Reg
+      [
+        internalConstantNormalFunctionScopedUntypedJumpPad /rax :movqImmReg
+        /rax :jmpqReg
+      ] ::loadToRdi
+
+      8 /r15 /rdi :movqMemDisp8Reg
+      8 /rdi :addqImm8Reg
+
+      16 /r15 :addqImm8Reg
+      /r15 :pushqMem
+      8 /r15 :addqImm8Reg
+      /rdi :jmpqReg # continue with freshly patched code
+
+      @patchConstantNormalFunctionUnscoped
+      16 /rdx /rcx :movqMemDisp8Reg
+      /rcx /rcx :testqRegReg
+      /patchConstantNormalFunctionUnscopedUntyped :jzLbl32
+      /patchConstantActiveGeneral :jmpLbl32
+
+      @patchConstantNormalFunctionUnscopedUntyped
+      8 /r15 /rdi :movqMemDisp8Reg
+      8 /rdi :addqImm8Reg
+
+      24 /rdx /rdx :movqMemDisp8Reg # load actual function code
+      8 /rdx :addqImm8Reg
+
+      [
+        /rax :movqImmOOBReg
+      ] ::loadToRdi
+      /rdx /rdi :movqRegMem
+      8 /rdi :addqImm8Reg
+      [
         /rax :jmpqReg
       ] ::loadToRdi
 
