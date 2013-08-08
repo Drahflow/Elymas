@@ -970,8 +970,9 @@
       buffer "" streq not
     } {
       {
-        buffer "([^\\n]*)\\n(.*)" regex
-      } { ==line =buffer
+        buffer "([^\\n]*)\\n" regex
+      } { ==line
+        line len 1 add buffer str .postfix =buffer
         line TOKINT TOKSTR TOKID elymas .tokenize {
           _ .handle
         } each
