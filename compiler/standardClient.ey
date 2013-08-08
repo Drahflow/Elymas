@@ -662,17 +662,17 @@
       0 =size
       [ maxSize { 1 } rep ] =pcFree
     } /clear deff
-  > } /threadList deff
+  > } /threadList deffd
 
   { ==thread ==newpc <
     newpc ==pc
     thread .captures ==captures
-  > } /cloneThread deff
+  > } /cloneThread deffd
 
   { ==thread ==newpc <
     newpc ==pc
     [ thread .captures 20 dearray ] ==captures
-  > } /fullCloneThread deff
+  > } /fullCloneThread deffd
 
   { ==prog ==string
     0 ==position
@@ -685,35 +685,40 @@
 
     newThread _ ==thread clist .add
 
+    0 ==pc
+    { } =*code
+
+    [
+      { # MATCH
+        1 =matched
+        clist .clear
+      } { # TERM
+        position maxPosition lt {
+          position string * 1 code * { pc 1 add thread cloneThread nlist .add } rep
+        } rep
+      } { # JUMP
+        pc 1 code add thread cloneThread clist .add
+      } { # SPLIT
+        pc 1 code add thread cloneThread clist .add
+        pc 2 code add thread cloneThread clist .add
+      } { # SAVE
+        pc 1 add thread fullCloneThread ==newThread
+        position 1 code newThread .captures =[]
+        newThread clist .add
+      } { # FIRST
+        position 0 eq { pc 1 add thread cloneThread clist .add } rep
+      } { # LAST
+        position maxPosition eq { pc 1 add thread cloneThread clist .add } rep
+      }
+    ] =*codeSemantics
+
     { position maxPosition le done not and } {
       0 ==i
       { i clist .size lt done not and } {
         i clist .get _ =thread
-                       .pc _ ==pc
-                             prog * =*code
-        0 code [
-          { # MATCH
-            1 =matched
-            clist .clear
-          } { # TERM
-            position maxPosition lt {
-              position string * 1 code * { pc 1 add thread cloneThread nlist .add } rep
-            } rep
-          } { # JUMP
-            pc 1 code add thread cloneThread clist .add
-          } { # SPLIT
-            pc 1 code add thread cloneThread clist .add
-            pc 2 code add thread cloneThread clist .add
-          } { # SAVE
-            pc 1 add thread fullCloneThread ==newThread
-            position 1 code newThread .captures =[]
-            newThread clist .add
-          } { # FIRST
-            position 0 eq { pc 1 add thread cloneThread clist .add } rep
-          } { # LAST
-            position maxPosition eq { pc 1 add thread cloneThread clist .add } rep
-          }
-        ] * *
+                       .pc _ =pc
+                             prog * =code
+        0 code codeSemantics *
         i 1 add =i
       } loop
 
