@@ -1,0 +1,13 @@
+22948 ==:pid
+
+{ 1 } {
+  pid sys .linux .ptrace .attach --
+  pid 0 sys .linux .waitpid --
+  pid sys .linux .ptrace .peekUser .rip -- ==rip
+  # pid rip sys .linux .ptrace .peek -- ==instr
+  pid sys .linux .ptrace .detach --
+
+  rip dump
+} loop
+
+# vim: syn=elymas
