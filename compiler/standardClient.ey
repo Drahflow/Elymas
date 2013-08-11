@@ -1,36 +1,36 @@
 < # sys extensions
   # TODO: handle EINTR correctly
 
-  0 _ ==RDONLY
-  1 _ ==WRONLY
-  2 _ ==RDWR
-      bor bor ==RWMASK
+  0 _ ==:RDONLY
+  1 _ ==:WRONLY
+  2 _ ==:RDWR
+      bor bor ==:RWMASK
 
-  64 ==OCREAT
-  1024 ==OAPPEND
+  64 ==:OCREAT
+  1024 ==:OAPPEND
 
-  1 ==PROTREAD
-  2 ==PROTWRITE
-  4 ==PROTEXEC
+  1 ==:PROTREAD
+  2 ==:PROTWRITE
+  4 ==:PROTEXEC
 
-  2 ==MAPPRIVATE
-  32 ==MAPANONYMOUS
+  2 ==:MAPPRIVATE
+  32 ==:MAPANONYMOUS
   
-  0 ==READ
-  1 ==WRITE
-  2 ==OPEN
-  3 ==CLOSE
+  0 ==:READ
+  1 ==:WRITE
+  2 ==:OPEN
+  3 ==:CLOSE
 
-  9 ==MMAP
-  11 ==MUNMAP
-  60 ==EXIT
+  9 ==:MMAP
+  11 ==:MUNMAP
+  60 ==:EXIT
 
   { ==code
     code 0 0 0 0 0 EXIT sys .asm .syscall
     "exit failed" die
   } /exit sys .deff
 
-  { < ==mode ==flags ==fd <
+  { < ==?mode ==?flags ==?fd <
       { flags RWMASK bnot band RDONLY bor =flags } /readonly deff
       { flags RWMASK bnot band WRONLY bor =flags } /writeonly deff
       { flags RWMASK bnot band RDWR bor =flags } /readwrite deff
@@ -47,7 +47,7 @@
       } /close deff
       { ==count
         fd 0 lt { "file not open" die } rep 
-        count str .alloc ==buf
+        count str .alloc ==?buf
         fd buf count 0 0 0 READ sys .asm .syscall -- _
         0 lt { "read failed" die } rep
         buf str .inplacePrefix
@@ -59,7 +59,7 @@
       } /write deff
       { ==buf
         fd 0 lt { "file not open" die } rep 
-        { buf len } { 
+        { buf len } {
           fd buf _ len 0 0 0 WRITE sys .asm .syscall -- _
           0 lt { "write failed" die } rep
           buf str .postfix =buf
@@ -144,9 +144,6 @@
     { ==t
       t len 3 neq { "complex execution type non-triple" die } rep
 
-      { "unknown type in typeStack" die } ==unknown
-      { "invalid type in typeStack" die } ==invalid
-
       2 t * 1 t * ge
     } /isIterableType deff
 
@@ -218,29 +215,29 @@
     #     Run from right (stacktop) argument to left (stacklow) argument:
     #       Take topmost type, check whether it can be found in other stacks (from top)
     #         Eliminate all matching types via function or loop creation
-    { _ ==f sys .typed .inputs ==inputs
-      [ ] ==concreteArgs
-      [ ] ==viewPortOffset
+    { _ ==?f sys .typed .inputs ==?inputs
+      [ ] ==?concreteArgs
+      [ ] ==?viewPortOffset
 
       # Phase 1
       0 inputs len range reverse {
         # print "Analyzing arg: %d"
-        inputs * typeStack ==formalTypeStack
-        _ ==c typeStack ==concreteTypeStack
+        inputs * typeStack ==?formalTypeStack
+        _ ==?c typeStack ==?concreteTypeStack
         # "Type-Stack: %d" Dumper($concreteTypeStack) die
 
-        0 ==bestViewPortSize
-        concreteTypeStack len 1 add ==bestViewPortMatch
+        0 ==?bestViewPortSize
+        concreteTypeStack len 1 add ==?bestViewPortMatch
 
         # "Formal Type Stack: @$formalTypeStack\n" print
         # "       Type Stack: @$concreteTypeStack\n" print
 
         1 neg concreteTypeStack * isVariableType {
-          1 concreteTypeStack len 1 add range { ==viewPortSize
-            [ 0 viewPortSize range { concreteTypeStack * } each ] ==typeViewPort # explicit each here
+          1 concreteTypeStack len 1 add range { ==?viewPortSize
+            [ 0 viewPortSize range { concreteTypeStack * } each ] ==?typeViewPort # explicit each here
             # "@$formalTypeStack vs. @$concreteTypeStack\n" print
 
-            formalTypeStack concreteTypeStack typeMismatchCount ==viewPortMatch # FIXME this line seems fishy
+            formalTypeStack concreteTypeStack typeMismatchCount ==?viewPortMatch # FIXME this line seems fishy
             viewPortMatch bestViewPortMatch lt {
               viewPortSize =bestViewPortSize
               viewPortMatch =bestViewPortMatch
@@ -270,11 +267,11 @@
 
       # Phase 2,
       [
-        0 viewPortOffset len range { ==i
-          i concreteArgs * typeStack ==remaining
+        0 viewPortOffset len range { ==?i
+          i concreteArgs * typeStack ==?remaining
           [ 0 i viewPortOffset * range { remaining * } each ] # explicit each here
         } each
-      ] ==toBeAbstractedTypes
+      ] ==?toBeAbstractedTypes
 
       "toBeAbstractedTypes: " dump
       toBeAbstractedTypes dump
@@ -283,26 +280,26 @@
         # no types need to be abstracted, function can be called
         concreteArgs _ dump _ len dearray f
         "attempting to call function (w.o. abstraction)" dump
-        0 concreteArgs len range { ==i
+        0 concreteArgs len range { ==?i
           i concreteArgs * sys .typed .type _ dump
           i inputs       * sys .typed .type _ dump
           neq { "invalid input type at argument index " dump i dump "" die } rep
         } each
         *
       } {
-        [ ] ==argTypes # the type stack of the new function
-        [ ] ==stageCalls # which functions to call in each stage
-        [ ] ==loops # undef for lambda abstraction, loop bound source for loops
+        [ ] ==?argTypes # the type stack of the new function
+        [ ] ==?stageCalls # which functions to call in each stage
+        [ ] ==?loops # undef for lambda abstraction, loop bound source for loops
 
-        0 toBeAbstractedTypes len range reverse { ==i
+        0 toBeAbstractedTypes len range reverse { ==?i
           { i toBeAbstractedTypes * len } {
             # TODO: create a decent shift
-            [ i toBeAbstractedTypes * reverse _ len dearray ==type ] reverse i toBeAbstractedTypes =[]
-              [ i ] ==stageCalls2
-              1 neg ==iterationSource
+            [ i toBeAbstractedTypes * reverse _ len dearray ==?type ] reverse i toBeAbstractedTypes =[]
+              [ i ] ==?stageCalls2
+              1 neg ==?iterationSource
               type isIterableType { i =iterationSource } rep
 
-              0 i range reverse { ==j
+              0 i range reverse { ==?j
                 j toBeAbstractedTypes * len not not {
                   0 j toBeAbstractedTypes * * type commonIterationType # -> <type> <any exists>
                   { =type
@@ -334,21 +331,21 @@
         "loops: " dump
         loops dump
         
-        { ==loops ==argTypes ==stageCalls ==concreteArgs
+        { ==?loops ==?argTypes ==?stageCalls ==?concreteArgs
           stageCalls len not {
             concreteArgs _ len dearray f
             *
           } {
-            [ stageCalls _ len dearray ==stage ] =stageCalls
-            [ argTypes _ len dearray ==argType ] =argTypes
-            [ loops _ len dearray ==loopIndex ] =loops
+            [ stageCalls _ len dearray ==?stage ] =stageCalls
+            [ argTypes _ len dearray ==?argType ] =argTypes
+            [ loops _ len dearray ==?loopIndex ] =loops
             loopIndex 0 ge {
-              [ ] ==results
-              loopIndex concreteArgs * ==loopedOver
-              loopedOver getLoopStart ==i
+              [ ] ==?results
+              loopIndex concreteArgs * ==?loopedOver
+              loopedOver getLoopStart ==?i
               { i loopedOver isLoopEnd not } {
-                [ concreteArgs _ len dearray ] ==concreteArgsCopy
-                stage { ==j
+                [ concreteArgs _ len dearray ] ==?concreteArgsCopy
+                stage { ==?j
                   # TODO: think about a single function returning multiple values
                   i j concreteArgs * * j concreteArgsCopy =[]
                 } each
@@ -366,8 +363,8 @@
               # push @$data, [\@results, ['array', '[]', [['range', 0, $#results]], [undef]]];
               # FIXME the undef can be determined
             } {
-              { ==v
-                stage { ==i
+              { ==?v
+                stage { ==?i
                   v i concreteArgs * * i concreteArgs =[]
                 } each
 
@@ -377,7 +374,7 @@
               # FIXME the undef can be determined
             } ? *
           } ? *
-        } =*unravel
+        } =*?unravel
 
         concreteArgs stageCalls argTypes loops unravel
 
@@ -389,13 +386,13 @@
 
 # global extensions
 <
-  [ /0 /1 /2 /3 /4 /5 /6 /7 /8 /9 /A /B /C /D /E /F ] ==base16singleDigits
-  [ base16singleDigits { ==first base16singleDigits { first -01 cat } each } each ] ==base16digits
+  [ /0 /1 /2 /3 /4 /5 /6 /7 /8 /9 /A /B /C /D /E /F ] ==:base16singleDigits
+  [ base16singleDigits { ==first base16singleDigits { first -01 cat } each } each ] ==:base16digits
 
   {
     [ -01 8 { _ 256 mod base16digits * -01 256 div } rep -- ]
     reverse |cat fold
-  } /base16encode64 deff
+  } /base16encode64 deffd
 
   { ==indent _ ==o
     { "unknown type in dump" die } ==unknown
@@ -425,74 +422,74 @@
       unknown
     ] * *
     "\n" sys .err .writeall
-  } /dumpIndented deff
+  } /dumpIndented deffd
 
   # dump top stack element to sys .err
   { 0 dumpIndented }
-> -- /dump deff
+> -- /dump deffd
 
 ## regex support
 # ideas taken from http://swtch.com/~rsc/regexp/regexp3.html
 {
-  0 ==MATCH 1 ==TERM 2 ==JUMP 3 ==SPLIT 4 ==SAVE 5 ==FIRST 6 ==LAST
+  0 ==:MATCH 1 ==:TERM 2 ==:JUMP 3 ==:SPLIT 4 ==:SAVE 5 ==:FIRST 6 ==:LAST
 
   { ==b ==a [
     [ SPLIT 1 a len 1 add ] # FIXME this should be "2 add"?!
     a _ len dearray
     [ JUMP b len ]
     b _ len dearray
-  ] } /alternative deff
+  ] } /alternative deffst
 
-  |cat /sequence deff
+  |cat /sequence deffd
 
-  { ==a [ # TODO measure separate + implementation performance impact
+  { ==?a [ # TODO measure separate + implementation performance impact
     [ JUMP a len 1 add ]
     a _ len dearray
     [ SPLIT 1 a len neg ]
-  ] } /star deff
+  ] } /star deffst
 
-  { ==p [
+  { ==?p [
     [ TERM p ]
-  ] } /terminal deff
+  ] } /terminal deffst
 
-  { ==i ==a [
+  { ==?i ==?a [
     [ SAVE i 2 mul ]
     a _ len dearray
     [ SAVE i 2 mul 1 add ]
-  ] } /capture deff
+  ] } /capture deffst
 
-  { [ ] } /empty deff
+  { [ ] } /empty deffd
 
-  { ==str
+  { ==?str
     str len 0 eq {
       1 neg
     } {
       0 str *
     } ? *
-  } /head deff
+  } /head deffd
 
-  { 1 -01 str .postfix } /tail deff
+  { 1 -01 str .postfix } /tail deffd
 
-  { 0 -01 * -101 head eq } "^" deff
-  { deff }' /install deff
-  [ "(" ")" "[" "]" "-" "|" "^" "*" "+" "." "$" "\\" ] { ==c
+  { 0 -01 * -101 head eq } "^" deffd
+  { deffd }' /install deffst
+  [ "(" ")" "[" "]" "-" "|" "^" "*" "+" "." "$" "\\" ] { ==?c
     { _ head 0 c * eq } "^" c cat install
   } each
 
   { # "(parse) re: " -101 cat dump
 
-    seq ==a
+    seq ==?a
     ^| {
-      tail parse ==b
+      tail parse ==?b
       a b alternative =a
     } rep
     a
-  } /parse deff
+  } /parse deffst
 
   { # "(seq) re: " -101 cat dump
 
-    empty _ ==a
-            ==l
+    empty _ ==?a
+            ==?l
 
     { # "(seq loop) re: " -101 cat dump
       _ head 1 neg eq -01
@@ -512,16 +509,16 @@
       } ifthenelse ifthenelse *
     } loop
     a l sequence
-  } /seq deff
+  } /seq deffst
 
   { ==e ==t =*i
     { i t e ? * }
-  } /ifthenelse deff
+  } /ifthenelse deffd
 
-  0 ==currentCapture
+  0 ==?currentCapture
   
   { # "(atom) re: " -101 cat dump
-    empty ==a
+    empty ==?a
 
     { ^( } {
       tail parse currentCapture capture =a
@@ -532,11 +529,11 @@
       tail
       ^^ {
         tail chars =*nset
-        { nset not } ==set
+        { nset not } ==?set
         ^] not { "] expected" die } rep
         tail
       }' {
-        chars ==set
+        chars ==?set
         ^] not { "] expected" die } rep
         tail
       }' ? *
@@ -571,40 +568,40 @@
 
     # "(atom end) re: " -101 cat dump
     a
-  } /atom deff
+  } /atom deffst
 
   { # "(chars) re: " -101 cat dump
     ^] {
       tail chars2 =*s
-      { _ s -01 0 "]" * eq or } ==set
+      { _ s -01 0 "]" * eq or } ==?set
     }' {
-      chars2 ==set
+      chars2 ==?set
     }' ? *
     set
-  } /chars deff
+  } /chars deffst
 
   { # "(chars2) re: " -101 cat dump
     ^- {
       tail chars2 =*s
-      { _ s -01 0 "-" * eq or } ==set
+      { _ s -01 0 "-" * eq or } ==?set
     }' {
-      charsR ==set
+      charsR ==?set
     }' ? *
     set
-  } /chars2 deff
+  } /chars2 deffst
 
   { # "(charsR) re: " -101 cat dump
-    charsN ==set
+    charsN ==?set
     { ^] not } {
       set =*s1
       charsN =*s2
       { _ s1 -01 s2 or } =set
     } loop
     set
-  } /charsR deff
+  } /charsR deffst
 
   { # "(charsN) re: " -101 cat dump
-    _ head ==start
+    _ head ==?start
     ^\ {
       tail
       { ^\ } {
@@ -618,7 +615,7 @@
     tail
     ^- {
       tail
-      _ head ==end
+      _ head ==?end
       ^\ {
         tail
         { ^\ } {
@@ -630,19 +627,19 @@
         } ifthenelse ifthenelse *
       } rep
       tail
-      { _ start ge -01 end le and } ==set
+      { _ start ge -01 end le and } ==?set
     }' {
-      { start eq } ==set
+      { start eq } ==?set
     }' ? *
     set
-  } /charsN deff
+  } /charsN deffst
 
   { <
-    0 ==pc
-    [ 10 { 0 0 } rep ] ==captures
+    0 ==?pc
+    [ currentCapture { 0 0 } rep ] ==?captures
   > } /newThread deff
 
-  |add /origadd deff
+  |add /origadd deffd
 
   # TODO think about implementation efficiency
   { < ==maxSize
@@ -650,28 +647,28 @@
     [ maxSize { 0 } rep ] =*get
     [ maxSize { 1 } rep ] =*pcFree
 
-    { ==thread
+    { ==?thread
       thread .pc pcFree {
         thread size |get =[]
         0 thread .pc |pcFree =[]
         size 1 origadd =size
       } rep
-    } /add deff
+    } /add deffst
 
     {
       0 =size
       [ maxSize { 1 } rep ] =pcFree
-    } /clear deff
+    } /clear deffst
   > } /threadList deffd
 
   { ==thread ==newpc <
-    newpc ==pc
-    thread .captures ==captures
+    newpc ==?pc
+    thread .captures ==?captures
   > } /cloneThread deffd
 
   { ==thread ==newpc <
-    newpc ==pc
-    [ thread .captures 20 dearray ] ==captures
+    newpc ==?pc
+    [ thread .captures _ len dearray ] ==?captures
   > } /fullCloneThread deffd
 
   { ==prog ==string
@@ -702,7 +699,7 @@
         pc 1 code add thread cloneThread clist .add
         pc 2 code add thread cloneThread clist .add
       } { # SAVE
-        pc 1 add thread fullCloneThread ==newThread
+        pc 1 add thread fullCloneThread ==?newThread
         position 1 code newThread .captures =[]
         newThread clist .add
       } { # FIRST
@@ -736,7 +733,7 @@
       } loop
     } rep
     matched
-  } /execute deff
+  } /execute deffst
 
   parse ==prog --
   [
@@ -747,7 +744,7 @@
     [ MATCH ]
   ] =prog
   { prog execute }
-} /enregex deff
+} /enregex deffd
 
 {
   quoted {
@@ -757,7 +754,7 @@
   } { enregex * } ? *
 } /regex defq
 
-{ ==filename # ==f (left on the stack and executed from sys .asm .programStart)
+{ ==filename # ==?f (left on the stack and executed from sys .asm .programStart)
   sys .asm .patchProgramStart ==frozenAllocationCount
 
   # hex decoding
@@ -766,10 +763,10 @@
     1 0 { strNumber * 48 sub [ 0 1 2 3 4 5 6 7 8 9  0 0 0 0 0 0 0  10 11 12 13 14 15 ] * } -20*10* 16 mul add
   } "%" defq
 
-  { _ 0 ge assert 8 { _ 256 mod -01 256 div } rep -- } /uint64 deff
-  { _ 0 lt { 4294967296 add } rep 4294967295 band 4 { _ 256 mod -01 256 div } rep -- } /uint32 deff
-  { _ 0 lt { 65536 add } rep 65535 band 2 { _ 256 mod -01 256 div } rep -- } /uint16 deff
-  { _ 0 lt { 256 add } rep 255 band } /uint8 deff
+  { _ 0 ge assert 8 { _ 256 mod -01 256 div } rep -- } /uint64 deffd
+  { _ 0 lt { 4294967296 add } rep 4294967295 band 4 { _ 256 mod -01 256 div } rep -- } /uint32 deffd
+  { _ 0 lt { 65536 add } rep 65535 band 2 { _ 256 mod -01 256 div } rep -- } /uint16 deffd
+  { _ 0 lt { 256 add } rep 255 band } /uint8 deffd
 
   { ==align ==value
     align value align mod sub align mod
@@ -780,64 +777,64 @@
 
   [
     <
-      ".null" ==name
-      0 ==nameOffset { =nameOffset } /setNameOffset deff
-      0 ==dataOffset { =dataOffset } /setDataOffset deff
-      0 ==type # reserved first section
-      0 ==flags # none
-      0 ==addr # not loaded
-      0 ==link # no associated section
-      0 ==entsize # no entries
-      [ ] ==data
-      0 ==dataSize
+      ".null" ==?name
+      0 ==?nameOffset { =nameOffset } /setNameOffset deff
+      0 ==?dataOffset { =dataOffset } /setDataOffset deff
+      0 ==?type # reserved first section
+      0 ==?flags # none
+      0 ==?addr # not loaded
+      0 ==?link # no associated section
+      0 ==?entsize # no entries
+      [ ] ==?data
+      0 ==?dataSize
     > <
-      ".strtab" ==name
-      0 ==nameOffset { =nameOffset } /setNameOffset deff
-      0 ==dataOffset { =dataOffset } /setDataOffset deff
-      3 ==type # string table
-      0 ==flags # none
-      0 ==addr # not loaded
-      0 ==link # no associated section
-      0 ==entsize # no entries
-      [ ] ==data # to be filled later
-      0 ==dataSize # to be filled later
+      ".strtab" ==?name
+      0 ==?nameOffset { =nameOffset } /setNameOffset deff
+      0 ==?dataOffset { =dataOffset } /setDataOffset deff
+      3 ==?type # string table
+      0 ==?flags # none
+      0 ==?addr # not loaded
+      0 ==?link # no associated section
+      0 ==?entsize # no entries
+      [ ] ==?data # to be filled later
+      0 ==?dataSize # to be filled later
       { _ =data len =dataSize } /setData deff
-    > _ ==stringTable
+    > _ ==?stringTable
   ] ==metaSections
 
   [
     0 frozenAllocationCount range { ==i
       <
-        ".[1;31m-[33m=[32m#[34m=[35m-[0m" ==name
-        0 ==nameOffset { =nameOffset } /setNameOffset deff
-        0 ==dataOffset { =dataOffset } /setDataOffset deff
-        1 ==type # program data
-        7 ==flags # writable, allocated, executable
-        0 ==addr # FIXME
-        0 ==link # no associated section
-        0 ==entsize # no entries
-        i sys .asm .globalAllocBase ==dataBase
-        i sys .asm .globalAllocSize ==dataSize
+        ".[1;31m-[33m=[32m#[34m=[35m-[0m" ==?name
+        0 ==?nameOffset { =nameOffset } /setNameOffset deff
+        0 ==?dataOffset { =dataOffset } /setDataOffset deff
+        1 ==?type # program data
+        7 ==?flags # writable, allocated, executable
+        0 ==?addr # FIXME
+        0 ==?link # no associated section
+        0 ==?entsize # no entries
+        i sys .asm .globalAllocBase ==?dataBase
+        i sys .asm .globalAllocSize ==?dataSize
       >
     } each
   ] ==allocSections
 
-  4096 ==PAGESIZE
+  4096 ==:PAGESIZE
 
-  < 1 ==nameOffset
+  < 1 ==?nameOffset
     [
       %00 # initial zero byte of string table
       ### section names
 
-      [ metaSections allocSections ] { { ==s
-        s .name ==n
+      [ metaSections allocSections ] { { ==?s
+        s .name ==?n
         0 n len range { n * } each %00
         nameOffset s .setNameOffset
         nameOffset n len add 1 add =nameOffset
       } each } each
     ] stringTable .setData
   > -- <
-    # %40 == section header size, %38 == program header size
+    # %40 ==? section header size, %38 == program header size
     metaSections len allocSections len add %40 mul
                      allocSections len     %38 mul add
                                            %40     add ==dataOffset
@@ -941,7 +938,7 @@
 
   buffer out .writeall
 
-  1 ==WRITE
+  1 ==:WRITE
 
   buffer len ==fileOffset
 
@@ -958,12 +955,12 @@
 
 { .value sys .executeIdentifier }'
 <
-  /TOKID defv # weird scoping so executeIdentifier is executed in global scope
-  { .value elymas .base10decode } /TOKINT defv
-  { .value } /TOKSTR defv
+  /TOKID defvd # weird scoping so executeIdentifier is executed in global scope
+  { .value elymas .base10decode } /TOKINT defvd
+  { .value } /TOKSTR defvd
 
   # no long-term stack use here as the executed program uses it as well
-  { /input defv
+  { ==input
     "" ==buffer
     {
       buffer 4096 input .read cat =buffer # FIXME interpreter API should also have .read defined as returning string
@@ -978,13 +975,13 @@
         } each
       } loop
     } loop
-  } /executeFile deff
+  } /executeFile deffd
 
-  { # ==filename
+  { # ==?filename
     sys .file -0010 .open
                     executeFile
                     .close
   }
-> -- /include deff
+> -- /include deffd
 
 # vim: syn=elymas

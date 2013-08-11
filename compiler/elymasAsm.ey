@@ -213,6 +213,12 @@
         disp imm8
       } /encode deff >
     } ==MemDisp8
+    # base register plus 32 bit displacement
+    { < _ bit64assert ==base ==disp /none ==idx { ==r
+        r base modrm10
+        disp imm32
+      } /encode deff >
+    } ==MemDisp32
     # base and index register
     { < _ bit64assert ==base _ bit64assert ==idx { ==r
         r /sib modrm00
@@ -232,6 +238,13 @@
         disp imm8
       } /encode deff >
     } ==MemIndexScaleDisp8
+    # base and scaled index register plus 8 bit displacement
+    { < _ bit64assert ==base _ bit64assert ==idx ==scale ==disp { ==r
+        r /sib modrm10
+        scale idx base sib
+        disp imm32
+      } /encode deff >
+    } ==MemIndexScaleDisp32
   > ==memoryAddressingVariants
 
   { ==opcode ==mnemonic
@@ -264,6 +277,38 @@
       } mnemonic /b variant cat /Reg cat defOp
     } each
   } /defAsmAddb deff
+
+  { ==opcode ==mnemonic
+    { ==dst ==src
+      dst bit32assert
+      src bit32assert
+
+      dst regno %07 gt src regno %07 gt or
+        { 0 src /none dst rex } rep
+      opcode
+      src dst modrm11
+    } mnemonic /lRegReg defOp
+
+    memoryAddressingVariants keys { ==variant memoryAddressingVariants variant . =*parse
+      { parse ==mem ==reg
+        reg bit32assert
+
+        reg regno %07 gt mem .base regno %07 gt mem .idx regno %07 gt or or
+          { 0 reg mem .idx mem .base rex } rep
+        opcode
+        reg mem .encode
+      } mnemonic /lReg variant cat defOp
+
+      { ==reg parse ==mem
+        reg bit32assert
+
+        reg regno %07 gt mem .base regno %07 gt mem .idx regno %07 gt or or
+          { 0 reg mem .idx mem .base rex } rep
+        opcode %02 add
+        reg mem .encode
+      } mnemonic /l variant cat /Reg cat defOp
+    } each
+  } /defAsmAddl deff
 
   { ==opcode ==mnemonic
     { ==dst ==src
@@ -663,25 +708,6 @@
     i imm32
   } /movlImmMemDisp8 deff
 
-  { ==reg ==mem
-    reg bit32assert
-    mem bit64assert
-
-    reg regno %07 gt mem regno %07 gt or { 0 reg /none mem rex } rep
-    %8B
-    reg mem modrm00
-  } /movlMemReg deff
-
-  { ==reg ==mem ==disp
-    reg bit32assert
-    mem bit64assert
-
-    reg regno %07 gt mem regno %07 gt or { 0 reg /none mem rex } rep
-    %8B
-    reg mem modrm01
-    disp imm8
-  } /movlMemDisp8Reg deff
-
   { ==reg ==i
     reg bit64assert
 
@@ -710,6 +736,7 @@
   } /movqImmOOBReg deff
 
   /mov %88 defAsmAddb
+  /mov %89 defAsmAddl
   /mov %89 defAsmAddq
 
   {

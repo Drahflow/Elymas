@@ -1,3 +1,5 @@
+|defv "==?" deffd
+|deff "=*?" deffd
 |defvst "==" deffd
 |deffst "=*" deffd
 |defvc "==:" deffd

@@ -237,7 +237,7 @@ Main problem: How do we find out if the names mean what we believe they do?
 - even more assignment semantics
 === Name Properties ===
 * [d] deeply constant: objects referenced (indirectly) from this name can be assumed constant (constant implied)
-* [c] constant: the object reference of this name can be assumed constant (code constant and static implied)
+* [c] constant: the object reference of this name can be assumed constant (code constant implied)
 * [t] code / type constant: the function type can be assumed constant (including whether this function has no captured scope)
 * [s] static: the path from local scope to where the name resolves can be assumed constant
           the name index within the scope can be assumed constant

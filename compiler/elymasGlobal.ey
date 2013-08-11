@@ -1084,6 +1084,8 @@
 
       %40 /dl :testbImmReg
       /patchConstant :jnzLbl8
+      %10 /dl :testbImmReg
+      /patchStatic :jnzLbl32
 
       /rdx /rcx :movqRegReg
       %0F /cl :andbImmReg
@@ -1243,14 +1245,180 @@
       8 /rdi :addqImm8Reg
 
       [
+        /rbx :popqReg
         /rax :movqImmOOBReg
       ] ::loadToRdi
       /rdi :popqMem
       8 /rdi :addqImm8Reg
       [
         /rax :pushqReg
-        :retn
+        /rbx :jmpqReg
       ] ::loadToRdi
+
+      8 /r15 /rdi :movqMemDisp8Reg
+      8 /rdi :addqImm8Reg
+
+      16 /r15 :addqImm8Reg
+      /r15 :pushqMem
+      8 /r15 :addqImm8Reg
+      /rdi :jmpqReg # continue with freshly patched code
+
+      @patchStatic
+      /rax :popqReg # fetch resolved object (just to remove it from stack)
+
+      %0F /dl :testbImmReg
+      /patchStaticPassive :jzLbl32
+      %01 /dl :testbImmReg
+      /patchStaticActive :jnzLbl32
+      %02 /dl :testbImmReg
+      /patchStaticQuoted :jnzLbl8
+
+      "invalid activation mode in internalExecuteIdentifierUnquotedAndPatchLateResolve@patchStatic" ::outputError
+      :ud2
+      
+      @patchStaticQuoted
+      "quote activation mode in internalExecuteIdentifierUnquotedAndPatchLateResolve@patchStatic" ::outputError
+      :ud2
+
+      @patchStaticPassive
+      /rdi /rcx :movqRegReg # save parent pointer count
+      # FIXME: keep enough place for repeated parent dereference when creating the to-be-patched-code
+
+      15 /rcx :cmpqImm8Reg
+      /patchStaticPassiveParentCountWithinLimits :jbeLbl8
+
+      "parent count out of save limits in internalExecuteIdentifierUnquotedAndPatchLateResolve" ::outputError
+      :ud2
+
+      @patchStaticPassiveParentCountWithinLimits
+
+      8 /r15 /rdi :movqMemDisp8Reg
+      8 /rdi :addqImm8Reg
+
+      [
+        ::currentScope /rax :movqImmReg
+        /rax /rax :movqMemReg
+      ] ::loadToRdi
+
+      /rcx /rcx :testqRegReg
+      /patchStaticPassiveNoFollowParents :jzLbl8
+      @patchStaticPassiveFollowParents
+      [
+        16 /rax /rax :movqMemDisp8Reg
+      ] ::loadToRdi
+      /patchStaticPassiveFollowParents :loopLbl8
+      @patchStaticPassiveNoFollowParents
+
+      %01 /bpl :testbImmReg
+      /patchStaticPassiveLoadFromExtensionArea :jnzLbl8
+
+      # @patchStaticPassiveLoadFromScope
+      32 /rsi :addqImm8Reg # now: rsi == offset of entry in scope
+      [
+        /rbx :popqReg
+        %EE /rax :pushqMemDisp32
+        /rbx :jmpqReg
+      ] ::loadToRdi
+      6 /rdi :subqImm8Reg
+      /esi /rdi :movlRegMem # patch offset
+
+      8 /r15 /rdi :movqMemDisp8Reg
+      8 /rdi :addqImm8Reg
+
+      16 /r15 :addqImm8Reg
+      /r15 :pushqMem
+      8 /r15 :addqImm8Reg
+      /rdi :jmpqReg # continue with freshly patched code
+
+      @patchStaticPassiveLoadFromExtensionArea
+      40 /rsi :addqImm8Reg # now: rsi == offset of entry in extension area + scope length
+
+      [
+        24 /rax /rcx :movqMemDisp8Reg # load extension area pointer
+        /rax /edx :movlMemReg # load scope length
+        /rdx :negqReg # prepare for substraction
+        /rbx :popqReg
+        %EE 1 /rdx /rcx :pushqMemIndexScaleDisp32 # push loaded entry to stack
+        /rbx :jmpqReg
+      ] ::loadToRdi
+      6 /rdi :subqImm8Reg
+      /esi /rdi :movlRegMem # patch offset
+
+      8 /r15 /rdi :movqMemDisp8Reg
+      8 /rdi :addqImm8Reg
+
+      16 /r15 :addqImm8Reg
+      /r15 :pushqMem
+      8 /r15 :addqImm8Reg
+      /rdi :jmpqReg # continue with freshly patched code
+
+      @patchStaticActive
+      /rdi /rcx :movqRegReg # save parent pointer count
+      # FIXME: keep enough place for repeated parent dereference when creating the to-be-patched-code
+
+      15 /rcx :cmpqImm8Reg
+      /patchStaticActiveParentCountWithinLimits :jbeLbl8
+
+      "parent count out of save limits in internalExecuteIdentifierUnquotedAndPatchLateResolve" ::outputError
+      :ud2
+
+      @patchStaticActiveParentCountWithinLimits
+
+      8 /r15 /rdi :movqMemDisp8Reg
+      8 /rdi :addqImm8Reg
+
+      [
+        ::currentScope /rax :movqImmReg
+        /rax /rax :movqMemReg
+      ] ::loadToRdi
+
+      /rcx /rcx :testqRegReg
+      /patchStaticActiveNoFollowParents :jzLbl8
+      @patchStaticActiveFollowParents
+      [
+        16 /rax /rax :movqMemDisp8Reg
+      ] ::loadToRdi
+      /patchStaticActiveFollowParents :loopLbl8
+      @patchStaticActiveNoFollowParents
+
+      %01 /bpl :testbImmReg
+      /patchStaticActiveLoadFromExtensionArea :jnzLbl8
+
+      # @patchStaticActiveLoadFromScope
+      32 /rsi :addqImm8Reg # now: rsi == offset of entry in scope
+      [
+        /rbx :popqReg
+        %EE /rax :pushqMemDisp32
+        /rbx :pushqReg
+        |ey* /rax :movqImmReg
+        /rax :jmpqReg
+      ] ::loadToRdi
+      17 /rdi :subqImm8Reg
+      /esi /rdi :movlRegMem # patch offset
+
+      8 /r15 /rdi :movqMemDisp8Reg
+      8 /rdi :addqImm8Reg
+
+      16 /r15 :addqImm8Reg
+      /r15 :pushqMem
+      8 /r15 :addqImm8Reg
+      /rdi :jmpqReg # continue with freshly patched code
+
+      @patchStaticActiveLoadFromExtensionArea
+      40 /rsi :addqImm8Reg # now: rsi == offset of entry in extension area + scope length
+
+      [
+        24 /rax /rcx :movqMemDisp8Reg # load extension area pointer
+        /rax /edx :movlMemReg # load scope length
+        /rdx :negqReg # prepare for substraction
+        /rbx :popqReg
+        %EE 1 /rdx /rcx :pushqMemIndexScaleDisp32 # push loaded entry to stack
+        /rbx :pushqReg
+        |ey* /rax :movqImmReg
+        /rax :jmpqReg
+      ] ::loadToRdi
+      17 /rdi :subqImm8Reg
+      /esi /rdi :movlRegMem # patch offset
 
       8 /r15 /rdi :movqMemDisp8Reg
       8 /rdi :addqImm8Reg
@@ -1357,6 +1525,7 @@
         # 16 bytes code here, header length, and code block header
         16 ::unscopingFunctionHeader len add 8 add /rax :subqImm8Reg
         /rax :pushqReg
+        64 { :nop } rep # FIXME the maximum patch length still needs to be determined
         internalExecuteIdentifierUnquotedAndPatchLateResolve /rax :movqImmReg
         /rax :callqReg
       ] ::unscopingFunctionFooter cat ::loadToRdi
@@ -1409,10 +1578,10 @@
       %21 -101* /eydefft defv
       %30 -101* /eydefvst defv
       %31 -101* /eydeffst defv
-      %70 -101* /eydefvc defv
-      %71 -101* /eydeffc defv
-      %F0 -101* /eydefvd defv
-      %F1 -101* /eydeffd defv
+      %40 -101* /eydefvc defv
+      %41 -101* /eydeffc defv
+      %C0 -101* /eydefvd defv
+      %C1 -101* /eydeffd defv
       --
 
     # concatenate two functions

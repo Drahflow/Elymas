@@ -80,7 +80,7 @@
   { %00 %00 %00 %00 %00 %60 %00 %00 } /HEAPBASE deff
   { %00 %00 %00 %00 %00 %50 %00 %00 } /BLOCKBASE deff
   { %00 %00 %00 %00 %00 %40 %00 %00 } /MARKBASE deff
-  4096 16 mul 8 mul ==ALLOCCHUNKSIZE
+  4096 16 mul 8 mul ==ALLOCCHUNKSIZE # minimum ALLOCCHUNKSIZE
 
   <
     # current end of heap memory (grows upwards)
@@ -705,51 +705,6 @@
 
       # TODO error handling
       :retn
-
-#      /rbx :pushqReg
-#      /rdi :pushqReg
-#      unusedHeapStart /rax :movqImmReg
-#      /rax /rcx :movqMemReg
-#      /rcx /rbx :movqRegReg
-#      /rcx /rdx :movqRegReg
-#      /rdi /rcx :addqRegReg
-#      /rcx /rax :movqRegMem
-#      heapEnd /rax :movqImmReg
-#      /rax /rdi :movqMemReg
-#      /rdi /rcx :cmpqRegReg
-#      /memAvailable :jbeLbl8
-#
-#      4096 4096 mul /rsi :movqImmReg # size of new block
-#      /rsi /rdi :addqRegReg
-#      /rdi /rax :movqRegMem
-#      /rsi /rdi :subqRegReg
-#
-#      # record new block in global allocation list
-#      globalAllocationList /rax :movqImmReg
-#      /rax /rax :movqMemReg
-#      16 /rax :addqImm8Mem
-#      /rax /rax :addqMemReg
-#      16 /rax :subqImm8Reg
-#      /rdi /rax :movqRegMem
-#      /rsi 8 /rax :movqRegMemDisp8
-#
-#      SYSCALL .mmap /rax :movqImmReg
-#      # /rdi already fine
-#      # /rsi already fine
-#      < { MMAP -01 . } "!" deff
-#        !PROT_READ !PROT_WRITE !PROT_EXEC bor bor /rdx :movqImmReg
-#        !MAP_PRIVATE !MAP_FIXED !MAP_ANONYMOUS bor bor /r10 :movqImmReg
-#      > --
-#      /r8 :movqImmOOBReg %FF %FF %FF %FF %FF %FF %FF %FF
-#      0 /r9 :movqImmReg
-#      :syscall
-#
-#      @memAvailable
-#      /rbx /rax :movqRegReg
-#      /rdi :popqReg
-#      /rdi /rax :movqRegMem
-#      /rbx :popqReg
-#      :retn
     ]] /internalAllocate defv
   > { defv }' allocateOffsetStruct
 
@@ -767,7 +722,14 @@
     #        x 4 band if element is constant
     #        x 8 band if element is deep constant
     # rcx <- address of entry (i.e. where rax was loaded from)
+    # rdi <- number of parent pointers followed
+    # rsi <- entry index * 8 within scope
+    # rbp <- 0 if within scope data area
+    #        1 if within extension area
     [[
+      /rax /rax :xorqRegReg
+      /rax :pushqReg
+
       @retryWithParent
 
       # CHECK this is just sanity checking
@@ -812,16 +774,22 @@
       @end
 
       # not found at all, retry with parent
+      /rax :popqReg
+      /rax :incqReg
+      /rax :pushqReg
       16 /rdi /rdi :movqMemDisp8Reg
       /rdi /rdi :testqRegReg
       /retryWithParent :jnzLbl8
 
       @failed
+      /rax :popqReg
       /rax /rax :xorqRegReg
       /rdx /rdx :xorqRegReg
       :retn
 
       @found
+      # top of stack -> number of parent pointers followed
+
       8 /rdx /rax :movqMemDisp8Reg # load default activation
       8 /rdi /rdx :subqMemDisp8Reg # substract name table start
       16 /rdx :subqImm8Reg # substract name table header size
@@ -830,7 +798,9 @@
       /rdx /rcx :movqRegReg
       # rcx == entry index * 8 in scope
       # rax == entry default activation
+      /rcx /rsi :movqRegReg # save into target register for return value
 
+      /rbp /rbp :xorqRegReg
       32 /rcx :addqImm8Reg # add scope header size
       /ecx /rdi :cmplRegMem # TODO this fails for > 4 GB scopes
       /inDataArea :jaLbl8
@@ -839,15 +809,18 @@
       24 /rdi /rdi :movqMemDisp8Reg # load extension area pointer
       /rdi /rdi :testqRegReg
       /outsideExtensionArea :jzLbl8
+      /rbp :incqReg
       8 /rcx :addqImm8Reg # add extension area header length
 
       @inDataArea
       /rcx /rdi /rdx :movqMemIndexReg # load entry pointer
       /rax /rdx :xchgqRegReg
       /rdi /rcx :addqRegReg
+      /rdi :popqReg
       :retn
 
       @outsideExtensionArea
+      /rax :popqReg
       /rax /rax :xorqRegReg
       :retn
     ]] /internalResolve defv
