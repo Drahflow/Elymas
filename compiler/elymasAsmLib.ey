@@ -212,49 +212,66 @@
       # /rbx /rbx :xorqRegReg
       # rbx == index of cell currently tested
 
-      @startFreeBlockScan
-      /rsi /rsi :xorqRegReg
-      # rsi > 0  =>  currently counting block extent of free block
+      /r8 :pushqReg
+      /r9 :pushqReg
 
-      @testBlockBitLoop
+      /r8 :movqImmOOBReg BLOCKBASE
+      /r9 :movqImmOOBReg MARKBASE
+
       /rbx /rbp :cmpqRegReg
       /noFreeBlockAvailable :jbeLbl32
 
       /rbx /rax :movqRegReg
-      3 /rax :shrqImm8Reg # extract byte
-      /rdx :movqImmOOBReg BLOCKBASE
-      /rdx /rax /al :movbMemIndexReg
       /rbx /rcx :movqRegReg
-      7 /cl :andbImmReg
-      /cl :incbReg
-      /rax :shrqClReg
+      %3F /rcx :andqImm8Reg # extract bit position in quadword
+      6 /rax :shrqImm8Reg # extract quadword
+      6 /rbp :shrqImm8Reg # extract one-after-last quadword
+
+      /rsi /rsi :xorqRegReg
+      # rsi > 0  =>  currently counting block extent of free block
+
+      @testBlockBitLoop
+      /rcx 8 /rax /r8 :btqRegMemIndexScale # test block bitmap
       /nonFreeBlock :jcLbl8 # block not free
       /rsi /rsi :andqRegReg
-      /currentlyCounting :jnzLbl8
-
-      /rbx /rax :movqRegReg
-      3 /rax :shrqImm8Reg # extract byte
-      /rdx :movqImmOOBReg MARKBASE
-      /rdx /rax /al :movbMemIndexReg
-      /rbx /rcx :movqRegReg
-      7 /cl :andbImmReg
-      /cl :incbReg
-      /rax :shrqClReg
-      /nonFreeBlock :jncLbl8 # block not marked, i.e. just block extent
+      /notCurrentlyCounting :jzLbl8
 
       @currentlyCounting
       16 /rsi :addqImm8Reg
       /rsi /rdi :cmpqRegReg
       /freeBlockFound :jbeLbl8
 
-      /rbx :incqReg
-      /testBlockBitLoop :jmpLbl8
+      /rcx :incqReg
+      6 /rcx :btqImm8Reg
+      0 /rax :adcqImm8Reg
+      %3F /rcx :andqImm8Reg
+      /rax /rbp :cmpqRegReg
+      /testBlockBitLoop :jaLbl8
+      /noFreeBlockAvailable :jmpLbl32
+
+      @notCurrentlyCounting
+      /rcx 8 /rax /r9 :btqRegMemIndexScale # test mark bitmap
+      /currentlyCounting :jcLbl8 # block marked, i.e. truly free block start
 
       @nonFreeBlock
-      /rbx :incqReg
-      /startFreeBlockScan :jmpLbl8
+      /rsi /rsi :xorqRegReg
+      /rcx :incqReg
+      6 /rcx :btqImm8Reg
+      0 /rax :adcqImm8Reg
+      %3F /rcx :andqImm8Reg
+      /rax /rbp :cmpqRegReg
+      /testBlockBitLoop :jaLbl8
+      /noFreeBlockAvailable :jmpLbl32
 
       @freeBlockFound
+      /r9 :popqReg
+      /r8 :popqReg
+
+      6 /rbp :shlqImm8Reg
+      6 /rax :shlqImm8Reg
+      /rcx /rax :addqRegReg
+      /rax /rbx :movqRegReg
+
       # rdi == size of block to allocate
       # rbx == last cell of free block of sufficient size
 
@@ -353,6 +370,9 @@
       :retn
 
       @noFreeBlockAvailable
+      /r9 :popqReg
+      /r8 :popqReg
+
       /rax /rax :xorqRegReg
       :retn
 
