@@ -1434,12 +1434,7 @@
     ]] /internalExecuteIdentifierUnquotedAndPatchLateResolve defv
 
     # optimize function code by
-    # * patching double redirects,
-    # * TODO detecting whether created scope is closed and then
-    # ** TODO patch function header to use current name table in all following scopes
-    # ** TODO patch function header to correctly estimate initial scope size
-    # ** TODO replace all defX by direct writes to scope slots
-    # ** TODO if no "scope" occurs, the scope cannot escape and the scope can be allocated on the stack
+    # * patching double redirects, # FIXME correctly detect out-of-heap even if below heap
     # 0 -> address of code block
     [[
       /rbx :popqReg
@@ -1557,6 +1552,17 @@
       /rbx :pushqReg
       :retn
     ]] /internalOptimizeGeneratedUnscopedFunction defv
+
+    # optimize function code by
+    # * TODO patching double redirects
+    # 0 -> address of code block
+    [[
+      # :ud2 # FIXME enable here to debug function optimization
+      /rbx :popqReg
+      /rax :popqReg # FIXME do something useful here
+      /rbx :pushqReg
+      :retn
+    ]] /internalOptimizeGeneratedUncapturingFunction defv
   > { defv }' ::allocateOffsetStruct
 
   <
@@ -2359,12 +2365,10 @@
 
         /done :jmpLbl32
       ]]
-    } _ 1 ::scopingFunctionHeader   ::scopingFunctionFooter   internalOptimizeGeneratedScopedFunction   -32104* /ey}  defv
-      _ 1 ::unscopingFunctionHeader ::unscopingFunctionFooter internalOptimizeGeneratedUnscopedFunction -32104* /ey}' defv
-           # the following line - while very tempting - should not be enabled, as it would
-           # destroy future possibility of detecting scope closedness. If you need to augment
-           # caller scope names using nice syntax, employ macros and pass a { deff }' or similar
-        -- # 0 ::unscopingFunctionHeader ::unscopingFunctionFooter -2103* /ey}" defv
+    } _ 1 ::scopingFunctionHeader   ::scopingFunctionFooter   internalOptimizeGeneratedScopedFunction      -32104* /ey}  defv
+      _ 1 ::unscopingFunctionHeader ::unscopingFunctionFooter internalOptimizeGeneratedUnscopedFunction    -32104* /ey}' defv
+      _ 0 ::unscopingFunctionHeader ::unscopingFunctionFooter internalOptimizeGeneratedUncapturingFunction -32104* /ey}" defv
+      --
   > _ ==globalMacros { defv }' ::allocateOffsetStruct
 
   <

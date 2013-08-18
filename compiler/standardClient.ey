@@ -529,7 +529,7 @@
       tail
       ^^ {
         tail chars =*nset
-        { nset not } ==?set
+        { nset not }' ==?set
         ^] not { "] expected" die } rep
         tail
       }' {
@@ -539,7 +539,7 @@
       }' ? *
       set terminal =a
     } { ^. } {
-      { -- 1 } terminal =a
+      { -- 1 }" terminal =a
       tail
     } { ^^ } {
       [ [ FIRST ] ] =a
@@ -550,13 +550,13 @@
     } { ^\ } {
       tail
       { ^d } {
-        { _ 0 "0" * ge -01 0 "9" * le and } terminal =a
+        { _ 0 "0" * ge -01 0 "9" * le and }" terminal =a
         tail
       } { ^\ } {
-        { 0 "\\" * eq } terminal =a
+        { 0 "\\" * eq }" terminal =a
         tail
       } { ^n } {
-        { 0 "\n" * eq } terminal =a
+        { 0 "\n" * eq }" terminal =a
         tail
       } {
         "invalid character '" "' after \\ in regex" -120 cat cat die
@@ -634,42 +634,43 @@
     set
   } /charsN deffst
 
-  { <
-    0 ==?pc
-    [ currentCapture { 0 0 } rep ] ==?captures
-  > } /newThread deff
+  { 0 -01 * }" /threadGetPC deffd
+  { 1 -01 * }" /threadGetCaptures deffd
+
+  { [
+    0 # pc
+    [ currentCapture { 0 0 } rep ] # captures
+  ] } /newThread deff
+
+  { #==thread ==newpc
+    [ -021 threadGetCaptures ]
+  }" /cloneThread deffd
+
+  { #==thread ==newpc
+    [ -0201 threadGetCaptures _ len dearray ] ]
+  }" /fullCloneThread deffd
 
   |add /origadd deffd
 
   # TODO think about implementation efficiency
   { < ==maxSize
     0 ==size
-    [ maxSize { 0 } rep ] =*get
-    [ maxSize { 1 } rep ] =*pcFree
+    [ maxSize { 0 }' rep ] =*get
+    [ maxSize { 1 }' rep ] =*pcFree
 
-    { ==?thread
-      thread .pc pcFree {
-        thread size |get =[]
-        0 thread .pc |pcFree =[]
+    { # ==thread
+      _ threadGetPC pcFree {
+        _ size |get =[]
+          0 -01 threadGetPC |pcFree =[]
         size 1 origadd =size
-      } rep
-    } /add deffst
+      }" { -- }" ? *
+    }' /add deffst
 
     {
       0 =size
-      [ maxSize { 1 } rep ] =pcFree
-    } /clear deffst
+      [ maxSize { 1 }' rep ] =pcFree
+    }' /clear deffst
   > } /threadList deffd
-
-  { ==thread ==newpc <
-    newpc ==?pc
-    thread .captures ==?captures
-  > } /cloneThread deffd
-
-  { ==thread ==newpc <
-    newpc ==?pc
-    [ thread .captures _ len dearray ] ==?captures
-  > } /fullCloneThread deffd
 
   { ==prog ==string
     0 ==position
@@ -689,47 +690,48 @@
       { # MATCH
         1 =matched
         clist .clear
-      } { # TERM
+      }" { # TERM
         position maxPosition lt {
-          position string * 1 code * { pc 1 add thread cloneThread nlist .add } rep
-        } rep
-      } { # JUMP
+          position string * 1 code * { pc 1 add thread cloneThread nlist .add }" rep
+        }" rep
+      }" { # JUMP
         pc 1 code add thread cloneThread clist .add
-      } { # SPLIT
+      }" { # SPLIT
         pc 1 code add thread cloneThread clist .add
         pc 2 code add thread cloneThread clist .add
-      } { # SAVE
-        pc 1 add thread fullCloneThread ==?newThread
-        position 1 code newThread .captures =[]
-        newThread clist .add
-      } { # FIRST
-        position 0 eq { pc 1 add thread cloneThread clist .add } rep
-      } { # LAST
-        position maxPosition eq { pc 1 add thread cloneThread clist .add } rep
-      }
+      }" { # SAVE
+        pc 1 add thread fullCloneThread
+        position 1 code -2102 threadGetCaptures =[]
+                              clist .add
+      }" { # FIRST
+        position 0 eq { pc 1 add thread cloneThread clist .add }" rep
+      }" { # LAST
+        position maxPosition eq { pc 1 add thread cloneThread clist .add }" rep
+      }"
     ] =*codeSemantics
 
-    { position maxPosition le done not and } {
-      0 ==i
-      { i clist .size lt done not and } {
+    0 ==i
+    { position maxPosition le done not and }" {
+      0 =i
+      { i clist .size lt done not and }" {
         i clist .get _ =thread
-                       .pc _ =pc
-                             prog * =code
+                       threadGetPC _ =pc
+                                     prog * =code
         0 code codeSemantics *
         i 1 add =i
-      } loop
+      }" loop
 
       clist nlist =clist =nlist
       nlist .clear
       position 1 add =position
-    } loop
+    }" loop
 
     matched {
       currentCapture ==i
       { i } { i 1 sub =i
         string
-        i 2 mul       thread .captures * _ ==start -01 str .postfix
-        i 2 mul 1 add thread .captures * start sub -01 str .inplacePrefix
+        i 2 mul       thread threadGetCaptures * _ ==start -01 str .postfix
+        i 2 mul 1 add thread threadGetCaptures * start sub -01 str .inplacePrefix
       } loop
     } rep
     matched
@@ -738,7 +740,7 @@
   parse ==prog --
   [
     [ SPLIT 3 1 ]
-    [ TERM { -- 1 } ]
+    [ TERM { -- 1 }" ]
     [ JUMP 2 neg ]
     prog _ len dearray
     [ MATCH ]
