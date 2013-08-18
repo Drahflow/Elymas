@@ -795,6 +795,15 @@
   } /movsb deff
 
   {
+    width16
+    %A5
+  } /movsw deff
+
+  {
+    %A5
+  } /movsl deff
+
+  {
     1 /none /none /none rex
     %A5
   } /movsq deff

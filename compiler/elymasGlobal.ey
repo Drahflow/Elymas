@@ -977,7 +977,7 @@
 
   <
     # untyped scoped function jumppad
-    # rdi -> function code to call
+    # rdi -> code block object to call
     # rsi -> scope to install
     [[
       8 /r15 :subqImm8Reg
@@ -989,6 +989,7 @@
       /rcx /r15 :movqRegMem
       /rsi /rax :movqRegMem
 
+      8 /rdi :addqImm8Reg
       /rdi :callqReg
 
       /r15 /rcx :movqMemReg
@@ -1185,7 +1186,6 @@
       8 /rdx /rcx :movqMemDisp8Reg # load function scope
 
       24 /rdx /rdx :movqMemDisp8Reg # load actual function code
-      8 /rdx :addqImm8Reg
 
       [
         /rsi :movqImmOOBReg
@@ -1230,7 +1230,11 @@
       8 /rdi :addqImm8Reg
       [
         /rax :jmpqReg
+        /rax :movqImmOOBReg
       ] ::loadToRdi
+      8 /rdx :subqImm8Reg
+      /rdx /rdi :movqRegMem # save the address for the GC
+      8 /rdi :addqImm8Reg
 
       8 /r15 /rdi :movqMemDisp8Reg
       8 /rdi :addqImm8Reg
@@ -1428,6 +1432,131 @@
       8 /r15 :addqImm8Reg
       /rdi :jmpqReg # continue with freshly patched code
     ]] /internalExecuteIdentifierUnquotedAndPatchLateResolve defv
+
+    # optimize function code by
+    # * patching double redirects,
+    # * TODO detecting whether created scope is closed and then
+    # ** TODO patch function header to use current name table in all following scopes
+    # ** TODO patch function header to correctly estimate initial scope size
+    # ** TODO replace all defX by direct writes to scope slots
+    # ** TODO if no "scope" occurs, the scope cannot escape and the scope can be allocated on the stack
+    # 0 -> address of code block
+    [[
+      /rbx :popqReg
+      /rsi :popqReg
+      8 /rsi :addqImm8Reg # move to start of code
+      /rsi :pushqReg
+      :quoteEncodingBuffer /rdi :movqImmReg
+
+      %34 /rcx :movqImmReg # skip to generated code
+      :reprcx :movsb
+
+      @parseLoop
+      0 [ 0 :callqRel32 ] * 0 /rsi :cmpbImmMemDisp8
+      /parseFooter :jzLbl32
+      1 [ 8 /rax :addqImm8Reg ] * 11 /rsi :cmpbImmMemDisp8
+      /parseFunctionCall :jzLbl32
+      0 [ /rax :pushqReg ] * 10 /rsi :cmpbImmMemDisp8
+      /parseConstantPush :jzLbl32
+      0 [ /rax :callqReg ] * 10 /rsi :cmpbImmMemDisp8
+      /parseConstantCall :jzLbl32
+
+      "unknown assembly instruction during internalOptimizeGeneratedScopedFunction" ::outputError
+      :ud2
+
+      @parseFunctionCall
+      2 /rsi /rdx :movqMemDisp8Reg # load function address
+      1 [ 0 /rax :movqImmReg ] * 9 /rdx :cmpbImmMemDisp8
+      /parseFunctionCallSkip :jnzLbl32
+      0 [ /rax :jmpqReg ] * 18 /rdx :cmpbImmMemDisp8
+      /parseFunctionCallSkip :jnzLbl32
+      1 [ /rax :jmpqReg ] * 19 /rdx :cmpbImmMemDisp8
+      /parseFunctionCallSkip :jnzLbl32
+  
+      10 /rdx /rcx :movqMemDisp8Reg # load final function address
+      /rax :movqImmOOBReg ::HEAPEND
+      /rax /rcx :cmpqRegReg
+      /parseFunctionUnGCable :jaeLbl8
+
+      # @parseFunctionGCable
+      [
+        /rax :movqImmOOBReg
+      ] ::loadToRdi
+      8 /rcx :subqImm8Reg # make address point to code block object
+      /rcx /rdi :movqRegMem # load final function address
+      8 /rdi :addqImm8Reg
+      [
+        8 /rax :addqImm8Reg # skip code block object header
+        /rax :callqReg
+      ] ::loadToRdi
+      /parseFunctionCallDone :jmpLbl8
+
+      @parseFunctionUnGCable
+      [
+        /rax :movqImmOOBReg
+      ] ::loadToRdi
+      /rcx /rdi :movqRegMem # load final function address
+      8 /rdi :addqImm8Reg
+      [
+        /rax :callqReg
+      ] ::loadToRdi
+
+      @parseFunctionCallDone
+      16 /rsi :addqImm8Reg
+      /parseLoop :jmpLbl32
+
+      @parseFunctionCallSkip
+      :movsq # verbatim copy
+      :movsq
+      /parseLoop :jmpLbl32
+
+      @parseConstantPush
+      :movsq # verbatim copy
+      :movsw
+      :movsb
+      /parseLoop :jmpLbl32
+
+      @parseConstantCall
+      :movsq # verbatim copy
+      :movsl
+      /parseLoop :jmpLbl32
+
+      @parseFooter
+      ::scopingFunctionFooter ::loadToRdi
+      ::allocateCodeFromEncodingBuffer
+      # rax == optimized code object on heap
+
+      # patch indirection to new code into old
+      /rsi :popqReg # rsi == old code start
+      /rsi /rdi :movqRegReg
+      [
+        /rax :movqImmOOBReg
+      ] ::loadToRdi
+      8 /rax :addqImm8Reg
+      /rax /rdi :movqRegMem
+      8 /rax :subqImm8Reg
+      8 /rdi :addqImm8Reg
+      [
+        /rax :jmpqReg
+        /rax :movqImmOOBReg
+      ] ::loadToRdi
+      /rax /rdi :movqRegMem
+
+      # TODO kill remaining opcodes to remove GC-followable memory addresses
+      # but think of the return stack
+      /rbx :jmpqReg
+    ]] /internalOptimizeGeneratedScopedFunction defv
+
+    # optimize function code by
+    # * TODO patching double redirects
+    # 0 -> address of code block
+    [[
+      # :ud2 # FIXME enable here to debug function optimization
+      /rbx :popqReg
+      /rax :popqReg # FIXME do something useful here
+      /rbx :pushqReg
+      :retn
+    ]] /internalOptimizeGeneratedUnscopedFunction defv
   > { defv }' ::allocateOffsetStruct
 
   <
@@ -2043,7 +2172,7 @@
     ] /ey{ defv
 
     # quote construction, create function from begin marker onwards
-    { ==footer ==header ==capturing
+    { ==optimizer ==footer ==header ==capturing
       [[
         8 /r15 :subqImm8Reg
         /r15 :popqMem
@@ -2067,7 +2196,7 @@
         @search
         8 /rdx :subqImm8Reg
         /rdx /rcx :cmpqMemReg
-        /markerFound :jeLbl8
+        /markerFound :jeLbl32
 
         /rdx /rsi :movqMemReg
         7 /rsi /al :movbMemDisp8Reg
@@ -2078,9 +2207,9 @@
         %50 /al :cmpbImmReg
         /functionFound :jzLbl8
         %70 /al :cmpbImmReg
-        /arrayFound :jzLbl8
+        /arrayFound :jzLbl32
 
-        # TODO: "invalid object during quote construction"
+        "invalid object during quote construction" ::outputError
         :ud2
 
         @immediateFound
@@ -2092,9 +2221,31 @@
           1 dearray
           10 /rdi :movbImmMemDisp8
         11 /rdi :addqImm8Reg
-        /search :jmpLbl8
+        /search :jmpLbl32
 
         @functionFound
+        8 /rsi /rax :movqMemDisp8Reg
+        /rax /rax :testqRegReg
+        /generalFunctionFound :jnzLbl8
+        16 /rsi /rax :movqMemDisp8Reg
+        /rax /rax :testqRegReg
+        /generalFunctionFound :jnzLbl8
+
+        # @nonScopingNonTypedFound
+        24 /rsi /rax :movqMemDisp8Reg
+
+        [ /rax :movqImmOOBReg ] _ len 2 eq assert
+          2 dearray 256 mul add 
+          /rdi :movwImmMem
+        /rax 2 /rdi :movqRegMemDisp8
+        10 /rdi :addqImm8Reg
+        [
+          8 /rax :addqImm8Reg # add code offset only here, to keep the address available for GC
+          /rax :callqReg
+        ] ::loadToRdi
+        /search :jmpLbl32
+
+        @generalFunctionFound
         [ /rax :movqImmOOBReg ] _ len 2 eq assert
           2 dearray 256 mul add 
           /rdi :movwImmMem
@@ -2107,14 +2258,33 @@
           |ey* /rax :movqImmReg
           /rax :callqReg
         ] ::loadToRdi
-        /search :jmpLbl8
+        /search :jmpLbl32
 
         @arrayFound
         # FIXME allow macros to put byte arrays into quoted contexts and thereby generate assembly
         :ud2
-        /search :jmpLbl8
+        /search :jmpLbl32
 
         @markerFound
+
+        [
+          0 :callqRel32
+          /rax :popqReg
+          /rbx :movqImmOOBReg
+        ] ::loadToRdi
+        :quoteEncodingBuffer /rbx :movqImmReg
+        /rdi /rax :movqRegReg
+        5 /rax :addqImm8Reg
+        /rbx /rax :subqRegReg
+        /rax /rdi :movqRegMem
+        8 /rdi :addqImm8Reg
+
+        [
+          /rbx /rax :subqRegReg
+          /rax :pushqReg
+          optimizer /rax :movqImmReg
+          /rax :callqReg
+        ] ::loadToRdi
 
         footer ::loadToRdi
         ::allocateCodeFromEncodingBuffer
@@ -2189,8 +2359,8 @@
 
         /done :jmpLbl32
       ]]
-    } _ 1 ::scopingFunctionHeader   ::scopingFunctionFooter   -2103* /ey}  defv
-      _ 1 ::unscopingFunctionHeader ::unscopingFunctionFooter -2103* /ey}' defv
+    } _ 1 ::scopingFunctionHeader   ::scopingFunctionFooter   internalOptimizeGeneratedScopedFunction   -32104* /ey}  defv
+      _ 1 ::unscopingFunctionHeader ::unscopingFunctionFooter internalOptimizeGeneratedUnscopedFunction -32104* /ey}' defv
            # the following line - while very tempting - should not be enabled, as it would
            # destroy future possibility of detecting scope closedness. If you need to augment
            # caller scope names using nice syntax, employ macros and pass a { deff }' or similar
