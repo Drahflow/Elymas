@@ -573,7 +573,7 @@
   { # "(chars) re: " -101 cat dump
     ^] {
       tail chars2 =*s
-      { _ s -01 0 "]" * eq or } ==?set
+      { _ s -01 0 "]" * eq or }' ==?set
     }' {
       chars2 ==?set
     }' ? *
@@ -583,7 +583,7 @@
   { # "(chars2) re: " -101 cat dump
     ^- {
       tail chars2 =*s
-      { _ s -01 0 "-" * eq or } ==?set
+      { _ s -01 0 "-" * eq or }' ==?set
     }' {
       charsR ==?set
     }' ? *
@@ -595,7 +595,7 @@
     { ^] not } {
       set =*s1
       charsN =*s2
-      { _ s1 -01 s2 or } =set
+      { _ s1 -01 s2 or }' =set
     } loop
     set
   } /charsR deffst
@@ -627,9 +627,9 @@
         } ifthenelse ifthenelse *
       } rep
       tail
-      { _ start ge -01 end le and } ==?set
+      { _ start ge -01 end le and }' ==?set
     }' {
-      { start eq } ==?set
+      { start eq }' ==?set
     }' ? *
     set
   } /charsN deffst
@@ -655,8 +655,8 @@
   # TODO think about implementation efficiency
   { < ==maxSize
     0 ==size
-    [ maxSize { 0 }' rep ] =*get
-    [ maxSize { 1 }' rep ] =*pcFree
+    [ maxSize { 0 }" rep ] =*get
+    [ maxSize { 1 }" rep ] =*pcFree
 
     { # ==thread
       _ threadGetPC pcFree {
@@ -668,7 +668,7 @@
 
     {
       0 =size
-      [ maxSize { 1 }' rep ] =pcFree
+      [ maxSize { 1 }" rep ] =pcFree
     }' /clear deffst
   > } /threadList deffd
 

@@ -380,15 +380,24 @@
 
       # run through global state and mark reachable objects
       @markAndSweep
+      /r8 :pushqReg
+      /r9 :pushqReg
+      /r10 :pushqReg
+      /r11 :pushqReg
+
+      /r8 :movqImmOOBReg HEAPBASE # constant through mark
+      /r9 :movqImmOOBReg BLOCKBASE # constant through mark
+      /r10 :movqImmOOBReg MARKBASE # constant through mark
+      heapEnd /r11 :movqImmReg
+      /r11 /r11 :movqMemReg # constant through mark
+
       unusedHeapStart /rax :movqImmReg
       /rbx /rbx :xorqRegReg
       /rbx /rax :movqRegMem
 
       # zero mark bitmap
-      /rax :movqImmOOBReg HEAPBASE
-      heapEnd /rcx :movqImmReg
-      /rcx /rcx :movqMemReg
-      /rax /rcx :subqRegReg
+      /r11 /rcx :movqRegReg
+      /r8 /rcx :subqRegReg
       # rcx now holds number of bytes in heap
       10 /rcx :shrqImm8Reg
       /noResetNecessary :jzLbl8
@@ -396,8 +405,8 @@
       #   (16 bytes per cell -> shift by 4
       #    8 cells per byte -> shift by 3
       #    8 bytes per quadword -> shift by 3)
-      /rsi :movqImmOOBReg BLOCKBASE
-      /rdi :movqImmOOBReg MARKBASE
+      /r9 /rsi :movqRegReg
+      /r10 /rdi :movqRegReg
       @resetMarkLoop
       /rsi /rax :movqMemReg
       /rax :notqReg
@@ -446,10 +455,8 @@
       /loopThroughEncodingBuffer :loopLbl8
 
       # free unmarked blocks
-      /rax :movqImmOOBReg HEAPBASE
-      heapEnd /rcx :movqImmReg
-      /rcx /rcx :movqMemReg
-      /rax /rcx :subqRegReg
+      /r11 /rcx :movqRegReg
+      /r8 /rcx :subqRegReg
       # rcx now holds number of bytes in heap
       10 /rcx :shrqImm8Reg
       # rcx now holds number of quadwords in mark bitmap
@@ -457,8 +464,8 @@
       #    8 cells per byte -> shift by 3
       #    8 bytes per quadword -> shift by 3)
       /noFreeNecessary :jzLbl8
-      /rdi :movqImmOOBReg BLOCKBASE
-      /rsi :movqImmOOBReg MARKBASE
+      /r9 /rdi :movqRegReg
+      /r10 /rsi :movqRegReg
       @freeLoop
       /rsi /rax :movqMemReg
       /rdi /rbx :movqMemReg
@@ -468,6 +475,11 @@
       8 /rdi :addqImm8Reg
       /freeLoop :loopLbl8
       @noFreeNecessary
+
+      /r11 :popqReg
+      /r10 :popqReg
+      /r9 :popqReg
+      /r8 :popqReg
       :retn
 
       @markObjectDone
@@ -476,18 +488,15 @@
       # recursively mark this object reachable
       @markObject
       # rdi == address of a reachable object or some other random bits
-      heapEnd /rax :movqImmReg
-      /rax /rax :movqMemReg
-      /rbx :movqImmOOBReg HEAPBASE
-      /rdi /rax :cmpqRegReg
+      /rdi /r11 :cmpqRegReg
       /markObjectDone :jbeLbl32 # pointing above the heap
-      /rdi /rbx :cmpqRegReg
+      /rdi /r8 :cmpqRegReg
       /markObjectDone :jaLbl32 # pointing below the heap
       15 /dil :testbImmReg
       /markObjectDone :jnzLbl32 # pointing to unaligned address
       
       /rdi /rdx :movqRegReg
-      /rbx /rdx :subqRegReg
+      /r8 /rdx :subqRegReg
       # rdx == byte offset relative to heap begin
       4 /rdx :shrqImm8Reg
       # rdx == cell index of first 16-byte cell of object
