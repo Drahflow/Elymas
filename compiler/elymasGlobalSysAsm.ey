@@ -6,8 +6,7 @@
     [[
       /rbx :popqReg
 
-      16 /rdi :movqImmReg
-      ::internalAllocate /rax :movqImmReg
+      ::internalAllocateInteger /rax :movqImmReg
       /rax :callqReg
 
       /rcx :popqReg
@@ -65,8 +64,7 @@
       /r15 :popqMem
 
       2 {
-        16 /rdi :movqImmReg
-        ::internalAllocate /rax :movqImmReg
+        ::internalAllocateInteger /rax :movqImmReg
         /rax :callqReg
 
         8 /r15 :subqImm8Reg
@@ -116,8 +114,7 @@
     [[
       /rbx :popqReg
       # allocate return integer
-      16 /rdi :movqImmReg
-      ::internalAllocate /rax :movqImmReg
+      ::internalAllocateInteger /rax :movqImmReg
       /rax :callqReg
       /rax :pushqReg
 
@@ -139,8 +136,7 @@
       /rbx :popqReg
 
       # allocate return integer
-      16 /rdi :movqImmReg
-      ::internalAllocate /rax :movqImmReg
+      ::internalAllocateInteger /rax :movqImmReg
       /rax :callqReg
 
       /rcx :popqReg
@@ -167,8 +163,7 @@
       /rbx :popqReg
 
       # allocate return integer
-      16 /rdi :movqImmReg
-      ::internalAllocate /rax :movqImmReg
+      ::internalAllocateInteger /rax :movqImmReg
       /rax :callqReg
 
       /rcx :popqReg
@@ -195,8 +190,7 @@
       /rbx :popqReg
 
       # allocate return integer
-      16 /rdi :movqImmReg
-      ::internalAllocate /rax :movqImmReg
+      ::internalAllocateInteger /rax :movqImmReg
       /rax :callqReg
 
       /rdx :popqReg
@@ -269,8 +263,7 @@
       /rdx :pushqReg # store allocation count for later return value
       /rdx 101 /rax :movqRegMemDisp8
 
-      16 /rdi :movqImmReg
-      ::internalAllocate /rax :movqImmReg
+      ::internalAllocateInteger /rax :movqImmReg
       /rax :callqReg
       # type zero does not need to be changed
       /rdx :popqReg

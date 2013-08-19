@@ -198,8 +198,8 @@
       # run through block bitmap until sufficiently many zeroes are found
       # if yes, allocate block
       @searchForFreeBlock
-      # rdi == size of chunk in bytes
-      # rax == address of allocated chunk or zero if no free block was found
+      # rdi -> size of chunk in bytes
+      # rax <- address of allocated chunk or zero if no free block was found
 
       /rax :movqImmOOBReg HEAPBASE
       heapEnd /rbp :movqImmReg
@@ -271,8 +271,7 @@
 
       6 /rbp :shlqImm8Reg
       6 /rax :shlqImm8Reg
-      /rcx /rax :addqRegReg
-      /rax /rbx :movqRegReg
+      /rcx /rax /rbx :leaqMemIndexReg
 
       # rdi == size of block to allocate
       # rbx == last cell of free block of sufficient size
@@ -859,6 +858,73 @@
 
   # TODO: link internal functions statically with relative calls
   <
+    # allocate int
+    # rax <- address of allocated integer
+    #        chunk will have GC length header initialized correctly
+    [[
+      heapEnd /rbp :movqImmReg
+      unusedHeapStart /rcx :movqImmReg
+      /rdx :movqImmOOBReg HEAPBASE
+      0 /rbp /rbp :movqMemDisp8Reg
+      /rcx /rcx :movqMemReg
+      /rdi :movqImmOOBReg BLOCKBASE
+      /rsi :movqImmOOBReg MARKBASE
+      /rdx /rbp :subqRegReg
+      # rbp now holds number of bytes in heap
+      6 /rcx :shrqImm8Reg # extract quadword
+      10 /rbp :shrqImm8Reg
+      # rbp now holds number of quad-words in bitmaps
+
+      @testBlockBitLoop
+      /rcx /rbp :cmpqRegReg
+      /noFreeBlockAvailable :jbeLbl32
+      8 /rcx /rdi /rax :movqMemIndexScaleReg
+      /rax :notqReg
+      8 /rcx /rsi /rax :andqMemIndexScaleReg
+      /rax /rax :bsfqRegReg # find bit with !block & mark -> free
+      /continueTestBlockBitLoop :jzLbl8
+
+      /rax 8 /rcx /rdi :btsqRegMemIndexScale # set block bit of new block
+      /rax 8 /rcx /rsi :btrqRegMemIndexScale # reset mark bit of new block
+
+      # split block if necessary
+      /rax :incqReg
+      6 /rax :btqImm8Reg
+      0 /rcx :adcqImm8Reg
+      %3F /rax :andqImm8Reg
+      /rcx /rbp :cmpqRegReg
+      /dontSplit :jbeLbl8 # next cell outside of heap
+      /rax 8 /rcx /rdi :btqRegMemIndexScale
+      /dontSplit :jcLbl8 # next cell already allocated
+      /rax 8 /rcx /rsi :btsqRegMemIndexScale # set mark bit
+
+      @dontSplit
+      6 /rcx :shlqImm8Reg
+      /rax /rcx :addqRegReg
+      # rcx == cell index of cell after allocated int
+      unusedHeapStart /rax :movqImmReg
+      /rcx /rax :movqRegMem
+
+      /rcx :decqReg
+      # rcx == cell index of allocated int
+      4 /rcx :shlqImm8Reg
+      # rcx == offset of allocated int
+      /rdx /rcx /rax :leaqMemIndexReg
+
+      /rcx :movqImmOOBReg %10 %00 %00 %00 %00 %00 %00 %08 # -> light grep
+      /rcx /rax :movqRegMem # initialize GC header
+      :retn
+
+      @continueTestBlockBitLoop
+      /rcx :incqReg
+      /testBlockBitLoop :jmpLbl8
+
+      @noFreeBlockAvailable
+      10 /rdi :movqImmReg
+      internalAllocate /rax :movqImmReg
+      /rax :jmpqReg
+    ]] /internalAllocateInteger defv
+
     # allocate scope, expecting rdi entries
     # rdi -> expected number of entries
     # rsi -> parent scope

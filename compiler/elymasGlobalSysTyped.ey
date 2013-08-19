@@ -45,8 +45,7 @@
     [[
       /rbx :popqReg
 
-      16 /rdi :movqImmReg
-      ::internalAllocate /rax :movqImmReg
+      ::internalAllocateInteger /rax :movqImmReg
       /rax :callqReg
 
       /rdx :popqReg

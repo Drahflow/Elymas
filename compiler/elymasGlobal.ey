@@ -24,12 +24,9 @@
     [
       /rbx :popqReg
 
-      # allocate result int
-      16 /rdi :movqImmReg
-      ::internalAllocate /rax :movqImmReg
+      # allocate result
+      ::internalAllocateInteger /rax :movqImmReg
       /rax :callqReg
-
-      # type zero does not need to be changed
 
       # actual calculation
       /rcx :popqReg
@@ -534,8 +531,7 @@
       # rdx == correct string index
       24 1 /rdx /rsi /rbx :movzxMem8IndexScaleDisp8Reg64 # use some of the CISC goodness
 
-      16 /rdi :movqImmReg
-      ::internalAllocate /rax :movqImmReg
+      ::internalAllocateInteger /rax :movqImmReg
       /rax :callqReg
       /rax :pushqReg # push integer on the stack
       
@@ -687,8 +683,7 @@
       16 /rax /rbx :movqMemDisp8Reg
 
       @done
-      16 /rdi :movqImmReg
-      ::internalAllocate /rax :movqImmReg
+      ::internalAllocateInteger /rax :movqImmReg
       /rax :callqReg
       /rax :pushqReg # push integer on the stack
       
@@ -882,8 +877,7 @@
       /rax :pushqReg
       /rdi :pushqReg
       # create int
-      16 /rdi :movqImmReg
-      ::internalAllocate /rax :movqImmReg
+      ::internalAllocateInteger /rax :movqImmReg
       /rax :callqReg
       /rbx 8 /rax :movqRegMemDisp8 # store value
       /rdi :popqReg
@@ -960,8 +954,7 @@
       /rbx :popqReg
 
       # allocate result int
-      16 /rdi :movqImmReg
-      ::internalAllocate /rax :movqImmReg
+      ::internalAllocateInteger /rax :movqImmReg
       /rax :callqReg
       # and push to stack
       /rax :pushqReg
@@ -1690,8 +1683,7 @@
         8 /r15 :subqImm8Reg
         /r15 :popqMem
 
-        16 /rdi :movqImmReg
-        ::internalAllocate /rax :movqImmReg
+        ::internalAllocateInteger /rax :movqImmReg
         /rax :callqReg
         /rax :pushqReg
         activation /rdx :movqImmReg
@@ -2141,8 +2133,7 @@
 
       /rdi :pushqReg
       /rcx :pushqReg
-      16 /rdi :movqImmReg
-      ::internalAllocate /rax :movqImmReg
+      ::internalAllocateInteger /rax :movqImmReg
       /rax :callqReg
       /rcx :popqReg
       /rdi :popqReg
@@ -2516,8 +2507,7 @@
       /rbx :popqReg
 
       # allocate result int
-      16 /rdi :movqImmReg
-      ::internalAllocate /rax :movqImmReg
+      ::internalAllocateInteger /rax :movqImmReg
       /rax :callqReg
 
       /rdx :popqReg
@@ -2557,8 +2547,7 @@
       /rbx :popqReg
 
       # allocate result int
-      16 /rdi :movqImmReg
-      ::internalAllocate /rax :movqImmReg
+      ::internalAllocateInteger /rax :movqImmReg
       /rax :callqReg
 
       # type zero does not need to be changed
@@ -2581,8 +2570,7 @@
       /rbx :popqReg
 
       # allocate result int
-      16 /rdi :movqImmReg
-      ::internalAllocate /rax :movqImmReg
+      ::internalAllocateInteger /rax :movqImmReg
       /rax :callqReg
 
       # type zero does not need to be changed
@@ -2605,8 +2593,7 @@
       /rbx :popqReg
 
       # allocate result int
-      16 /rdi :movqImmReg
-      ::internalAllocate /rax :movqImmReg
+      ::internalAllocateInteger /rax :movqImmReg
       /rax :callqReg
 
       # type zero does not need to be changed

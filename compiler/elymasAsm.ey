@@ -415,6 +415,29 @@
     } each
   } /defAsmBtq deff
 
+  { ==opcode2 ==opcode1 ==mnemonic
+    { ==reg1 ==reg2
+      reg2 bit64assert
+      reg1 bit64assert
+
+      1 reg1 /none reg2 rex
+      opcode1
+      opcode2
+      reg1 reg2 modrm11
+    } mnemonic /qRegReg defOp
+
+    memoryAddressingVariants keys { ==variant memoryAddressingVariants variant . =*parse
+      { ==reg parse ==mem
+        reg bit64assert
+
+        1 reg mem .idx mem .base rex
+        opcode1
+        opcode2
+        reg mem .encode
+      } mnemonic /qReg variant cat defOp
+    } each
+  } /defAsmBsfq deff
+
   { ==modrmOpcode ==opcode2 ==opcode1 ==mnemonic
     { ==reg ==i
       reg bit64assert
@@ -449,6 +472,14 @@
 
   /bt %0F %A3 defAsmBtq
   /bt %0F %BA /four defAsmBtqImm
+
+  /btr %0F %B3 defAsmBtq
+  /btr %0F %BA /six defAsmBtqImm
+
+  /bts %0F %AB defAsmBtq
+  /bts %0F %BA /five defAsmBtqImm
+
+  /bsf %0F %BC defAsmBsfq
 
   { ==off
     %E8
