@@ -1,3 +1,330 @@
+## regex support
+# ideas taken from http://swtch.com/~rsc/regexp/regexp3.html
+{
+  0 ==:MATCH 1 ==:TERM 2 ==:JUMP 3 ==:SPLIT 4 ==:SAVE 5 ==:FIRST 6 ==:LAST
+
+  { ==b ==a [
+    [ SPLIT 1 a len 1 add ] # FIXME this should be "2 add"?!
+    a _ len dearray
+    [ JUMP b len ]
+    b _ len dearray
+  ] } /alternative deffst
+
+  |cat /sequence deffd
+
+  { ==?a [ # TODO measure separate + implementation performance impact
+    [ JUMP a len 1 add ]
+    a _ len dearray
+    [ SPLIT 1 a len neg ]
+  ] } /star deffst
+
+  { ==?p [
+    [ TERM p ]
+  ] } /terminal deffst
+
+  { ==?i ==?a [
+    [ SAVE i 2 mul ]
+    a _ len dearray
+    [ SAVE i 2 mul 1 add ]
+  ] } /capture deffst
+
+  { [ ] } /empty deffd
+
+  { ==?str
+    str len 0 eq {
+      1 neg
+    } {
+      0 str *
+    } ? *
+  } /head deffd
+
+  { 1 -01 str .postfix } /tail deffd
+
+  { 0 -01 * -101 head eq } "^" deffd
+  { deffd }' /install deffst
+  [ "(" ")" "[" "]" "-" "|" "^" "*" "+" "." "$" "\\" ] { ==?c
+    { _ head 0 c * eq } "^" c cat install
+  } each
+
+  { # "(parse) re: " -101 cat dump
+
+    seq ==?a
+    ^| {
+      tail parse ==?b
+      a b alternative =a
+    } rep
+    a
+  } /parse deffst
+
+  { # "(seq) re: " -101 cat dump
+
+    empty _ ==?a
+            ==?l
+
+    { # "(seq loop) re: " -101 cat dump
+      _ head 1 neg eq -01
+      ^| -01
+      ^) -01
+      -0321 or or not
+    } {
+      [ { ^* } {
+        l star =l
+        tail
+      } { ^+ } {
+        l l star sequence =l
+        tail
+      } { 1 } {
+        a l sequence =a
+        atom =l
+      } ] conds
+    } loop
+    a l sequence
+  } /seq deffst
+
+  0 ==?currentCapture
+  
+  { # "(atom) re: " -101 cat dump
+    empty ==?a
+
+    [ { ^( } {
+      tail parse currentCapture capture =a
+      currentCapture 1 add =currentCapture
+      ^) not { ") expected" die } rep
+      tail
+    } { ^[ } {
+      tail
+      ^^ {
+        tail chars =*nset
+        { nset not }' ==?set
+        ^] not { "] expected" die } rep
+        tail
+      }' {
+        chars ==?set
+        ^] not { "] expected" die } rep
+        tail
+      }' ? *
+      set terminal =a
+    } { ^. } {
+      { -- 1 }" terminal =a
+      tail
+    } { ^^ } {
+      [ [ FIRST ] ] =a
+      tail
+    } { ^$ } {
+      [ [ LAST ] ] =a
+      tail
+    } { ^\ } {
+      tail
+      [ { ^d } {
+        { _ 0 "0" * ge -01 0 "9" * le and }" terminal =a
+        tail
+      } { ^\ } {
+        { 0 "\\" * eq }" terminal =a
+        tail
+      } { ^. } {
+        { 0 "." * eq }" terminal =a
+        tail
+      } { ^n } {
+        { 0 "\n" * eq }" terminal =a
+        tail
+      } { 1 } {
+        "invalid character '" "' after \\ in regex" -120 cat cat die
+      } ] conds
+    } { 1 } {
+      _ head { eq }_ terminal =a
+      tail
+    } ] conds
+
+    # "(atom end) re: " -101 cat dump
+    a
+  } /atom deffst
+
+  { # "(chars) re: " -101 cat dump
+    ^] {
+      tail chars2 =*s
+      { _ s -01 0 "]" * eq or }' ==?set
+    }' {
+      chars2 ==?set
+    }' ? *
+    set
+  } /chars deffst
+
+  { # "(chars2) re: " -101 cat dump
+    ^- {
+      tail chars2 =*s
+      { _ s -01 0 "-" * eq or }' ==?set
+    }' {
+      charsR ==?set
+    }' ? *
+    set
+  } /chars2 deffst
+
+  { # "(charsR) re: " -101 cat dump
+    charsN ==?set
+    { ^] not } {
+      set =*s1
+      charsN =*s2
+      { _ s1 -01 s2 or }' =set
+    } loop
+    set
+  } /charsR deffst
+
+  { # "(charsN) re: " -101 cat dump
+    _ head ==?start
+    ^\ {
+      tail
+      [ { ^\ } {
+        0 "\\" * =start
+      } { ^n } {
+        0 "\n" * =start
+      } { 1 } {
+        "invalid character '" "' after \\ in regex" -120 cat cat die
+      } ] conds
+    } rep
+    tail
+    ^- {
+      tail
+      _ head ==?end
+      ^\ {
+        tail
+        [ { ^\ } {
+          0 "\\" * =end
+        } { ^n } {
+          0 "\n" * =end
+        } { 1 } {
+          "invalid character '" "' after \\ in regex" -120 cat cat die
+        } ] conds
+      } rep
+      tail
+      { _ start ge -01 end le and }' ==?set
+    }' {
+      { start eq }' ==?set
+    }' ? *
+    set
+  } /charsN deffst
+
+  { 0 -01 * }" /threadGetPC deffd
+  { 1 -01 * }" /threadGetCaptures deffd
+
+  { [
+    0 # pc
+    [ currentCapture { 0 0 } rep ] # captures
+  ] } /newThread deff
+
+  { #==thread ==newpc
+    [ -021 threadGetCaptures ]
+  }" /cloneThread deffd
+
+  { #==thread ==newpc
+    [ -0201 threadGetCaptures _ len dearray ] ]
+  }" /fullCloneThread deffd
+
+  |add /origadd deffd
+
+  # TODO think about implementation efficiency
+  { < ==maxSize
+    0 ==size
+    [ maxSize { 0 }" rep ] =*get
+    [ maxSize { 1 }" rep ] =*pcFree
+
+    { # ==thread
+      _ threadGetPC pcFree {
+        _ size |get =[]
+          0 -01 threadGetPC |pcFree =[]
+        size 1 origadd =size
+      }" { -- }" ? *
+    }' /add deffst
+
+    {
+      0 =size
+      [ maxSize { 1 }" rep ] =pcFree
+    }' /clear deffst
+  > } /threadList deffd
+
+  { ==prog ==string
+    0 ==position
+    string len ==maxPosition
+    0 ==done
+    0 ==matched
+
+    prog len _ threadList ==clist
+               threadList ==nlist
+
+    newThread _ ==thread clist .add
+
+    0 ==pc
+    { } =*code
+
+    [
+      { # MATCH
+        1 =matched
+        clist .clear
+      }" { # TERM
+        position maxPosition lt {
+          position string * 1 code * { pc 1 add thread cloneThread nlist .add }" rep
+        }" rep
+      }" { # JUMP
+        pc 1 code add thread cloneThread clist .add
+      }" { # SPLIT
+        pc 1 code add thread cloneThread clist .add
+        pc 2 code add thread cloneThread clist .add
+      }" { # SAVE
+        pc 1 add thread fullCloneThread
+        position 1 code -2102 threadGetCaptures =[]
+                              clist .add
+      }" { # FIRST
+        position 0 eq { pc 1 add thread cloneThread clist .add }" rep
+      }" { # LAST
+        position maxPosition eq { pc 1 add thread cloneThread clist .add }" rep
+      }"
+    ] =*codeSemantics
+
+    0 ==i
+    { position maxPosition le done not and }" {
+      0 =i
+      { i clist .size lt done not and }" {
+        i clist .get _ =thread
+                       threadGetPC _ =pc
+                                     prog * =code
+        0 code codeSemantics *
+        i 1 add =i
+      }" loop
+
+      clist nlist =clist =nlist
+      nlist .clear
+      position 1 add =position
+    }" loop
+
+    matched {
+      currentCapture ==i
+      { i } { i 1 sub =i
+        string
+        i 2 mul       thread threadGetCaptures * _ ==start -01 str .postfix
+        i 2 mul 1 add thread threadGetCaptures * start sub -01 str .inplacePrefix
+      } loop
+    } rep
+    matched
+  } /execute deffst
+
+  parse ==prog --
+  [
+    [ SPLIT 3 1 ]
+    [ TERM { -- 1 }" ]
+    [ JUMP 2 neg ]
+    prog _ len dearray
+    [ MATCH ]
+  ] =prog
+  { prog execute }
+} /enregex deffd
+
+{
+  quoted {
+    _ sys .typed .type 1 eq {
+      enregex
+    } { |enregex "*" | } ? *
+  } { enregex * } ? *
+} /regex defq
+
 < # sys extensions
   # TODO: handle EINTR correctly
 
@@ -65,7 +392,22 @@
           buf str .postfix =buf
         } loop
       } /writeall deff
+      { =*f "" ==buffer
+        {
+          buffer 4096 read cat =buffer # FIXME interpreter API should also have .read defined as returning string
+          buffer "" streq not
+        } {
+          {
+            buffer "([^\\n]*)\\n" regex
+          } {
+            _ len 1 add buffer str .postfix =buffer
+              f
+          } loop
+        } loop
+      } /eachLine deff
   > > -- } /makefile deff
+
+  |makefile /fdToFile sys .deff
 
   { # 0777 = 511
     1 neg RDONLY 511 makefile
@@ -149,17 +491,17 @@
 
     { =*a =*b
       [
-        0 a sys .typed .type 0 b sys .typed .type neq
+        { 0 a sys .typed .type 0 b sys .typed .type neq }
         { 0 }
 
-        0 a sys .typed .type 0 neq
+        { 0 a sys .typed .type 0 neq }
         { "type equality only implemented for ints" die }
 
-        0 b sys .typed .type 0 neq
+        { 0 b sys .typed .type 0 neq }
         { "type equality only implemented for ints" die }
 
-        0 a 0 b neq { 0 }
-        1 { 1 }
+        { 0 a 0 b neq } { 0 }
+        { 1 } { 1 }
       ] conds
     } /typeEqual deff
 
@@ -170,22 +512,22 @@
 
         # TODO: maybe handle structs here one day (or move the whole affair into
         # a real compilation stage
-        0 earlierType * sys .typed .type 0 neq
+        { 0 earlierType * sys .typed .type 0 neq }
         { 0 }
 
         # Who came first determines iteration range
-        2 earlierType * 1 neg neq
+        { 2 earlierType * 1 neg neq }
         { earlierType 1 }
 
         # But if only the later one defines a range, take that one
-        2 laterType * 1 neg neq
+        { 2 laterType * 1 neg neq }
         { laterType 1 }
 
         # General integers go-iterate iff they binary and results in non-zero
-        0 earlierType * 0 laterType * band 0 neq
+        { 0 earlierType * 0 laterType * band 0 neq }
         { earlierType 1 }
 
-        1
+        { 1 }
         { 0 }
       ] conds
     } /commonIterationType deff
@@ -402,10 +744,10 @@
     sys .typed .type [
       { o base16encode64 sys .err .writeall } # integer
       { "\"" o "\"" cat cat sys .err .writeall } # string
-      { "<scope>" } # scope
+      { "<scope: " o sys .asm .rawAddress base16encode64 cat ">" cat sys .err .writeall }
       invalid # name table
       invalid # extension area
-      { "<function>" } # function
+      { "<function: " o sys .asm .rawAddress base16encode64 cat ">" cat sys .err .writeall }
       invalid # function code
       {
         "[\n" sys .err .writeall
@@ -427,334 +769,6 @@
   # dump top stack element to sys .err
   { 0 dumpIndented }
 > -- /dump deffd
-
-## regex support
-# ideas taken from http://swtch.com/~rsc/regexp/regexp3.html
-{
-  0 ==:MATCH 1 ==:TERM 2 ==:JUMP 3 ==:SPLIT 4 ==:SAVE 5 ==:FIRST 6 ==:LAST
-
-  { ==b ==a [
-    [ SPLIT 1 a len 1 add ] # FIXME this should be "2 add"?!
-    a _ len dearray
-    [ JUMP b len ]
-    b _ len dearray
-  ] } /alternative deffst
-
-  |cat /sequence deffd
-
-  { ==?a [ # TODO measure separate + implementation performance impact
-    [ JUMP a len 1 add ]
-    a _ len dearray
-    [ SPLIT 1 a len neg ]
-  ] } /star deffst
-
-  { ==?p [
-    [ TERM p ]
-  ] } /terminal deffst
-
-  { ==?i ==?a [
-    [ SAVE i 2 mul ]
-    a _ len dearray
-    [ SAVE i 2 mul 1 add ]
-  ] } /capture deffst
-
-  { [ ] } /empty deffd
-
-  { ==?str
-    str len 0 eq {
-      1 neg
-    } {
-      0 str *
-    } ? *
-  } /head deffd
-
-  { 1 -01 str .postfix } /tail deffd
-
-  { 0 -01 * -101 head eq } "^" deffd
-  { deffd }' /install deffst
-  [ "(" ")" "[" "]" "-" "|" "^" "*" "+" "." "$" "\\" ] { ==?c
-    { _ head 0 c * eq } "^" c cat install
-  } each
-
-  { # "(parse) re: " -101 cat dump
-
-    seq ==?a
-    ^| {
-      tail parse ==?b
-      a b alternative =a
-    } rep
-    a
-  } /parse deffst
-
-  { # "(seq) re: " -101 cat dump
-
-    empty _ ==?a
-            ==?l
-
-    { # "(seq loop) re: " -101 cat dump
-      _ head 1 neg eq -01
-      ^| -01
-      ^) -01
-      -0321 or or not
-    } {
-      { ^* } {
-        l star =l
-        tail
-      } { ^+ } {
-        l l star sequence =l
-        tail
-      } {
-        a l sequence =a
-        atom =l
-      } ifthenelse ifthenelse *
-    } loop
-    a l sequence
-  } /seq deffst
-
-  { ==e ==t =*i
-    { i t e ? * }
-  } /ifthenelse deffd
-
-  0 ==?currentCapture
-  
-  { # "(atom) re: " -101 cat dump
-    empty ==?a
-
-    { ^( } {
-      tail parse currentCapture capture =a
-      currentCapture 1 add =currentCapture
-      ^) not { ") expected" die } rep
-      tail
-    } { ^[ } {
-      tail
-      ^^ {
-        tail chars =*nset
-        { nset not }' ==?set
-        ^] not { "] expected" die } rep
-        tail
-      }' {
-        chars ==?set
-        ^] not { "] expected" die } rep
-        tail
-      }' ? *
-      set terminal =a
-    } { ^. } {
-      { -- 1 }" terminal =a
-      tail
-    } { ^^ } {
-      [ [ FIRST ] ] =a
-      tail
-    } { ^$ } {
-      [ [ LAST ] ] =a
-      tail
-    } { ^\ } {
-      tail
-      { ^d } {
-        { _ 0 "0" * ge -01 0 "9" * le and }" terminal =a
-        tail
-      } { ^\ } {
-        { 0 "\\" * eq }" terminal =a
-        tail
-      } { ^n } {
-        { 0 "\n" * eq }" terminal =a
-        tail
-      } {
-        "invalid character '" "' after \\ in regex" -120 cat cat die
-      } ifthenelse ifthenelse ifthenelse *
-    } {
-      _ head { eq }_ terminal =a
-      tail
-    } ifthenelse ifthenelse ifthenelse ifthenelse ifthenelse ifthenelse *
-
-    # "(atom end) re: " -101 cat dump
-    a
-  } /atom deffst
-
-  { # "(chars) re: " -101 cat dump
-    ^] {
-      tail chars2 =*s
-      { _ s -01 0 "]" * eq or }' ==?set
-    }' {
-      chars2 ==?set
-    }' ? *
-    set
-  } /chars deffst
-
-  { # "(chars2) re: " -101 cat dump
-    ^- {
-      tail chars2 =*s
-      { _ s -01 0 "-" * eq or }' ==?set
-    }' {
-      charsR ==?set
-    }' ? *
-    set
-  } /chars2 deffst
-
-  { # "(charsR) re: " -101 cat dump
-    charsN ==?set
-    { ^] not } {
-      set =*s1
-      charsN =*s2
-      { _ s1 -01 s2 or }' =set
-    } loop
-    set
-  } /charsR deffst
-
-  { # "(charsN) re: " -101 cat dump
-    _ head ==?start
-    ^\ {
-      tail
-      { ^\ } {
-        0 "\\" * =start
-      } { ^n } {
-        0 "\n" * =start
-      } {
-        "invalid character '" "' after \\ in regex" -120 cat cat die
-      } ifthenelse ifthenelse *
-    } rep
-    tail
-    ^- {
-      tail
-      _ head ==?end
-      ^\ {
-        tail
-        { ^\ } {
-          0 "\\" * =end
-        } { ^n } {
-          0 "\n" * =end
-        } {
-          "invalid character '" "' after \\ in regex" -120 cat cat die
-        } ifthenelse ifthenelse *
-      } rep
-      tail
-      { _ start ge -01 end le and }' ==?set
-    }' {
-      { start eq }' ==?set
-    }' ? *
-    set
-  } /charsN deffst
-
-  { 0 -01 * }" /threadGetPC deffd
-  { 1 -01 * }" /threadGetCaptures deffd
-
-  { [
-    0 # pc
-    [ currentCapture { 0 0 } rep ] # captures
-  ] } /newThread deff
-
-  { #==thread ==newpc
-    [ -021 threadGetCaptures ]
-  }" /cloneThread deffd
-
-  { #==thread ==newpc
-    [ -0201 threadGetCaptures _ len dearray ] ]
-  }" /fullCloneThread deffd
-
-  |add /origadd deffd
-
-  # TODO think about implementation efficiency
-  { < ==maxSize
-    0 ==size
-    [ maxSize { 0 }" rep ] =*get
-    [ maxSize { 1 }" rep ] =*pcFree
-
-    { # ==thread
-      _ threadGetPC pcFree {
-        _ size |get =[]
-          0 -01 threadGetPC |pcFree =[]
-        size 1 origadd =size
-      }" { -- }" ? *
-    }' /add deffst
-
-    {
-      0 =size
-      [ maxSize { 1 }" rep ] =pcFree
-    }' /clear deffst
-  > } /threadList deffd
-
-  { ==prog ==string
-    0 ==position
-    string len ==maxPosition
-    0 ==done
-    0 ==matched
-
-    prog len _ threadList ==clist
-               threadList ==nlist
-
-    newThread _ ==thread clist .add
-
-    0 ==pc
-    { } =*code
-
-    [
-      { # MATCH
-        1 =matched
-        clist .clear
-      }" { # TERM
-        position maxPosition lt {
-          position string * 1 code * { pc 1 add thread cloneThread nlist .add }" rep
-        }" rep
-      }" { # JUMP
-        pc 1 code add thread cloneThread clist .add
-      }" { # SPLIT
-        pc 1 code add thread cloneThread clist .add
-        pc 2 code add thread cloneThread clist .add
-      }" { # SAVE
-        pc 1 add thread fullCloneThread
-        position 1 code -2102 threadGetCaptures =[]
-                              clist .add
-      }" { # FIRST
-        position 0 eq { pc 1 add thread cloneThread clist .add }" rep
-      }" { # LAST
-        position maxPosition eq { pc 1 add thread cloneThread clist .add }" rep
-      }"
-    ] =*codeSemantics
-
-    0 ==i
-    { position maxPosition le done not and }" {
-      0 =i
-      { i clist .size lt done not and }" {
-        i clist .get _ =thread
-                       threadGetPC _ =pc
-                                     prog * =code
-        0 code codeSemantics *
-        i 1 add =i
-      }" loop
-
-      clist nlist =clist =nlist
-      nlist .clear
-      position 1 add =position
-    }" loop
-
-    matched {
-      currentCapture ==i
-      { i } { i 1 sub =i
-        string
-        i 2 mul       thread threadGetCaptures * _ ==start -01 str .postfix
-        i 2 mul 1 add thread threadGetCaptures * start sub -01 str .inplacePrefix
-      } loop
-    } rep
-    matched
-  } /execute deffst
-
-  parse ==prog --
-  [
-    [ SPLIT 3 1 ]
-    [ TERM { -- 1 }" ]
-    [ JUMP 2 neg ]
-    prog _ len dearray
-    [ MATCH ]
-  ] =prog
-  { prog execute }
-} /enregex deffd
-
-{
-  quoted {
-    _ sys .typed .type 1 eq {
-      enregex
-    } { |enregex "*" | } ? *
-  } { enregex * } ? *
-} /regex defq
 
 { ==filename # ==?f (left on the stack and executed from sys .asm .programStart)
   sys .asm .patchProgramStart ==frozenAllocationCount
@@ -955,35 +969,23 @@
   out .close
 } /freeze sys .deff
 
-{ .value sys .executeIdentifier }'
-<
-  /TOKID defvd # weird scoping so executeIdentifier is executed in global scope
-  { .value elymas .base10decode } /TOKINT defvd
-  { .value } /TOKSTR defvd
+# no long-term stack use here as the executed program uses it as well
+{ scope
+  { ==currentScope ==input
+    { .value currentScope sys .executeIdentifier =currentScope } /TOKID defvd
+    { .value elymas .base10decode } /TOKINT defvd
+    { .value } /TOKSTR defvd
 
-  # no long-term stack use here as the executed program uses it as well
-  { ==input
-    "" ==buffer
     {
-      buffer 4096 input .read cat =buffer # FIXME interpreter API should also have .read defined as returning string
-      buffer "" streq not
-    } {
-      {
-        buffer "([^\\n]*)\\n" regex
-      } { ==line
-        line len 1 add buffer str .postfix =buffer
-        line TOKINT TOKSTR TOKID elymas .tokenize {
-          _ .handle
-        } each
-      } loop
-    } loop
-  } /executeFile deffd
+      TOKINT TOKSTR TOKID elymas .tokenize { _ .handle } each
+    } input .eachLine
+  } *
+}" /includeFile deffd
 
-  { # ==?filename
-    sys .file -0010 .open
-                    executeFile
-                    .close
-  }
-> -- /include deffd
+{ # ==?filename
+  sys .file -0010 .open
+                  includeFile
+                  .close
+}" /include deffd
 
 # vim: syn=elymas

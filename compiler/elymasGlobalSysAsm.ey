@@ -183,6 +183,23 @@
       :retn
     ]] /eyglobalAllocSize defv
 
+    # get raw object address from object
+    # 0 -> object
+    # 0 <- address of the object
+    [[
+      /rbx :popqReg
+
+      # allocate return integer
+      ::internalAllocateInteger /rax :movqImmReg
+      /rax :callqReg
+
+      8 /rax :popqMemDisp8
+      /rax :pushqReg
+
+      /rbx :pushqReg
+      :retn
+    ]] /eyrawAddress defv
+
     # get raw code execution address from function object
     # 0 -> function object
     # 0 <- address of first instruction

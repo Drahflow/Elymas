@@ -61,7 +61,7 @@
 
 { _ =*conds len ==max
   0 ==i { i max lt } {
-    i conds { i 1 add conds * max =i } { } ? *
+    i conds * { i 1 add conds * max =i } { } ? *
     i 2 add =i
   } loop
 } /conds deffd

@@ -98,6 +98,41 @@
       /rbx :pushqReg
       :retn
     ]] /eypostfix defv
+
+    # produce a string from an integer array specifying its bytes
+    # 0 -> array of integers
+    # 0 <- the same bytes as a string
+    [[
+      /rbx :popqReg
+
+      /rsi :popqReg
+      /rsi :pushqReg
+      /rsi /edi :movlMemReg # load array length
+      3 /rdi :shrqImm8Reg
+      /rdi :decqReg
+      /rdi :pushqReg
+
+      ::internalAllocateString /rax :movqImmReg
+      /rax :callqReg
+
+      /rcx :popqReg # number of characters to copy
+      /rsi :popqReg
+      8 /rsi :addqImm8Reg # move rsi to first array entry
+      /rax :pushqReg # store target string on stack
+      24 /rax :addqImm8Reg # move rax to first string byte
+
+      @copyByte
+      /rsi /rdx :movqMemReg # load object pointer
+      8 /rdx /rdx :movqMemDisp8Reg # load integer value
+      /dl /rax :movbRegMem
+
+      8 /rsi :addqImm8Reg
+      /rax :incqReg
+      /copyByte :loopLbl8
+
+      /rbx :pushqReg
+      :retn
+    ]] /eyfromArray defv
   > _ ==globalFunctions { defv }' ::allocateOffsetStruct
 
   [

@@ -3,13 +3,27 @@
 
   <
     # handle an identifier in the current scope according to current quote level
-    # 0 -> identifier to handle
+    # 0 -> scope to execute identifier in
+    # 1 -> identifier to handle
+    # 0 <- scope after execution
     [[
       8 /r15 :subqImm8Reg
       /r15 :popqMem
+      
+      ::currentScope /rax :movqImmReg
+      8 /r15 :subqImm8Reg
+      /rax /rcx :movqMemReg
+      /rcx /r15 :movqRegMem
+      /rax :popqMem # load scope from argument
 
       internalExecuteIdentifier /rax :movqImmReg
       /rax :callqReg
+
+      ::currentScope /rax :movqImmReg
+      /rax :pushqMem
+      /r15 /rcx :movqMemReg
+      /rcx /rax :movqRegMem # restore old scope
+      8 /r15 :addqImm8Reg
 
       /r15 :pushqMem
       8 /r15 :addqImm8Reg
