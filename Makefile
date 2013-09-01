@@ -1,8 +1,7 @@
 all: elymas/loaded
 
 elymas/loaded: elymas/interpreter $(shell find elymas/lib/ -name '*.ey' )
-	cd elymas && \
-	  ./interpreter < loaded.ey || echo "FIXME: ignoring exit code for now"
+	cd elymas && $(MAKE) loaded
 
 elymas/interpreter: elymas/interpreter.ey compiler/*.ey interpreter/Metal.so interpreter/ACME
 	cd compiler && \

@@ -1945,6 +1945,19 @@
 
       /rax :popqReg
       /rax 24 /r15 :movqRegMemDisp8
+
+      7 /rax /cl :movbMemDisp8Reg
+      %F0 /cl :andbImmReg
+      %70 /cl :cmpbImmReg
+      /eachArray :jzLbl8
+      %10 /cl :cmpbImmReg
+      /eachString :jzLbl8
+
+      "neither string nor array in each" ::outputError
+      :ud2
+      
+      @eachArray
+
       8 /rax /rcx :leaqMemDisp8Reg
       /rcx /r15 :movqRegMem
 
@@ -1969,6 +1982,33 @@
 
       8 /r15 :addqImm8Mem
       /loop :jmpLbl8
+
+      @eachString
+
+      16 /rax /rcx :movqMemDisp8Reg
+      /rcx 8 /r15 :movqRegMemDisp8
+      24 /rax /rcx :leaqMemDisp8Reg
+      /rcx /r15 :movqRegMem
+
+      # /r15 -> current string element
+      # 8 /r15 -> count remaining
+      # 16 /r15 -> code to execute
+      # 24 /r15 -> string object (to keep the GC away)
+
+      @stringLoop
+      ::internalAllocateInteger /rax :movqImmReg
+      /rax :callqReg
+      /rax :pushqReg
+      /r15 /rdx :movqMemReg
+      /rdx /rdx :movzxMem8Reg64
+      /rdx 8 /rax :movqRegMemDisp8
+      16 /r15 :pushqMemDisp8 # push code
+      |ey* /rax :movqImmReg
+      /rax :callqReg
+
+      1 /r15 :addqImm8Mem
+      1 8 /r15 :subqImm8MemDisp8
+      /stringLoop :jnzLbl8
 
       @end
 
