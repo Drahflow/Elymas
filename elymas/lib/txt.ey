@@ -1,0 +1,12 @@
+<
+  <
+    # 0 -> string
+    # 0 <- leading digits converted to int (0, if none)
+    # 1 <- rest of string
+    { "^(\\d*)" regex -- ==n
+      [ n { 48 sub } each ] reverse 10 math .unbase
+    } /u deffd
+  > /consume defvd
+> /txt defvd
+
+# vim: syn=elymas

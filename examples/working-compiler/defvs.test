@@ -1,0 +1,33 @@
+{
+  "herea" /fooa defvs
+  "hereb" /foob defvs
+  "herec" /fooc defvs
+  "hered" /food defvs
+  "heree" /fooe defvs
+  "heref" /foof defvs
+  "hereg" /foog defvs
+  "hereg" /fooga defvs
+  "hereg" /foogb defvs
+  "hereg" /foogc defvs
+  "hereg" /foogd defvs
+  "hereg" /fooge defvs
+  "hereg" /foogf defvs
+  "hereg" /foogg defvs
+  "hereg" /foogh defvs
+  "hereg" /foogi defvs
+  "hereg" /foogj defvs
+  "hereh" /fooh defvs
+  "herei" /fooi defvs
+  "herej" /fooj defvs
+  "herek" /fook defvs
+  "herel" /fool defvs
+  "herem" /foom defvs
+  "heren" /foon defvs
+  "hereo" /fooo defvs
+  { { foon } } * /bar deffd
+  { bar } /quux deffd
+  quux
+  quux
+} *
+--
+die

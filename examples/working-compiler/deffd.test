@@ -1,0 +1,8 @@
+1 --
+{ "here" } /foo deffd
+{ foo } /bar deffd
+{ bar } /quux deffd
+quux
+--
+quux
+die

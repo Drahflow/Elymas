@@ -1,0 +1,14 @@
+#!/usr/bin/env elymas
+
+[
+  "lib/bin.ey"
+  "lib/txt.ey"
+  "lib/math.ey"
+  "lib/sys/linux.ey"
+  "lib/net.ey"
+  "lib/net/tcp.ey"
+  "lib/net/udp.ey"
+  "lib/net/dns.ey"
+] { _ dump include }' each
+
+{ "/proc/self/fd/0" include }' "loaded" sys .freeze

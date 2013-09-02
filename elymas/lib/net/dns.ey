@@ -1,0 +1,138 @@
+# Provide nice ways to do DNS resolution
+# Spec: http://www.faqs.org/rfcs/rfc1035.html
+
+<
+# Uncomment to enable function ("deffd") tracing for this scope
+#   {
+#     -010 { " executing" cat dump }_ -01 ; -01 =*:
+#   }" /deffd deffd
+
+  bin .scan  "->" via
+  bin .print "<-" via
+  bin .produce  "<=" via
+  sys .linux "+" via
+
+  # 0 -> ascii ip address
+  # 0 <- ipv4 address as un32
+  { [ -01 "^(\\d+)\\.(\\d+)\\.(\\d+)\\.(\\d+)$" regex not { "not an IPv4 address" die } rep ]
+    [ -01 txt .consume .|u each ] # FIXME employ typed functions and auto-map
+    reverse str .fromArray
+  } /parseIpv4 deffd
+
+  # 0 -> hostname
+  # 0 <- ipv4 address as un32
+  { ==host
+    ensureResolvConf
+    resolvConf .nameserver parseIpv4 53 net .udp .sockaddrIpv4
+    +AFINET +SOCKDGRAM +IPPROTOUDP +socket _ ==s # TODO: error handling
+    -01 +connect -- # TODO: error handling
+
+      s
+      host buildDnsQueryMessage
+      _ len
+    +write -- # TODO: error handling
+
+    1024 str .alloc ==buf
+
+      s 
+      buf
+      _ len
+    +read # TODO: error handling
+    buf str .inplacePrefix =buf
+
+    buf
+    ->un16 ==id # expected to be zero
+    ->u16 2 math .base ==bitfields
+    ->un16 ==qdCount
+    ->un16 ==anCount
+    ->un16 ==nsCount # expected to be zero
+    ->un16 ==arCount # expected to be zero
+
+    qdCount {
+      ->u8 ==labelLength
+      { labelLength } {
+        labelLength 64 ge {
+          "unexpected compression pointer in DNS reply" die
+        } {
+          labelLength -01 str .postfix
+          ->u8 =labelLength
+        } ? *
+      } loop
+      ->un16 ==qType
+      ->un16 ==qClass
+    } rep
+
+    # _ |dump each
+
+    anCount {
+      ->u8 ==labelLength
+      { labelLength } {
+        labelLength 64 ge {
+          ->u8 labelLength 63 band 256 mul add ==pointerTarget # TODO actually care for pointer target
+          0 =labelLength
+        } {
+          labelLength -01 str .postfix
+          ->u8 =labelLength
+        } ? *
+      } loop
+
+      ->un16 1 eq not { "Answer type field was not 'A'" die } rep
+      ->un16 1 eq not { "Answer class field was not 'INET'" die } rep
+      ->un32 -- # _ ==ttl "TTL: " dump dump
+      ->un16 4 eq not { "Answer data length was not 4" die } rep
+      4 -01 str .inplacePrefix # 4 byte IP data to be returned
+    } {
+      "Answer did not contain any answer data" die
+    } ? *
+  } /resolveIpv4 deffd
+
+  # 0 -> hostname
+  # 0 <- dns query message
+  { ==host
+    0 <=un16 # id
+    [ 1 0 0 0 0 0 0 0 ] 2 math .unbase <-u8 # QR Opcode*4 AA TC RD
+    [ 0 0 0 0 0 0 0 0 ] 2 math .unbase <-u8 # RA Z*3 RCODE*4
+    1 <-un16 # qdcount
+    0 <-un16 # ancount
+    0 <-un16 # nscount
+    0 <-un16 # arcount
+    ==query
+    
+    host { "^([^.]+)\\.?(.*)" regex } {
+      makeLabel query -01 cat =query
+    } loop
+
+    query
+    "\0" cat
+
+    1 <-un16 # "A" query
+    1 <-un16 # "Internet" QCLASS
+  } /buildDnsQueryMessage deffd
+
+  # 0 -> string
+  # 0 <- string with u8 length prepended
+  { _ len <=u8 -01 cat } /makeLabel deffd
+
+  # 0 -> dns message
+  # 0 <- dns message with tcp transport header prepended
+  { _ len <=u16 -01 cat } /prepareTcpMessage deffd
+
+  <
+    0 ==?loaded
+    { defv }' /put deffd
+  > /resolvConf defvd
+
+  # ensure resolv.conf is parsed
+  {
+    resolvConf .loaded not {
+      { [
+        { _ "^[   ]*nameserver[   ]+(.*)" regex } { /nameserver resolvConf .put }
+      ] conds -- }
+      "/etc/resolv.conf" sys .file ":" via :open :eachLine :close
+
+      1 /loaded resolvConf .put
+    } rep
+  } /ensureResolvConf deffd
+> /dns net .defv
+
+# vim: syn=elymas

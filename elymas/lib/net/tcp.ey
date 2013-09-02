@@ -1,0 +1,37 @@
+# Provide nice ways to do TCP/IP networking
+
+<
+  bin .scan  "->" via
+  bin .print "<-" via
+  bin .produce "<=" via
+  sys .linux "+" via
+
+  # 0 -> port
+  # 1 -> host (as network byte ordered string)
+  # 0 <- string representing the sockaddr_in 
+  { ==port ==host
+    +AFINET <=u16
+    port <-un16
+    host cat
+    0 <-un64
+  } /sockaddrIpv4 deffd
+
+  # 0 -> "host:port"
+  # 0 <- connected socket fd
+  { "^([^:]+):(\\d+)$" regex not { "host:port expected" die } rep
+    net .dns .resolveIpv4
+    -01 txt .consume .u
+    sockaddrIpv4
+    +AFINET +SOCKSTREAM +IPPROTOTCP +socket _ ==s # TODO: error handling
+    -01 +connect -- # TODO: error handling
+    s
+  } /connectFd deffd
+
+  # 0 -> "host:port"
+  # 0 <- connected socket as file
+  {
+    connectFd sys .fdToFile
+  } /connect deffd
+> /tcp net .defv
+
+# vim: syn=elymas

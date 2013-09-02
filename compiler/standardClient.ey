@@ -455,7 +455,9 @@
       } /eachLine deff
   > > -- } /makefile deff
 
-  |makefile /fdToFile sys .deff
+  {
+    RDWR 511 makefile
+  } /fdToFile sys .deff
 
   { # 0777 = 511
     1 neg RDONLY 511 makefile

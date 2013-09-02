@@ -11,11 +11,9 @@
   } quoted { } { * } ? *
 } "}_" defq
 
-{ deffst }' " globalDeff" deffd # this is not for public usage
 {
-  { -01 < ==o { o -01 . } > -12 } quoted { } { * } ? *
-  quoted { |deffst } " globalDeff" | ? *
-} /via defq
+  { -01 < ==o { o -01 . } > -12 deffst }" quoted { }" { * }" ? *
+}" /via defq
 
 { -1110 ; ==f =*a len _
   {

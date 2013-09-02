@@ -174,6 +174,51 @@ EOPERL
         weaken($sub);
       }
     }, ['func', "}'"], 'quote'],
+  "}\"" => [sub {
+      my ($data) = @_;
+
+      --$quoted;
+
+      my @code;
+
+      while(1) {
+        my $t = pop @$data or die "Stack underflow";
+        last if($t->[1] eq 'tok' and $t->[0] eq '{');
+
+        unshift @code, $t;
+      };
+
+      die "unexpanded token in quoted code" if grep { $_->[1] eq 'tok' } @code;
+
+      if($quoted) {
+        my $sub = <<'EOPERL' .
+          sub {
+            my ($data) = @_;
+            my $s = sub {
+                my ($data, $lscope) = @_;
+EOPERL
+                compileCode(\@code) . <<'EOPERL';
+              };
+            push @$data, [$s, ['func', 'compiled sub (1)']];
+            weaken($s);
+          }
+EOPERL
+        $sub = eval($sub);
+        push @$data, [$sub, ['func', 'func-quoted'], \@code];
+        weaken($sub);
+      } else {
+        my $sub = <<'EOPERL' .
+          sub {
+            my ($data, $lscope) = @_;
+EOPERL
+            compileCode(\@code) . <<'EOPERL';
+          };
+EOPERL
+        $sub = eval($sub);
+        push @$data, [$sub, ['func', 'compiled sub (2)']];
+        weaken($sub);
+      }
+    }, ['func', "}'"], 'quote'],
   'quoted' => [sub {
       my ($data, $scope) = @_;
       push @$data, [$quoted? 1: 0, 'int'];

@@ -1,0 +1,7 @@
+0 ==?someName
+
+{ { {
+  5000000 { someName -- } rep
+} } } * * *
+
+"done" dump

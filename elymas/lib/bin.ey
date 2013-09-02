@@ -2,21 +2,63 @@
 # as binary data structures
 
 <
+  {
+    { 8 uw } /u64 deffd
+    { 4 uw } /u32 deffd
+    { 2 uw } /u16 deffd
+    { 1 uw } /u8 deffd
+    { 8 unw } /un64 deffd
+    { 4 unw } /un32 deffd
+    { 2 unw } /un16 deffd
+    { 1 unw } /un8 deffd
+  }" /defBitVariants deffd
+
   <
     # 0 -> number of bytes to combine into unsigned int
     # 1 -> string
-    # 0 <- string from (w+1)th byte onwards
-    # 1 <- first w bytes of string interpreted as unsigned int
+    # 0 <- first w bytes of string interpreted as unsigned int
+    # 1 <- string from (w+1)th byte onwards
     { ==w ==s
       w s str .postfix
       [ 0 w range s each ] 256 math .unbase
-    } /uw deff
+    } /uw deffst
 
-    { 8 uw } /u64 deff
-    { 4 uw } /u32 deff
-    { 2 uw } /u16 deff
-    { 1 uw } /u8 deff
-  > /scan defv
-> /bin defv
+    # network byte order (i.e. big endian)
+    { ==w ==s
+      w s str .postfix
+      [ 0 w range reverse s each ] 256 math .unbase
+    } /unw deffst
+
+    defBitVariants
+  > /scan defvd
+
+  <
+    # 0 -> number of bytes to produce
+    # 1 -> int to convert to bytes
+    # 0 <- string enlengthened by binary encoded integer
+    { ==w ==i
+      w str .alloc ==s
+      0 w range { 0 -01 s =[] }" each
+      i 256 math .base _ dom { -101*0 s =[] }" each --
+      s
+    } /uw deffst
+
+    # network byte order (i.e. big endian)
+    { ==w ==i
+      w str .alloc ==s
+      0 w range { 0 -01 s =[] }" each
+      i 256 math .base _ dom { -101*0 w 1 sub -01 sub s =[] }" each --
+      s
+    } /unw deffst
+    
+    defBitVariants
+  > /produce defvd
+
+  <
+    { produce .uw cat } /uw deffst
+    { produce .unw cat } /unw deffst
+    defBitVariants
+  > /print defvd
+> /bin defvd
 
 # vim: syn=elymas
