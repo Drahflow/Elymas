@@ -1,0 +1,8 @@
+0     3     "abcdef" str .infix   dump
+3     6     "abcdef" str .infix   dump
+0     2 neg "abcdef" str .infix   dump
+2 neg 6     "abcdef" str .infix   dump
+3 neg 1 neg "abcdef" str .infix   dump
+2     0     "abcdef" str .infix   dump
+2 neg       "abcdef" str .postfix dump
+2           "abcdef" str .prefix  dump

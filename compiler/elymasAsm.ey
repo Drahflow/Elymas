@@ -695,13 +695,18 @@
   /jc  _ %72 defJmpRel8 %82 defJmpRel32
   /jbe _ %76 defJmpRel8 %86 defJmpRel32
   /je  _ %74 defJmpRel8 %84 defJmpRel32
+  /jg  _ %7F defJmpRel8 %8F defJmpRel32
+  /jge _ %7D defJmpRel8 %8D defJmpRel32
   /jle _ %7E defJmpRel8 %8E defJmpRel32
   /jnb _ %73 defJmpRel8 %83 defJmpRel32
   /jnc _ %73 defJmpRel8 %83 defJmpRel32
   /jne _ %75 defJmpRel8 %85 defJmpRel32
+  /jnl _ %7D defJmpRel8 %8D defJmpRel32
   /jns _ %79 defJmpRel8 %89 defJmpRel32
+  /jno _ %71 defJmpRel8 %81 defJmpRel32
   /jnz _ %75 defJmpRel8 %85 defJmpRel32
   /js  _ %78 defJmpRel8 %88 defJmpRel32
+  /jo  _ %70 defJmpRel8 %80 defJmpRel32
   /jz  _ %74 defJmpRel8 %84 defJmpRel32
 
   { ==reg

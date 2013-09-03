@@ -64,39 +64,170 @@
       :retn
     ]] /eyinplacePrefix defv
 
+    # calculate a string infix
+    # 0 -> string to shorten
+    # 1 -> first position after the infix
+    # 2 -> first position in the infix
+    [[
+      /rbx :popqReg
+
+      /rcx :popqReg # rcx == string
+      16 /rcx /rbp :movqMemDisp8Reg
+
+      /rdi :popqReg
+      8 /rdi /rdi :movqMemDisp8Reg
+      0 /rdi :cmpqImm8Reg
+      /positiveEndOffset :jgeLbl8
+      /rbp /rdi :addqRegReg
+      @positiveEndOffset
+
+      /rsi :popqReg
+      8 /rsi /rsi :movqMemDisp8Reg
+      0 /rsi :cmpqImm8Reg
+      /positiveStartOffset :jgeLbl8
+      /rbp /rsi :addqRegReg
+      @positiveStartOffset
+
+      # rdi == end offset
+      # rsi == start offset
+
+      /rcx :pushqReg
+      /rsi :pushqReg
+
+      /rsi /rdi :subqRegReg
+      /negativeLengthInfix :jsLbl8
+      @negativeLengthInfixFixed
+
+      /rdi :pushqReg
+      ::internalAllocateString /rax :movqImmReg
+      /rax :callqReg
+
+      /rcx :popqReg # rcx == count of bytes to copy
+      /rsi :popqReg # rsi == start offset
+      /rdx :popqReg # rdx == source string
+
+      /rax :pushqReg
+
+      :cld
+      /rcx /rcx :testqRegReg
+
+      24 1 /rsi /rdx /rsi :leaqMemIndexScaleDisp8Reg
+      24 /rax /rdi :leaqMemDisp8Reg
+      :reprcx :movsb
+
+      /rbx :pushqReg
+      :retn
+
+      @negativeLengthInfix
+      /rdi /rdi :xorqRegReg
+      /negativeLengthInfixFixed :jmpLbl8
+    ]] /eyinfix defv
+
+    # calculate a string prefix
+    # 0 -> string to shorten
+    # 1 -> first position after the prefix
+    [[
+      /rbx :popqReg
+
+      /rcx :popqReg # rcx == string
+      16 /rcx /rbp :movqMemDisp8Reg
+
+      /rdi :popqReg
+      8 /rdi /rdi :movqMemDisp8Reg
+      0 /rdi :cmpqImm8Reg
+      /positiveEndOffset :jgeLbl8
+      /rbp /rdi :addqRegReg
+      @positiveEndOffset
+
+      /rsi /rsi :xorqRegReg
+
+      # rdi == end offset
+      # rsi == start offset
+
+      /rcx :pushqReg
+      /rsi :pushqReg
+
+      /rsi /rdi :subqRegReg
+      /negativeLengthInfix :jsLbl8
+      @negativeLengthInfixFixed
+
+      /rdi :pushqReg
+      ::internalAllocateString /rax :movqImmReg
+      /rax :callqReg
+
+      /rcx :popqReg # rcx == count of bytes to copy
+      /rsi :popqReg # rsi == start offset
+      /rdx :popqReg # rdx == source string
+
+      /rax :pushqReg
+
+      :cld
+      /rcx /rcx :testqRegReg
+
+      24 1 /rsi /rdx /rsi :leaqMemIndexScaleDisp8Reg
+      24 /rax /rdi :leaqMemDisp8Reg
+      :reprcx :movsb
+
+      /rbx :pushqReg
+      :retn
+
+      @negativeLengthInfix
+      /rdi /rdi :xorqRegReg
+      /negativeLengthInfixFixed :jmpLbl8
+    ]] /eyprefix defv
+
     # calculate a string postfix
-    # TODO: correctly handly negative indices
     # 0 -> string to shorten
     # 1 -> position of string where to start the postfix
     # 0 <- the requested postfix of the string
     [[
       /rbx :popqReg
 
-      /rax :popqReg
-      /rcx :popqReg
+      /rcx :popqReg # rcx == string
+      16 /rcx /rbp :movqMemDisp8Reg
 
-      /rax :pushqReg
+      /rbp /rdi :movqRegReg
 
-      16 /rax /rdi :movqMemDisp8Reg
-      8 /rcx /rdi :subqMemDisp8Reg
+      /rsi :popqReg
+      8 /rsi /rsi :movqMemDisp8Reg
+      0 /rsi :cmpqImm8Reg
+      /positiveStartOffset :jgeLbl8
+      /rbp /rsi :addqRegReg
+      @positiveStartOffset
+
+      # rdi == end offset
+      # rsi == start offset
+
+      /rcx :pushqReg
+      /rsi :pushqReg
+
+      /rsi /rdi :subqRegReg
+      /negativeLengthInfix :jsLbl8
+      @negativeLengthInfixFixed
+
       /rdi :pushqReg
-
       ::internalAllocateString /rax :movqImmReg
       /rax :callqReg
 
-      /rcx :popqReg
-      /rsi :popqReg
-      /rax :pushqReg # store target string on stack
+      /rcx :popqReg # rcx == count of bytes to copy
+      /rsi :popqReg # rsi == start offset
+      /rdx :popqReg # rdx == source string
 
-      16 /rsi /rdx :movqMemDisp8Reg
-      /rcx /rdx :subqRegReg
+      /rax :pushqReg
 
-      24 1 /rdx /rsi /rsi :leaqMemIndexScaleDisp8Reg
+      :cld
+      /rcx /rcx :testqRegReg
+
+      24 1 /rsi /rdx /rsi :leaqMemIndexScaleDisp8Reg
       24 /rax /rdi :leaqMemDisp8Reg
       :reprcx :movsb
 
       /rbx :pushqReg
       :retn
+
+      @negativeLengthInfix
+      /rdi /rdi :xorqRegReg
+      /negativeLengthInfixFixed :jmpLbl8
     ]] /eypostfix defv
 
     # produce a string from an integer array specifying its bytes
