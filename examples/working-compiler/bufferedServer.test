@@ -1,0 +1,6 @@
+net .alg .bufferedEpollServer "+" via
+  { ":" via <
+    { :write "" } =*in
+    { :close } _ =*end =*err
+  > } +accept
+  { 2001 } +port +run

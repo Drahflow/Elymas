@@ -200,6 +200,19 @@
       :retn
     ]] /eyrawAddress defv
 
+    # generate object from raw object
+    # 0 -> address of the object
+    # 0 <- object
+    [[
+      /rbx :popqReg
+      
+      /rax :popqReg
+      8 /rax :pushqMemDisp8 # push integer value
+
+      /rbx :pushqReg
+      :retn
+    ]] /eyrawObject defv
+
     # get raw code execution address from function object
     # 0 -> function object
     # 0 <- address of first instruction

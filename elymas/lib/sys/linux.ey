@@ -359,8 +359,9 @@
 
     # 0 -> callback data
     # 1 -> event mask
-    # 2 -> fd to add
-    # 3 -> epoll fd
+    # 2 -> fd to modify
+    # 3 -> what to do (i.e. EPOLLCTLADD and friends)
+    # 4 -> epoll fd
     # 0 <- raw return value
     { ==callbackData ==eventMask ==fd ==action ==epollFd
       # struct epoll_event takes 16 bytes on a x86
@@ -384,7 +385,7 @@
       [ buf ret { <
         ->u64 ==events
         ->u64 ==data
-      > } rep -- ]
+      > -01 } rep -- ]
       ret
     } /wait deffd
   > /epoll defvd

@@ -12,7 +12,8 @@
 } "}_" defq
 
 {
-  { -01 < ==o { o -01 . } > -12 deffst }" quoted { }" { * }" ? *
+  { -01 < ==o { o -01 . } > -12 }" quoted { }" { * }" ? *
+  quoted { |deffst } { deffst }" ? *
 }" /via defq
 
 { -1110 ; ==f =*a len _

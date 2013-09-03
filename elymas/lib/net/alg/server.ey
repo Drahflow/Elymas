@@ -1,0 +1,123 @@
+# provide a standard epoll-based tcp/ip server
+{ <
+  <
+    { 1 } /running deffst
+    { 1000000 } /interval deffst
+    { "unconfigured accept (of epollServer)" die } /accept deffst
+    { "unconfigured port (of epollServer)" die } /port deffst
+
+    { = }' /set deffst
+    { scope keys }' /setters deffst
+    { =*install 
+      setters { _ { set }_ -01 install }" each
+    } /installSetters deffst
+  > _ ==settings "::" via
+
+  { -1010 deffst = }' ::installSetters # TODO: def??? should overwrite existing values
+
+  sys .linux "+" via +epoll "++" via
+  net .tcp "+:" via
+
+  <
+    { "noHandler .in" die } =*in
+    { "noHandler .out" die } =*out
+    { "noHandler .err" die } =*err
+  > ==noHandler
+
+  <
+    { txt .produce .u defvst }' /add deffst # TODO: possibly do it without text conversion one day
+    { noHandler -01 add }' /remove deffst
+  > ==eventHandlers
+
+  {
+    ::port +:listenFd ==listenFd
+
+    <
+      {
+        listenFd +:acceptFd ==fd
+        epoll ++EPOLLCTLADD fd ++EPOLLIN ++EPOLLERR bor fd ++ctl
+        <
+          {
+            epoll ++EPOLLCTLDEL fd 0 0 ++ctl
+            fd eventHandlers .remove
+            fd +close
+          } /close deffst
+          { ==count
+            count str .alloc ==buf
+            fd buf count +read
+            _ 0 lt { "read failed" die } rep # TODO: real error handling
+            buf str .inplacePrefix
+          } /read deff
+          { ==buf
+            fd buf _ len +write
+            _ 0 lt { "write failed" die } rep # TODO: real error handling
+          } /write deff
+          { ==flags
+            epoll ++EPOLLCTLMOD fd flags fd ++ctl
+          } /ctl deffst
+        > ::accept fd eventHandlers .add
+      } =*in
+      { "unexpected output capability on listening socket" die } =*out
+      { "error on main server socket" die } =*err
+    > listenFd eventHandlers .add
+
+    ++create ==epoll
+    epoll ++EPOLLCTLADD listenFd ++EPOLLIN listenFd ++ctl
+
+    { ::running } {
+      epoll 16 ::interval ++wait -- # TODO: error handling
+      {
+        _ .data txt .produce .u eventHandlers -01 . ":" via # TODO: consider saving raw addresses in the epoll data instead
+          .events
+          _ ++EPOLLIN  band not not { :in  } rep
+          _ ++EPOLLOUT band not not { :out } rep
+            ++EPOLLERR band not not { :err } rep
+      } each
+    } loop
+  } /run deffst
+> } /epollServer net .alg .deff
+
+{ <
+  net .alg .epollServer "^" via
+
+  <
+    { "unconfigured accept (of bufferedEpollServer)" die } /accept deffst
+
+    { = }' /set deffst
+    { scope keys }' /setters deffst
+    { _ ^settings .installSetters =*install 
+      setters { _ { set }_ -01 install }" each
+    } /installSetters deffst
+  > _ ==settings "::" via
+
+  { -1010 deffst = }' ::installSetters # TODO: def??? should overwrite existing values
+
+  sys .linux .epoll "++" via
+
+  { ":" via "" ==inBuffer "" ==outBuffer
+    <
+      {
+        outBuffer -01 cat =outBuffer
+        ++EPOLLOUT ++EPOLLIN ++EPOLLERR bor bor :ctl
+      } =*write
+      { :close } =*close
+    > ::accept ":::" via <
+      {
+        4096 :read _ len
+          { inBuffer -01 cat :::in =inBuffer }
+          { -- :::end }
+          ? *
+      } =*in
+      {
+        outBuffer _ :write -01 str .postfix
+          _ =outBuffer
+            len { ++EPOLLOUT } { 0 } ? * ++EPOLLIN ++EPOLLERR bor bor :ctl
+      } =*out
+      { :::err } =*err
+    >
+  } ^accept
+
+  { ^run } /run deffst
+> } /bufferedEpollServer net .alg .deff
+
+# vim: syn=elymas

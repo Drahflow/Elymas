@@ -9,6 +9,8 @@
   "lib/net/tcp.ey"
   "lib/net/udp.ey"
   "lib/net/dns.ey"
+  "lib/net/alg.ey"
+  "lib/net/alg/server.ey"
 ] { _ dump include }' each
 
 { "/proc/self/fd/0" include }' "loaded" sys .freeze
