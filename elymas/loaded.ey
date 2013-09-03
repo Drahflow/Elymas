@@ -11,6 +11,7 @@
   "lib/net/dns.ey"
   "lib/net/alg.ey"
   "lib/net/alg/server.ey"
+  "lib/net/alg/http.ey"
 ] { _ dump include }' each
 
 { "/proc/self/fd/0" include }' "loaded" sys .freeze

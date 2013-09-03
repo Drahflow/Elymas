@@ -28,6 +28,7 @@
 
           { "^\\\\\\\\(.*)" regex } { str "\\" cat =str } strparse
           { "^\\\\n(.*)" regex } { str "\n" cat =str } strparse
+          { "^\\\\r(.*)" regex } { str "\r" cat =str } strparse
           { "^\\\\0(.*)" regex } { str "\0" cat =str } strparse
           { "^\\\\\"(.*)" regex } { str "\"" cat =str } strparse
           { "^([^\"\\\\])(.*)" regex } { str -01 cat =str } strparse

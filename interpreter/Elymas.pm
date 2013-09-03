@@ -736,6 +736,8 @@ sub tokenize {
             $str .= '\\';
           } elsif($1 eq 'n') {
             $str .= "\n";
+          } elsif($1 eq 'r') {
+            $str .= "\r";
           } elsif($1 eq '0') {
             $str .= "\0";
           } elsif($1 eq '"') {

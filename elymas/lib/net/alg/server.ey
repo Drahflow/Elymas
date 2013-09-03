@@ -94,13 +94,14 @@
 
   sys .linux .epoll "++" via
 
-  { ":" via "" ==inBuffer "" ==outBuffer
+  { ":" via "" ==inBuffer "" ==outBuffer 0 ==finished
     <
       {
         outBuffer -01 cat =outBuffer
         ++EPOLLOUT ++EPOLLIN ++EPOLLERR bor bor :ctl
       } =*write
       { :close } =*close
+      { 1 =finished } =*finish
     > ::accept ":::" via <
       {
         4096 :read _ len
@@ -111,7 +112,8 @@
       {
         outBuffer _ :write -01 str .postfix
           _ =outBuffer
-            len { ++EPOLLOUT } { 0 } ? * ++EPOLLIN ++EPOLLERR bor bor :ctl
+            len _ { ++EPOLLOUT } { 0 } ? * ++EPOLLIN ++EPOLLERR bor bor :ctl
+                  not finished and { :close } rep
       } =*out
       { :::err } =*err
     >

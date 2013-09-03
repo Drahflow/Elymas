@@ -1,0 +1,15 @@
+net .alg .httpServer "+" via
+  { 2002 } +port
+  { ":" via
+    :url dump
+    [
+      { :url "/" streq } {
+        "<html><body>Hallo Welt!<a href=\"/test\">Test</a></body></html>"
+        "text/html" :ok
+      } { :url "/test" streq } {
+        "<html><body>Test!</body></html>"
+        "text/html" :ok
+      }
+    ] conds
+  } +request
+  +run
