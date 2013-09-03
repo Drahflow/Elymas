@@ -32,6 +32,29 @@
   {
     connectFd sys .fdToFile
   } /connect deffd
+
+  # 0 -> port
+  # 0 <- listening socket fd
+  { # ==port
+    0 <=un32 -01 sockaddrIpv4
+    +AFINET +SOCKSTREAM +IPPROTOTCP +socket _ ==s # TODO: error handling
+    -01 +bind -- # TODO: error handling
+    s 256 +listen -- # TODO: error handling
+    s
+  } _ /listenFd deffd
+      /listen   deffd
+
+  # 0 -> listening socket fd
+  # 0 <- newly accepted connection fd
+  { # ==fd
+    +accept # TODO: error handling
+  } /acceptFd deffd
+
+  # 0 -> listening socket fd
+  # 0 <- newly accepted connection as file
+  { # ==fd
+    acceptFd sys .fdToFile
+  } /accept deffd
 > /tcp net .defv
 
 # vim: syn=elymas

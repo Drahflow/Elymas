@@ -3,7 +3,7 @@
 # argument order tends to follow kernel API
 
 <
-  # 43  ==:ACCEPT
+  43  ==:ACCEPT
   # 288 ==:ACCEPT64
   # 21  ==:ACCESS
   # 163 ==:ACCT
@@ -12,7 +12,7 @@
   # 183 ==:AFSSYSCALL
   # 37  ==:ALARM
   # 158 ==:ARCHPRCTL
-  # 49  ==:BIND
+  49  ==:BIND
   # 12  ==:BRK
   # 125 ==:CAPGET
   # 126 ==:CAPSET
@@ -121,7 +121,7 @@
   # 192 ==:LGETXATTR
   # 86  ==:LINK
   # 265 ==:LINKAT
-  # 50  ==:LISTEN
+  50  ==:LISTEN
   # 194 ==:LISTXATTR
   # 195 ==:LLISTXATTR
   # 212 ==:LOOKUPDCOOKIE
@@ -321,6 +321,10 @@
     deffd
   }' /defStdSyscall deff
 
+  { 0 0 0 0 0 ACCEPT } /accept defStdSyscall
+
+  { _ len 0 0 0 BIND } /bind defStdSyscall
+
   { 0 0 0 0 0 CLOSE } /close defStdSyscall
 
   { _ len 0 0 0 CONNECT } /connect defStdSyscall
@@ -384,6 +388,8 @@
       ret
     } /wait deffd
   > /epoll defvd
+
+  { 0 0 0 0 LISTEN } /listen defStdSyscall
 
   1 ==:AFUNIX
   1 ==:AFLOCAL
