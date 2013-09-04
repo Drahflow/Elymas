@@ -226,10 +226,13 @@
   |add /origadd deffd
 
   # TODO think about implementation efficiency
-  { < ==maxSize
+  { ==maxSize
+    [ maxSize { 1 }" rep ] ==fullOne
+
+    <
     0 ==size
     [ maxSize { 0 }" rep ] =*get
-    [ maxSize { 1 }" rep ] =*pcFree
+    [ fullOne _ len dearray ] =*pcFree
 
     { # ==thread
       _ threadGetPC pcFree {
@@ -239,33 +242,6 @@
       }" { -- }" ? *
     }' /add deffst
 
-    { ==i # ==thread
-      _ threadGetPC pcFree {
-        _ i |get =[]
-          0 -01 threadGetPC |pcFree =[]
-        1
-      }" { -- 0 }" ? *
-    } /update deffst
-
-    {
-      0 =size
-      [ maxSize { 1 }" rep ] =pcFree
-    }' /clear deffst
-  > } /threadList deffd
-
-  { < ==maxSize
-    0 ==size
-    [ maxSize { 0 }" rep ] =*get
-    [ maxSize { 1 }" rep ] =*pcFree
-
-    { # ==thread
-      _ threadGetPC pcFree {
-        _ size |get =[]
-          0 -01 threadGetPC |pcFree =[]
-        size 1 origadd =size
-      }" { -- }" ? *
-    }' /push deffst
-
     {
       size 1 sub _ =size
                    get
@@ -273,9 +249,9 @@
 
     {
       0 =size
-      [ maxSize { 1 }" rep ] =pcFree
+      [ fullOne _ len dearray ] =pcFree
     }' /clear deffst
-  > } /threadStack deffd
+  > } /threadList deffd
 
   # TODO: reconsider clist/ilist and also reconsider optimisation potential
   { ==prog ==string
@@ -286,12 +262,15 @@
 
     prog len _ threadList ==clist
              _ threadList ==nlist
-               threadStack ==ilist
+               threadList ==ilist
 
     newThread _ ==thread clist .add
 
     0 ==pc
     { } =*code
+
+    ilist .|add =*iPush
+    ilist .|pop =*iPop
 
     [
       { # MATCH
@@ -303,18 +282,18 @@
           position string * 1 code * { pc 1 add thread cloneThread nlist .add }" rep
         }" rep
       }" { # JUMP
-        pc 1 code add thread cloneThread ilist .push
+        pc 1 code add thread cloneThread iPush
       }" { # SPLIT
-        pc 2 code add thread cloneThread ilist .push
-        pc 1 code add thread cloneThread ilist .push
+        pc 2 code add thread cloneThread iPush
+        pc 1 code add thread cloneThread iPush
       }" { # SAVE
         pc 1 add thread fullCloneThread
         position 1 code -2102 threadGetCaptures =[]
-                              ilist .push
+                              iPush
       }" { # FIRST
-        position 0 eq { pc 1 add thread cloneThread ilist .push }" rep
+        position 0 eq { pc 1 add thread cloneThread iPush }" rep
       }" { # LAST
-        position maxPosition eq { pc 1 add thread cloneThread ilist .push }" rep
+        position maxPosition eq { pc 1 add thread cloneThread iPush }" rep
       }"
     ] =*codeSemantics
     
@@ -329,9 +308,9 @@
         i 1 add =i
 
         { ilist .size }" {
-          ilist .pop _ =thread
-                       threadGetPC _ =pc
-                                     prog * =code
+          iPop _ =thread
+                 threadGetPC _ =pc
+                               prog * =code
           0 code codeSemantics *
         }" loop
       }" loop

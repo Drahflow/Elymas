@@ -633,13 +633,18 @@
       /rdi /ecx :movlMemReg
       8 /rdi :addqImm8Reg
       16 /rcx :subqImm8Reg
+
       @markFunctionCodeLoop
+      /rdi /r11 :cmpqMemReg
+      /codePartNotObject :jbeLbl32 # pointing above the heap
       /rdi :pushqReg
       /rcx :pushqReg
       /rdi /rdi :movqMemReg
       /markObject :callqLbl32
       /rcx :popqReg
       /rdi :popqReg
+
+      @codePartNotObject
       /rdi :incqReg
       /markFunctionCodeLoop :loopLbl8
       :retn
