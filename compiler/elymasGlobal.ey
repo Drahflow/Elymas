@@ -1531,6 +1531,7 @@
       /rax /rdi :movqRegMem
 
       # TODO kill remaining opcodes to remove GC-followable memory addresses
+      # possible solution: updatable exact-length field for code blocks
       # but think of the return stack
       /rbx :jmpqReg
     ]] /internalOptimizeGeneratedScopedFunction defv

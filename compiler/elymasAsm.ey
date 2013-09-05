@@ -372,6 +372,17 @@
       } mnemonic /bImm variant cat defOp
 
       { parse ==mem ==i
+        i 65536 lt assert
+
+        width16
+        mem .base regno %07 gt mem .idx regno %07 gt or
+          { 0 /none mem .idx mem .base rex } rep
+        %81
+        modrmOpcode mem .encode
+        i imm16
+      } mnemonic /wImm variant cat defOp
+
+      { parse ==mem ==i
         i 256 lt assert
 
         1 /none mem .idx mem .base rex
@@ -766,8 +777,8 @@
     mem bit64assert
     i 65536 lt assert
 
-    mem regno %07 gt { 0 /none /none mem rex } rep
     width16
+    mem regno %07 gt { 0 /none /none mem rex } rep
     %C7
     /zero mem modrm00
     i imm16
