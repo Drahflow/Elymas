@@ -275,14 +275,14 @@ Co-iterability is decided by type-match and
 * integers: co-iterated type is bitwise and, if zero, no co-iteration
 * strings: co-iterated type is longest common substring, if epsilon, no co-iteration
 
-== Musings about function composition operator ==
+= Musings about function composition operator =
 
 Maybe ; should act differently when getting a string, or use another single char for category operations
 
 Uses: Categorical operators over Set
 Anyway: This should be handled by a library, use escape mechanism for ;
 
-== Musings about the API ==
+= Musings about the API =
 
 sys .file
 sys .net
@@ -321,3 +321,19 @@ bin
 math
   [ 1 2 3 ] 16 unbase -> 1+2*16+3*16*16
   12345 10 base -> [ 5 4 3 2 1 ]
+
+= Musing about asm regex engine =
+
+Pseudocode: x86 assembly.
+Program counter: Instruction offset relative to start of pseudocode.
+Thread: Instruction counter + capture data
+Threadlist:
+[
+  <string header>
+  <size>
+  <bitfield of contained PCs>
+  [ # thread data
+    <pc>
+    <capture data>
+  ]*
+]
