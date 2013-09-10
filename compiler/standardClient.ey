@@ -227,19 +227,21 @@
 
   # TODO think about implementation efficiency
   { ==maxSize
-    [ maxSize { 1 }" rep ] ==fullOne
+    str .|bitTest /bitTest deffd
+    str .|bitSet /bitSet deffd
+    str .|zero /zero deffd
 
     <
     0 ==size
     [ maxSize { 0 }" rep ] =*get
-    [ fullOne _ len dearray ] =*pcFree
+    maxSize 1 sub 8 div 1 add 8 mul str .alloc _ zero ==pcUsed
 
     { # ==thread
-      _ threadGetPC pcFree {
+      _ threadGetPC pcUsed bitTest { -- }" {
         _ size |get =[]
-          0 -01 threadGetPC |pcFree =[]
+          threadGetPC pcUsed bitSet
         size 1 origadd =size
-      }" { -- }" ? *
+      }" ? *
     }' /add deffst
 
     {
@@ -249,7 +251,7 @@
 
     {
       0 =size
-      [ fullOne _ len dearray ] =pcFree
+      pcUsed zero
     }' /clear deffst
   > } /threadList deffd
 
