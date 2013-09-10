@@ -981,6 +981,13 @@
   } /rolqClReg deff
 
   { ==reg
+    reg regno %07 gt reg rexreqbyte or { 0 reg /none /none rex } rep
+    %0F
+    %92
+    /zero reg modrm11
+  } /setcbReg deff
+
+  { ==reg
     reg bit64assert
 
     1 /none /none reg rex
@@ -1023,6 +1030,10 @@
     /five reg modrm11
     i imm8
   } /shrqImm8Reg deff
+
+  {
+    %AA
+  } /stosb deff
 
   {
     1 /none /none /none rex

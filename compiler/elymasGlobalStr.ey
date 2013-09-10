@@ -264,6 +264,81 @@
       /rbx :pushqReg
       :retn
     ]] /eyfromArray defv
+
+    ## Bitfield style functions
+
+    # reset a string to all-zero
+    # 0 -> string to reset
+    [[
+      /rbx :popqReg
+
+      /rax /rax :xorqRegReg
+      /rdi :popqReg
+      16 /rdi /rcx :movqMemDisp8Reg
+      24 /rdi :addqImm8Reg
+      :reprcx :stosb
+
+      /rbx :pushqReg
+      :retn
+    ]] /eyzero defv
+
+    # bit test
+    # 0 -> string to extract bit from
+    # 1 -> bit index to extract
+    [[
+      /rbx :popqReg
+
+      ::internalAllocateInteger /rax :movqImmReg
+      /rax :callqReg
+      /rax /rdx :movqRegReg
+
+      /rdi :popqReg
+      /rax :popqReg
+      8 /rax /rax :movqMemDisp8Reg
+
+      /rdx :pushqReg
+
+      /rcx /rcx :xorqRegReg
+      /rax 24 /rdi :btqRegMemDisp8
+      /cl :setcbReg
+
+      /rcx 8 /rdx :movqRegMemDisp8
+
+      /rbx :pushqReg
+      :retn
+    ]] /eybitTest defv
+
+    # bit set
+    # 0 -> string to extract bit from
+    # 1 -> bit index to set
+    [[
+      /rbx :popqReg
+
+      /rdi :popqReg
+      /rax :popqReg
+      8 /rax /rax :movqMemDisp8Reg
+
+      /rax 24 /rdi :btsqRegMemDisp8
+
+      /rbx :pushqReg
+      :retn
+    ]] /eybitSet defv
+
+    # bit reset
+    # 0 -> string to extract bit from
+    # 1 -> bit index to set
+    [[
+      /rbx :popqReg
+
+      /rdi :popqReg
+      /rax :popqReg
+      8 /rax /rax :movqMemDisp8Reg
+
+      /rax 24 /rdi :btrqRegMemDisp8
+
+      /rbx :pushqReg
+      :retn
+    ]] /eybitReset defv
   > _ ==globalFunctions { defv }' ::allocateOffsetStruct
 
   [
