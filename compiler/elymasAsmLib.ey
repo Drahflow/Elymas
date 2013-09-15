@@ -259,9 +259,6 @@
       /noFreeBlockAvailable :jmpLbl32
 
       @freeBlockFound
-      /r9 :popqReg
-      /r8 :popqReg
-
       # rdi == size of block to allocate
       # rbx == last cell of free block of sufficient size
 
@@ -280,11 +277,9 @@
 
       /rbx /rax :movqRegReg
       3 /rax :shrqImm8Reg
-      /rdx :movqImmOOBReg BLOCKBASE
-      1 /rdx /rax /sil :orbMemIndexScaleReg # sil now { mask block bor }
+      1 /r8 /rax /sil :orbMemIndexScaleReg # sil now { mask block bor }
       /rsi :notqReg # sil now { mask block bor bnot }
-      /rdx :movqImmOOBReg MARKBASE
-      /sil 1 /rdx /rax :orbRegMemIndexScale # set mark bit if block bit was zero
+      /sil 1 /r9 /rax :orbRegMemIndexScale # set mark bit if block bit was zero
 
       @dontSplit
       # mark block as used (-> white)
@@ -301,11 +296,9 @@
 
       /rbx /rax :movqRegReg
       3 /rax :shrqImm8Reg
-      /rdx :movqImmOOBReg BLOCKBASE
-      /sil 1 /rdx /rax :orbRegMemIndexScale # set block bit
+      /sil 1 /r8 /rax :orbRegMemIndexScale # set block bit
       /rsi :notqReg # sil now { mask bnot }
-      /rdx :movqImmOOBReg MARKBASE
-      /sil 1 /rdx /rax :andbRegMemIndexScale # reset mark bit
+      /sil 1 /r9 /rax :andbRegMemIndexScale # reset mark bit
 
       # ensure the new block is marked as block extend throughout in the bitmaps
       # TODO reconnect free blocks while scanning instead
@@ -329,10 +322,8 @@
 
       /rbx /rax :movqRegReg
       3 /rax :shrqImm8Reg
-      /rdx :movqImmOOBReg BLOCKBASE
-      /sil 1 /rdx /rax :andbRegMemIndexScale # reset block bit
-      /rdx :movqImmOOBReg MARKBASE
-      /sil 1 /rdx /rax :andbRegMemIndexScale # reset mark bit
+      /sil 1 /r8 /rax :andbRegMemIndexScale # reset block bit
+      /sil 1 /r9 /rax :andbRegMemIndexScale # reset mark bit
       /markBlockFree :jmpLbl8
 
       @markedBlockFree
@@ -357,6 +348,8 @@
       :reprcx :stosq
       /rax :popqReg
 
+      /r9 :popqReg
+      /r8 :popqReg
       :retn
 
       @noFreeBlockAvailable
