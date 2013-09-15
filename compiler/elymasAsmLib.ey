@@ -101,20 +101,25 @@
     [ :globalAllocations .base :imm64 ] ==globalAllocationList # FIXME what is this for? directly use :globalAllocations
   > { defv }' allocateOffsetStruct
 
-  { _ =*array len _ 4 div ==largeMoves
-                    4 mod ==smallMoves
-    0 ==i
-    largeMoves {
-      i _ 4 add =i
-        _ [ 3 2 1 0 ] add array { -01 256 mul add } fold -01 /rdi :movlImmMemDisp8
-    } rep
-    i /rdi :addqImm8Reg
-    smallMoves {
-      i _ 1 add =i
-          array /rdi :movbImmMem
-      /rdi :incqReg
-    } rep
-  } /loadToRdi deff
+  { ==register
+    { _ =*array len _ 4 div ==largeMoves
+                      4 mod ==smallMoves
+      0 ==i
+      largeMoves {
+        i _ 4 add =i
+          _ [ 3 2 1 0 ] add array { -01 256 mul add } fold -01 register :movlImmMemDisp8
+      } rep
+      i register :addqImm8Reg
+      smallMoves {
+        i _ 1 add =i
+            array register :movbImmMem
+        register :incqReg
+      } rep
+    }
+  } /loadToXXX deff
+
+  /rdi loadToXXX /loadToRdi deff
+  /rbp loadToXXX /loadToRbp deff
 
   # internal functions, ABI follows SysV standards
 
@@ -422,16 +427,15 @@
       /loopThroughCallStack :jbLbl8
 
       # start from encoding buffer and mark all reachable blocks
-      # TODO clear encoding buffer in the allocating functions (or mark via :ud2 at beginning)
-      :quoteEncodingBuffer /rsi :movqImmReg
-      [ 0 1 ] { [ :ud2 ] * } each 256 mul add /rsi :cmpwImmMem
+      :quoteEncodingBufferObjects /rsi :movqImmReg
+      0 /rsi :cmpqImm8Mem
       /quoteEncodingBufferUnused :jzLbl8
 
       :STACKSIZE 8 sub /rcx :movqImmReg
       @loopThroughEncodingBuffer
       /rsi /rdi :movqMemReg
       /markObject :callqLbl32
-      /rsi :incqReg
+      8 /rsi :addqImm8Reg
       /loopThroughEncodingBuffer :loopLbl8
       @quoteEncodingBufferUnused
 
@@ -608,20 +612,22 @@
 
       /rcx :pushqReg
       /rdi /ecx :movlMemReg
-      8 /rdi :addqImm8Reg
+      8 /rdi /rcx :subqMemDisp8Reg
+      8 /rdi /rdi :addqMemDisp8Reg
       16 /rcx :subqImm8Reg
+      /markFunctionCodeDone :jzLbl8
+      16 /rdi :addqImm8Reg
+      3 /rcx :shrqImm8Reg
 
       @markFunctionCodeLoop
-      /rdi /r11 :cmpqMemReg
-      /codePartNotObject :jbeLbl32 # pointing above the heap
       /rdi :pushqReg
       /rdi /rdi :movqMemReg
       /markObject :callqLbl32
       /rdi :popqReg
-
-      @codePartNotObject
-      /rdi :incqReg
+      8 /rdi :addqImm8Reg
       /markFunctionCodeLoop :loopLbl8
+
+      @markFunctionCodeDone
       /rcx :popqReg
       :retn
 
@@ -975,7 +981,7 @@
     # rdi -> number of code bytes
     # rax <- address of code block on heap
     [
-      8 /rdi :addqImm8Reg
+      16 /rdi :addqImm8Reg
       internalAllocate /rax :movqImmReg
       /rax :callqReg
 
@@ -1056,29 +1062,45 @@
     :retn
   ] /unscopingFunctionFooter defv
 
+  # rdi -> end of allocated code (address after last used opcode in quoteEncodingBufferCode)
+  # rbp -> end of allocated object pointers (address after last used address in quoteEncodingBufferObjects)
+  # rax <- resulting code object
   {
-    :quoteEncodingBuffer /rax :movqImmReg
+    :quoteEncodingBufferCode /rax :movqImmReg
     /rax /rdi :subqRegReg
-    /rdi :pushqReg # store opcode byte count
+
+    :quoteEncodingBufferObjects /rax :movqImmReg
+    /rax /rbp :subqRegReg
 
     /rdi :decqReg
     3 /rdi :shrqImm8Reg
     /rdi :incqReg
     3 /rdi :shlqImm8Reg
+
+    /rbp :pushqReg # store pointer byte count
+    /rdi :pushqReg # store opcode byte count (rounded up to 8 byte)
+
+    /rbp /rdi :addqRegReg
     internalAllocateCode /rax :movqImmReg
     /rax :callqReg
 
     # rax == code block on heap
 
     # copy opcodes
-    :quoteEncodingBuffer /rsi :movqImmReg
-    8 /rax /rdi :leaqMemDisp8Reg
+    :quoteEncodingBufferCode /rsi :movqImmReg
+    16 /rax /rdi :leaqMemDisp8Reg
+    /rcx :popqReg
+    /rcx 8 /rax :movqRegMemDisp8
+    :reprcx :movsb
+
+    # copy object pointers
+    :quoteEncodingBufferObjects /rsi :movqImmReg
     /rcx :popqReg
     :reprcx :movsb
 
     # mark buffer unused
-    :quoteEncodingBuffer /rdi :movqImmReg
-    [ 0 1 ] { [ :ud2 ] * } each 256 mul add /rdi :movwImmMem
+    :quoteEncodingBufferObjects /rdi :movqImmReg
+    /rcx /rdi :movqRegMem # rcx is conveniently zero
   } /allocateCodeFromEncodingBuffer deff
 
   { strToUTF8Bytes _ =*v len _ ==exactLength

@@ -364,7 +364,7 @@
 
       @untyped
       24 /rdx /rax :movqMemDisp8Reg
-      8 /rax :addqImm8Reg
+      16 /rax :addqImm8Reg
       /rax :callqReg
 
       /r15 /rcx :movqMemReg
@@ -382,7 +382,7 @@
       /typedUnscoped :jnzLbl8
 
       24 /rdx /rax :movqMemDisp8Reg
-      8 /rax :addqImm8Reg
+      16 /rax :addqImm8Reg
       /rax :callqReg
 
       /r15 :pushqMem
@@ -461,7 +461,7 @@
       /typedCommonCheck :loopLbl8
 
       24 /rdx /rax :movqMemDisp8Reg
-      8 /rax :addqImm8Reg
+      16 /rax :addqImm8Reg
       /rax :callqReg
 
       /r15 /rcx :movqMemReg
@@ -982,7 +982,7 @@
       /rcx /r15 :movqRegMem
       /rsi /rax :movqRegMem
 
-      8 /rdi :addqImm8Reg
+      16 /rdi :addqImm8Reg
       /rdi :callqReg
 
       /r15 /rcx :movqMemReg
@@ -1138,7 +1138,9 @@
 
       @patchConstantActiveGeneral
       8 /r15 /rdi :movqMemDisp8Reg
-      8 /rdi :addqImm8Reg
+      8 /rdi /rbp :movqMemDisp8Reg
+      16 1 /rbp /rdi /rbp :leaqMemIndexScaleDisp8Reg
+      16 /rdi :addqImm8Reg
 
       [
         /rbx :popqReg
@@ -1153,8 +1155,10 @@
         /rax :jmpqReg
       ] ::loadToRdi
 
+      /rdx 0 /rbp :movqRegMemDisp8 # save reference for the GC
+
       8 /r15 /rdi :movqMemDisp8Reg
-      8 /rdi :addqImm8Reg
+      16 /rdi :addqImm8Reg
 
       16 /r15 :addqImm8Reg
       /r15 :pushqMem
@@ -1174,11 +1178,14 @@
       
       @patchConstantNormalFunctionScopedUntyped
       8 /r15 /rdi :movqMemDisp8Reg
-      8 /rdi :addqImm8Reg
+      8 /rdi /rbp :movqMemDisp8Reg
+      16 1 /rbp /rdi /rbp :leaqMemIndexScaleDisp8Reg
+      16 /rdi :addqImm8Reg
 
       8 /rdx /rcx :movqMemDisp8Reg # load function scope
 
-      24 /rdx /rdx :movqMemDisp8Reg # load actual function code
+      24 /rdx /rbx :movqMemDisp8Reg # load actual function code
+      16 /rbx :addqImm8Reg
 
       [
         /rsi :movqImmOOBReg
@@ -1186,17 +1193,32 @@
       /rcx /rdi :movqRegMem
       8 /rdi :addqImm8Reg
       [
+        16 /r15 :subqImm8Reg
+        8 /r15 :popqMemDisp8
+
+        ::currentScope /rax :movqImmReg
+        /rsi /rax :xchgqRegMem
+        /rsi /r15 :movqRegMem
         /rdi :movqImmOOBReg
       ] ::loadToRdi
-      /rdx /rdi :movqRegMem
+      /rbx /rdi :movqRegMem
       8 /rdi :addqImm8Reg
       [
-        internalConstantNormalFunctionScopedUntypedJumpPad /rax :movqImmReg
-        /rax :jmpqReg
+        /rdi :callqReg
+
+        /r15 /rsi :movqMemReg
+        ::currentScope /rax :movqImmReg
+        /rsi /rax :movqRegMem
+
+        8 /r15 :pushqMemDisp8
+        16 /r15 :addqImm8Reg
+        :retn
       ] ::loadToRdi
 
+      /rdx 0 /rbp :movqRegMemDisp8 # save object reference
+
       8 /r15 /rdi :movqMemDisp8Reg
-      8 /rdi :addqImm8Reg
+      16 /rdi :addqImm8Reg
 
       16 /r15 :addqImm8Reg
       /r15 :pushqMem
@@ -1211,26 +1233,25 @@
 
       @patchConstantNormalFunctionUnscopedUntyped
       8 /r15 /rdi :movqMemDisp8Reg
-      8 /rdi :addqImm8Reg
+      8 /rdi /rbp :movqMemDisp8Reg
+      16 1 /rbp /rdi /rbp :leaqMemIndexScaleDisp8Reg
+      16 /rdi :addqImm8Reg
 
       24 /rdx /rdx :movqMemDisp8Reg # load actual function code
-      8 /rdx :addqImm8Reg
+      16 /rdx /rcx :leaqMemDisp8Reg # correct for header
 
       [
         /rax :movqImmOOBReg
       ] ::loadToRdi
-      /rdx /rdi :movqRegMem
+      /rcx /rdi :movqRegMem
       8 /rdi :addqImm8Reg
       [
         /rax :jmpqReg
-        /rax :movqImmOOBReg
       ] ::loadToRdi
-      8 /rdx :subqImm8Reg
-      /rdx /rdi :movqRegMem # save the address for the GC
-      8 /rdi :addqImm8Reg
+      /rdx 0 /rbp :movqRegMemDisp8 # save the address for the GC
 
       8 /r15 /rdi :movqMemDisp8Reg
-      8 /rdi :addqImm8Reg
+      16 /rdi :addqImm8Reg
 
       16 /r15 :addqImm8Reg
       /r15 :pushqMem
@@ -1239,7 +1260,8 @@
 
       @patchConstantPassive
       8 /r15 /rdi :movqMemDisp8Reg
-      8 /rdi :addqImm8Reg
+      # TODO: could reset string reference here
+      16 /rdi :addqImm8Reg
 
       [
         /rbx :popqReg
@@ -1253,7 +1275,7 @@
       ] ::loadToRdi
 
       8 /r15 /rdi :movqMemDisp8Reg
-      8 /rdi :addqImm8Reg
+      16 /rdi :addqImm8Reg
 
       16 /r15 :addqImm8Reg
       /r15 :pushqMem
@@ -1288,9 +1310,9 @@
       :ud2
 
       @patchStaticPassiveParentCountWithinLimits
-
       8 /r15 /rdi :movqMemDisp8Reg
-      8 /rdi :addqImm8Reg
+      # TODO: could reset string reference here
+      16 /rdi :addqImm8Reg
 
       [
         ::currentScope /rax :movqImmReg
@@ -1320,7 +1342,7 @@
       /esi /rdi :movlRegMem # patch offset
 
       8 /r15 /rdi :movqMemDisp8Reg
-      8 /rdi :addqImm8Reg
+      16 /rdi :addqImm8Reg
 
       16 /r15 :addqImm8Reg
       /r15 :pushqMem
@@ -1342,7 +1364,7 @@
       /esi /rdi :movlRegMem # patch offset
 
       8 /r15 /rdi :movqMemDisp8Reg
-      8 /rdi :addqImm8Reg
+      16 /rdi :addqImm8Reg
 
       16 /r15 :addqImm8Reg
       /r15 :pushqMem
@@ -1360,9 +1382,9 @@
       :ud2
 
       @patchStaticActiveParentCountWithinLimits
-
       8 /r15 /rdi :movqMemDisp8Reg
-      8 /rdi :addqImm8Reg
+      # TODO: could reset string reference here
+      16 /rdi :addqImm8Reg
 
       [
         ::currentScope /rax :movqImmReg
@@ -1394,7 +1416,7 @@
       /esi /rdi :movlRegMem # patch offset
 
       8 /r15 /rdi :movqMemDisp8Reg
-      8 /rdi :addqImm8Reg
+      16 /rdi :addqImm8Reg
 
       16 /r15 :addqImm8Reg
       /r15 :pushqMem
@@ -1418,7 +1440,7 @@
       /esi /rdi :movlRegMem # patch offset
 
       8 /r15 /rdi :movqMemDisp8Reg
-      8 /rdi :addqImm8Reg
+      16 /rdi :addqImm8Reg
 
       16 /r15 :addqImm8Reg
       /r15 :pushqMem
@@ -1432,107 +1454,108 @@
     [[
       /rbx :popqReg
       /rsi :popqReg
-      8 /rsi :addqImm8Reg # move to start of code
-      /rsi :pushqReg
-      :quoteEncodingBuffer /rdi :movqImmReg
-
-      %34 /rcx :movqImmReg # skip to generated code
-      :reprcx :movsb
-
-      @parseLoop
-      0 [ 0 :callqRel32 ] * 0 /rsi :cmpbImmMemDisp8
-      /parseFooter :jzLbl32
-      1 [ 8 /rax :addqImm8Reg ] * 11 /rsi :cmpbImmMemDisp8
-      /parseFunctionCall :jzLbl32
-      0 [ /rax :pushqReg ] * 10 /rsi :cmpbImmMemDisp8
-      /parseConstantPush :jzLbl32
-      0 [ /rax :callqReg ] * 10 /rsi :cmpbImmMemDisp8
-      /parseConstantCall :jzLbl32
-
-      "unknown assembly instruction during internalOptimizeGeneratedScopedFunction" ::outputError
-      :ud2
-
-      @parseFunctionCall
-      2 /rsi /rdx :movqMemDisp8Reg # load function address
-      1 [ 0 /rax :movqImmReg ] * 9 /rdx :cmpbImmMemDisp8
-      /parseFunctionCallSkip :jnzLbl32
-      0 [ /rax :jmpqReg ] * 18 /rdx :cmpbImmMemDisp8
-      /parseFunctionCallSkip :jnzLbl32
-      1 [ /rax :jmpqReg ] * 19 /rdx :cmpbImmMemDisp8
-      /parseFunctionCallSkip :jnzLbl32
-  
-      10 /rdx /rcx :movqMemDisp8Reg # load final function address
-      /rax :movqImmOOBReg ::HEAPEND
-      /rax /rcx :cmpqRegReg
-      /parseFunctionUnGCable :jaeLbl8
-
-      # @parseFunctionGCable
-      [
-        /rax :movqImmOOBReg
-      ] ::loadToRdi
-      8 /rcx :subqImm8Reg # make address point to code block object
-      /rcx /rdi :movqRegMem # load final function address
-      8 /rdi :addqImm8Reg
-      [
-        8 /rax :addqImm8Reg # skip code block object header
-        /rax :callqReg
-      ] ::loadToRdi
-      /parseFunctionCallDone :jmpLbl8
-
-      @parseFunctionUnGCable
-      [
-        /rax :movqImmOOBReg
-      ] ::loadToRdi
-      /rcx /rdi :movqRegMem # load final function address
-      8 /rdi :addqImm8Reg
-      [
-        /rax :callqReg
-      ] ::loadToRdi
-
-      @parseFunctionCallDone
-      16 /rsi :addqImm8Reg
-      /parseLoop :jmpLbl32
-
-      @parseFunctionCallSkip
-      :movsq # verbatim copy
-      :movsq
-      /parseLoop :jmpLbl32
-
-      @parseConstantPush
-      :movsq # verbatim copy
-      :movsw
-      :movsb
-      /parseLoop :jmpLbl32
-
-      @parseConstantCall
-      :movsq # verbatim copy
-      :movsl
-      /parseLoop :jmpLbl32
-
-      @parseFooter
-      ::scopingFunctionFooter ::loadToRdi
-      ::allocateCodeFromEncodingBuffer
-      # rax == optimized code object on heap
-
-      # patch indirection to new code into old
-      /rsi :popqReg # rsi == old code start
-      /rsi /rdi :movqRegReg
-      [
-        /rax :movqImmOOBReg
-      ] ::loadToRdi
-      8 /rax :addqImm8Reg
-      /rax /rdi :movqRegMem
-      8 /rax :subqImm8Reg
-      8 /rdi :addqImm8Reg
-      [
-        /rax :jmpqReg
-        /rax :movqImmOOBReg
-      ] ::loadToRdi
-      /rax /rdi :movqRegMem
-
-      # TODO kill remaining opcodes to remove GC-followable memory addresses
-      # possible solution: updatable exact-length field for code blocks
-      # but think of the return stack
+# FIXME FIXME FIXME this should be reenabled soonish
+#      8 /rsi :addqImm8Reg # move to start of code
+#      /rsi :pushqReg
+#      :quoteEncodingBuffer /rdi :movqImmReg
+#
+#      %34 /rcx :movqImmReg # skip to generated code
+#      :reprcx :movsb
+#
+#      @parseLoop
+#      0 [ 0 :callqRel32 ] * 0 /rsi :cmpbImmMemDisp8
+#      /parseFooter :jzLbl32
+#      1 [ 8 /rax :addqImm8Reg ] * 11 /rsi :cmpbImmMemDisp8
+#      /parseFunctionCall :jzLbl32
+#      0 [ /rax :pushqReg ] * 10 /rsi :cmpbImmMemDisp8
+#      /parseConstantPush :jzLbl32
+#      0 [ /rax :callqReg ] * 10 /rsi :cmpbImmMemDisp8
+#      /parseConstantCall :jzLbl32
+#
+#      "unknown assembly instruction during internalOptimizeGeneratedScopedFunction" ::outputError
+#      :ud2
+#
+#      @parseFunctionCall
+#      2 /rsi /rdx :movqMemDisp8Reg # load function address
+#      1 [ 0 /rax :movqImmReg ] * 9 /rdx :cmpbImmMemDisp8
+#      /parseFunctionCallSkip :jnzLbl32
+#      0 [ /rax :jmpqReg ] * 18 /rdx :cmpbImmMemDisp8
+#      /parseFunctionCallSkip :jnzLbl32
+#      1 [ /rax :jmpqReg ] * 19 /rdx :cmpbImmMemDisp8
+#      /parseFunctionCallSkip :jnzLbl32
+#  
+#      10 /rdx /rcx :movqMemDisp8Reg # load final function address
+#      /rax :movqImmOOBReg ::HEAPEND
+#      /rax /rcx :cmpqRegReg
+#      /parseFunctionUnGCable :jaeLbl8
+#
+#      # @parseFunctionGCable
+#      [
+#        /rax :movqImmOOBReg
+#      ] ::loadToRdi
+#      8 /rcx :subqImm8Reg # make address point to code block object
+#      /rcx /rdi :movqRegMem # load final function address
+#      8 /rdi :addqImm8Reg
+#      [
+#        8 /rax :addqImm8Reg # skip code block object header
+#        /rax :callqReg
+#      ] ::loadToRdi
+#      /parseFunctionCallDone :jmpLbl8
+#
+#      @parseFunctionUnGCable
+#      [
+#        /rax :movqImmOOBReg
+#      ] ::loadToRdi
+#      /rcx /rdi :movqRegMem # load final function address
+#      8 /rdi :addqImm8Reg
+#      [
+#        /rax :callqReg
+#      ] ::loadToRdi
+#
+#      @parseFunctionCallDone
+#      16 /rsi :addqImm8Reg
+#      /parseLoop :jmpLbl32
+#
+#      @parseFunctionCallSkip
+#      :movsq # verbatim copy
+#      :movsq
+#      /parseLoop :jmpLbl32
+#
+#      @parseConstantPush
+#      :movsq # verbatim copy
+#      :movsw
+#      :movsb
+#      /parseLoop :jmpLbl32
+#
+#      @parseConstantCall
+#      :movsq # verbatim copy
+#      :movsl
+#      /parseLoop :jmpLbl32
+#
+#      @parseFooter
+#      ::scopingFunctionFooter ::loadToRdi
+#      ::allocateCodeFromEncodingBuffer
+#      # rax == optimized code object on heap
+#
+#      # patch indirection to new code into old
+#      /rsi :popqReg # rsi == old code start
+#      /rsi /rdi :movqRegReg
+#      [
+#        /rax :movqImmOOBReg
+#      ] ::loadToRdi
+#      8 /rax :addqImm8Reg
+#      /rax /rdi :movqRegMem
+#      8 /rax :subqImm8Reg
+#      8 /rdi :addqImm8Reg
+#      [
+#        /rax :jmpqReg
+#        /rax :movqImmOOBReg
+#      ] ::loadToRdi
+#      /rax /rdi :movqRegMem
+#
+#      # TODO kill remaining opcodes to remove GC-followable memory addresses
+#      # possible solution: updatable exact-length field for code blocks
+#      # but think of the return stack
       /rbx :jmpqReg
     ]] /internalOptimizeGeneratedScopedFunction defv
 
@@ -1636,23 +1659,24 @@
 
       @constructQuotedResolve
       # construct non-capturing function
-      :quoteEncodingBuffer /rdi :movqImmReg
+      :quoteEncodingBufferCode /rdi :movqImmReg
+      :quoteEncodingBufferObjects /rbp :movqImmReg
       ::unscopingFunctionHeader ::loadToRdi
 
       # push identifier
-      [ /rax :movqImmOOBReg ] _ len 2 eq assert
-        2 dearray 256 mul add 
-        /rdi :movwImmMem
+      [ /rax :movqImmOOBReg ] ::loadToRdi
       /r15 /rsi :movqMemReg
-      /rsi 2 /rdi :movqRegMemDisp8
-      10 /rdi :addqImm8Reg
+      /rsi /rdi :movqRegMem
+      /rsi 0 /rbp :movqRegMemDisp8
+      8 /rdi :addqImm8Reg
+      8 /rbp :addqImm8Reg
 
       [
         /rax :pushqReg
         0 :callqRel32
         /rax :popqReg
         # 16 bytes code here, header length, and code block header
-        16 ::unscopingFunctionHeader len add 8 add /rax :subqImm8Reg
+        16 ::unscopingFunctionHeader len add 16 add /rax :subqImm8Reg
         /rax :pushqReg
         64 { :nop } rep # FIXME the maximum patch length still needs to be determined
         internalExecuteIdentifierUnquotedAndPatchLateResolve /rax :movqImmReg
@@ -1721,7 +1745,8 @@
       /r15 :popqMem
       
       # construct non-capturing function
-      :quoteEncodingBuffer /rdi :movqImmReg
+      :quoteEncodingBufferCode /rdi :movqImmReg
+      :quoteEncodingBufferObjects /rbp :movqImmReg
       ::unscopingFunctionHeader ::loadToRdi
       
       /rcx :popqReg
@@ -1732,7 +1757,9 @@
         2 dearray 256 mul add 
         /rdi :movwImmMem
       /rdx 2 /rdi :movqRegMemDisp8
+      /rdx 0 /rbp :movqRegMemDisp8
       10 /rdi :addqImm8Reg
+      8 /rbp :addqImm8Reg
       [
         /rax :pushqReg
         |ey* /rax :movqImmReg
@@ -1741,7 +1768,9 @@
       ] ::loadToRdi
       # push function g
       /rcx /rdi :movqRegMem
+      /rcx 0 /rbp :movqRegMemDisp8
       8 /rdi :addqImm8Reg
+      8 /rbp :addqImm8Reg
       [
         /rax :pushqReg
         |ey* /rax :movqImmReg
@@ -2228,7 +2257,8 @@
 
         /rdx :pushqReg # store address of begin marker
 
-        :quoteEncodingBuffer /rdi :movqImmReg
+        :quoteEncodingBufferCode /rdi :movqImmReg
+        :quoteEncodingBufferObjects /rbp :movqImmReg
         header ::loadToRdi
 
         @search
@@ -2255,10 +2285,12 @@
           2 dearray 256 mul add 
           /rdi :movwImmMem
         /rsi 2 /rdi :movqRegMemDisp8
+        /rsi 0 /rbp :movqRegMemDisp8
         [ /rax :pushqReg ] _ len 1 eq assert
           1 dearray
           10 /rdi :movbImmMemDisp8
         11 /rdi :addqImm8Reg
+        8 /rbp :addqImm8Reg
         /search :jmpLbl32
 
         @functionFound
@@ -2275,10 +2307,12 @@
         [ /rax :movqImmOOBReg ] _ len 2 eq assert
           2 dearray 256 mul add 
           /rdi :movwImmMem
+        /rax 0 /rbp :movqRegMemDisp8 # save code object pointer
+        16 /rax :addqImm8Reg # but add code offset, before encoding call
         /rax 2 /rdi :movqRegMemDisp8
         10 /rdi :addqImm8Reg
+        8 /rbp :addqImm8Reg
         [
-          8 /rax :addqImm8Reg # add code offset only here, to keep the address available for GC
           /rax :callqReg
         ] ::loadToRdi
         /search :jmpLbl32
@@ -2288,10 +2322,12 @@
           2 dearray 256 mul add 
           /rdi :movwImmMem
         /rsi 2 /rdi :movqRegMemDisp8
+        /rsi 0 /rbp :movqRegMemDisp8
         [ /rax :pushqReg ] _ len 1 eq assert
           1 dearray
           10 /rdi :movbImmMemDisp8
         11 /rdi :addqImm8Reg
+        8 /rbp :addqImm8Reg
         [
           |ey* /rax :movqImmReg
           /rax :callqReg
@@ -2310,7 +2346,7 @@
           /rax :popqReg
           /rbx :movqImmOOBReg
         ] ::loadToRdi
-        :quoteEncodingBuffer /rbx :movqImmReg
+        :quoteEncodingBufferCode /rbx :movqImmReg
         /rdi /rax :movqRegReg
         5 /rax :addqImm8Reg
         /rbx /rax :subqRegReg
@@ -2363,7 +2399,8 @@
 
         # create function which
         # returns a function with the current scope captured
-        :quoteEncodingBuffer /rdi :movqImmReg
+        :quoteEncodingBufferCode /rdi :movqImmReg
+        :quoteEncodingBufferObjects /rbp :movqImmReg
         ::unscopingFunctionHeader ::loadToRdi
 
         # 1. load inner code block
@@ -2371,7 +2408,9 @@
           2 dearray 256 mul add 
           /rdi :movwImmMem
         /rax 2 /rdi :movqRegMemDisp8
+        /rax 0 /rbp :movqRegMemDisp8
         10 /rdi :addqImm8Reg
+        8 /rbp :addqImm8Reg
 
         [
           ::currentScope /rax :movqImmReg
@@ -2662,7 +2701,7 @@
   { =*resolve ==createScopeEntry
     { ==name
       # create function
-      name resolve 8 sub /rdi :movqImmReg # adjust for expected (but non-existent) code block header size
+      name resolve 16 sub /rdi :movqImmReg # adjust for expected (but non-existent) code block header size
       /rsi /rsi :xorqRegReg # library functions don't have a captured scope
       # TODO: put a type here where applicable
       /rdx /rdx :xorqRegReg
@@ -2683,7 +2722,7 @@
   { =*resolve ==typeToUse ==createScopeEntry
     { ==name
       # create function
-      name resolve 8 sub /rdi :movqImmReg # adjust for expected (but non-existent) code block header size
+      name resolve 16 sub /rdi :movqImmReg # adjust for expected (but non-existent) code block header size
       /rsi /rsi :xorqRegReg # library functions don't have a captured scope
       typeToUse /rdx :movqImmReg
 
@@ -2703,7 +2742,7 @@
   {
     [ /eydefv /eydeff /eydefq ] { ==name
       # create function
-      name | 8 sub /rdi :movqImmReg # adjust for expected (but non-existent) code block header size
+      name | 16 sub /rdi :movqImmReg # adjust for expected (but non-existent) code block header size
       ::currentScope /rsi :movqImmReg
       /rsi /rsi :movqMemReg
       /rdx /rdx :xorqRegReg # untyped

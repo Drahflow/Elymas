@@ -225,7 +225,7 @@
 
       /rdx :popqReg
       24 /rdx /rdx :movqMemDisp8Reg
-      8 /rdx :addqImm8Reg
+      16 /rdx :addqImm8Reg
       /rdx 8 /rax :movqRegMemDisp8
 
       /rax :pushqReg
@@ -251,11 +251,9 @@
       /rbx /rax :movqRegMem # 112
 
       # empty encoding buffer to ensure the GC does not follow residue from freeze into unallocated memory
-      :quoteEncodingBuffer /rdi :movqImmReg
-      :STACKSIZE 8 sub /rcx :movqImmReg
-      3 /rcx :shrqImm8Reg
+      :quoteEncodingBufferObjects /rdi :movqImmReg
       /rax /rax :xorqRegReg
-      :reprcx :stosq
+      /rax /rdi :movqRegMem
 
       |ey* /rax :movqImmReg
       /rax :callqReg

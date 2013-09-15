@@ -183,7 +183,9 @@ Small set in between
 * Length in bytes (including header)
   bit 63-60: 0 1 1 0
   bit 59: reserved for GC
+* Length of opcode block (rounded to 8 byte)
 * [ <opcode> ]*
+* [ <object pointer> ]*
 
 === Array ===
 * Length in bytes (including header)

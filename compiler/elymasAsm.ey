@@ -1167,7 +1167,10 @@
   }' each
 
   STACKSIZE sys .asm .alloc _ globalAllocations .register
-                              .base ==quoteEncodingBuffer
+                              .base ==quoteEncodingBufferCode
+
+  STACKSIZE sys .asm .alloc _ globalAllocations .register
+                              .base ==quoteEncodingBufferObjects
 
   { ==opcodes
     opcodes len 1 sub PAGESIZE div 1 add PAGESIZE mul sys .asm .alloc /codearea defv
