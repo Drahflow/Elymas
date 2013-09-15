@@ -536,15 +536,16 @@
       # /rdi :popqReg
 
       /rcx :pushqReg
+      /rsi :pushqReg
       /rdi /ecx :movlMemReg
+      /rdi /rsi :movqRegReg
       8 /rcx :subqImm8Reg
       @markScopeLoop
-      /rdi :pushqReg
-      /rdi /rcx /rdi :movqMemIndexReg
+      /rsi /rcx /rdi :movqMemIndexReg
       /markObject :callqLbl32
-      /rdi :popqReg
       8 /rcx :subqImm8Reg
       /markScopeLoop :jnzLbl8
+      /rsi :popqReg
       /rcx :popqReg
       :retn
 
@@ -554,17 +555,18 @@
       # /rdi :popqReg
 
       /rcx :pushqReg
+      /rsi :pushqReg
       8 /rdi /ecx :movlMemDisp8Reg
+      /rdi /rsi :movqRegReg
       16 /rcx :subqImm8Reg
       /markNameTableEmpty :jzLbl8
       @markNameTableLoop
-      /rdi :pushqReg
-      /rdi /rcx /rdi :movqMemIndexReg
+      /rsi /rcx /rdi :movqMemIndexReg
       /markObject :callqLbl32
-      /rdi :popqReg
       16 /rcx :subqImm8Reg
       /markNameTableLoop :jnzLbl8
       @markNameTableEmpty
+      /rsi :popqReg
       /rcx :popqReg
       :retn
 
@@ -574,15 +576,16 @@
       # /rdi :popqReg
 
       /rcx :pushqReg
+      /rsi :pushqReg
       /rdi /ecx :movlMemReg
+      /rdi /rsi :movqRegReg
       8 /rcx :subqImm8Reg
       @markExtensionAreaLoop
-      /rdi :pushqReg
-      /rdi /rcx /rdi :movqMemIndexReg
+      /rsi /rcx /rdi :movqMemIndexReg
       /markObject :callqLbl32
-      /rdi :popqReg
       8 /rcx :subqImm8Reg
       /markExtensionAreaLoop :jnzLbl8
+      /rsi :popqReg
       /rcx :popqReg
       :retn
 
@@ -611,23 +614,23 @@
       # /rdi :popqReg
 
       /rcx :pushqReg
+      /rsi :pushqReg
       /rdi /ecx :movlMemReg
       8 /rdi /rcx :subqMemDisp8Reg
       8 /rdi /rdi :addqMemDisp8Reg
       16 /rcx :subqImm8Reg
       /markFunctionCodeDone :jzLbl8
-      16 /rdi :addqImm8Reg
+      16 /rdi /rsi :leaqMemDisp8Reg
       3 /rcx :shrqImm8Reg
 
       @markFunctionCodeLoop
-      /rdi :pushqReg
-      /rdi /rdi :movqMemReg
+      /rsi /rdi :movqMemReg
       /markObject :callqLbl32
-      /rdi :popqReg
-      8 /rdi :addqImm8Reg
+      8 /rsi :addqImm8Reg
       /markFunctionCodeLoop :loopLbl8
 
       @markFunctionCodeDone
+      /rsi :popqReg
       /rcx :popqReg
       :retn
 
@@ -637,17 +640,18 @@
       # /rdi :popqReg
 
       /rcx :pushqReg
+      /rsi :pushqReg
       /rdi /ecx :movlMemReg
+      /rdi /rsi :movqRegReg
       8 /rcx :subqImm8Reg
       /markArrayEmpty :jzLbl8
       @markArrayLoop
-      /rdi :pushqReg
-      /rdi /rcx /rdi :movqMemIndexReg
+      /rsi /rcx /rdi :movqMemIndexReg
       /markObject :callqLbl32
-      /rdi :popqReg
       8 /rcx :subqImm8Reg
       /markArrayLoop :jnzLbl8
       @markArrayEmpty
+      /rsi :popqReg
       /rcx :popqReg
       :retn
 
