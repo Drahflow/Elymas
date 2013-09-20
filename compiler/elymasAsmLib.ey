@@ -82,7 +82,7 @@
   { %00 %00 %00 %00 %00 %50 %00 %00 } /BLOCKBASE deff
   { %00 %00 %00 %00 %00 %40 %00 %00 } /MARKBASE deff
   # 4096 16 mul 8 mul ==ALLOCCHUNKSIZE # minimum ALLOCCHUNKSIZE
-  4096 16 mul 8 mul 16 mul ==ALLOCCHUNKSIZE # FIXME: there is still some wonkyness with freezing
+  4096 16 mul 8 mul 256 mul ==ALLOCCHUNKSIZE # FIXME: there is still some wonkyness with freezing
 
   <
     # current end of heap memory (grows upwards)
@@ -178,8 +178,8 @@
     [[
       /rbx :pushqReg
       # /rdi :pushqReg # TODO remove these three lines once load-testing the GC seems unnecessary
-      # /markAndSweep :callqLbl32
-      # /rdi :popqReg
+      # /markAndSweep :callqLbl32 # load testing
+      # /rdi :popqReg # load testing
       /rdi :pushqReg
       /searchForFreeBlock :callqLbl32
       /rax /rax :andqRegReg
@@ -231,32 +231,31 @@
       /rsi /rsi :xorqRegReg
       # rsi > 0  =>  currently counting block extent of free block
 
-      @testBlockBitLoop
+      @searchFreeBlockStart
       /rbx /r8 :btqRegMem # test block bitmap
-      /nonFreeBlock :jcLbl8 # block not free
-      /rsi /rsi :andqRegReg
-      /notCurrentlyCounting :jzLbl8
+      /nonFreeBlockStartFound :jcLbl8 # block not free
+      /rbx /r9 :btqRegMem # test mark bitmap
+      /freeBlockStartFound :jcLbl8 # block marked, i.e. truly free block start
 
-      @currentlyCounting
+      @resumeFreeBlockStartSearch
+      /rsi /rsi :xorqRegReg
+
+      @nonFreeBlockStartFound
+      /rbx :incqReg
+      /rbx /rbp :cmpqRegReg
+      /searchFreeBlockStart :jaLbl8
+      /noFreeBlockAvailable :jmpLbl32
+
+      @freeBlockStartFound
       16 /rsi :addqImm8Reg
       /rsi /rdi :cmpqRegReg
       /freeBlockFound :jbeLbl8
-
       /rbx :incqReg
       /rbx /rbp :cmpqRegReg
-      /testBlockBitLoop :jaLbl8
-      /noFreeBlockAvailable :jmpLbl32
-
-      @notCurrentlyCounting
-      /rbx /r9 :btqRegMem # test mark bitmap
-      /currentlyCounting :jcLbl8 # block marked, i.e. truly free block start
-
-      @nonFreeBlock
-      /rsi /rsi :xorqRegReg
-      /rbx :incqReg
-      /rbx /rbp :cmpqRegReg
-      /testBlockBitLoop :jaLbl8
-      /noFreeBlockAvailable :jmpLbl32
+      /noFreeBlockAvailable :jbeLbl32
+      /rbx /r8 :btqRegMem # test block bitmap
+      /resumeFreeBlockStartSearch :jcLbl8 # block not free
+      /freeBlockStartFound :jmpLbl8
 
       @freeBlockFound
       # rdi == size of block to allocate
@@ -407,7 +406,7 @@
       @loopThroughMainStack
       8 /rsi :subqImm8Reg
       /rsi /rdi :movqMemReg
-      /markObject :callqLbl32
+      /markStackObject :callqLbl32
       /rsi /rsp :cmpqRegReg
       /loopThroughMainStack :jbLbl8
 
@@ -415,7 +414,7 @@
       @loopThroughCallStack
       8 /rsi :subqImm8Reg
       /rsi /rdi :movqMemReg
-      /markObject :callqLbl32
+      /markStackObject :callqLbl32
       /rsi /r15 :cmpqRegReg
       /loopThroughCallStack :jbLbl8
 
@@ -424,7 +423,7 @@
       0 /rsi :cmpqImm8Mem
       /quoteEncodingBufferUnused :jzLbl8
 
-      :STACKSIZE 8 sub /rcx :movqImmReg
+      :STACKSIZE 8 sub 8 div /rcx :movqImmReg
       @loopThroughEncodingBuffer
       /rsi /rdi :movqMemReg
       /markObject :callqLbl32
@@ -459,6 +458,33 @@
       /r9 :popqReg
       /r8 :popqReg
       :retn
+
+      # recursively mark this object reachable
+      # guaranteed not to clobber rcx, rsi (because it is used in many loops)
+      @markStackObject
+      # rdi == address of a reachable object, of reachable code within a code block or some random bits
+      /rdi /r8 :cmpqRegReg
+      /markObjectDone :jaLbl32 # pointing below the heap
+      /rdi /r11 :cmpqRegReg
+      /markObjectDone :jbeLbl32 # pointing above the heap
+      # rdi == address of a reachable object or of reachable code within a code block
+      # scan for object downwards
+      /r8 /rdi :subqRegReg
+      # rdi == byte offset relative to heap begin
+      4 /rdi :shrqImm8Reg
+      # rdi == cell index of first 16-byte cell of possible object
+
+      @searchStackObject
+      /rdi /r9 :btqRegMem # test block bit
+      /rdi :decqReg
+      /searchStackObject :jncLbl8
+      /rdi :incqReg
+      # rdi == cell index of first 16-byte cell of object
+
+      # TODO optimize this by jumping right into markObject
+      4 /rdi :shlqImm8Reg
+      /r8 /rdi :addqRegReg
+      /markObject :jmpLbl8
 
       @markObjectDone
       :retn
@@ -1025,6 +1051,60 @@
     ] /internalAllocateString defv
   > { defv }' allocateOffsetStruct
 
+  <
+    # allocate a new code block from the encoding buffers
+    # rdi -> end of allocated code (address after last used opcode in quoteEncodingBufferCode)
+    # rbp -> end of allocated object pointers (address after last used address in quoteEncodingBufferObjects)
+    # rax <- resulting code object
+    [[
+      :quoteEncodingBufferCode /rax :movqImmReg
+      /rax /rdi :subqRegReg
+
+      /rdi :decqReg
+      3 /rdi :shrqImm8Reg
+      /rdi :incqReg
+      3 /rdi :shlqImm8Reg
+
+      :quoteEncodingBufferObjects /rax :movqImmReg
+      /rax /rbp :subqRegReg
+
+      /rbp /rbp :andqRegReg
+      /atLeastOnePointer :jnzLbl8
+
+      /rbp /rax :movqRegMem # store fake zero pointer
+      8 /rbp :addqImm8Reg
+
+      @atLeastOnePointer
+
+      /rbp :pushqReg # store pointer byte count
+      /rdi :pushqReg # store opcode byte count (rounded up to 8 byte)
+
+      /rbp /rdi :addqRegReg
+      internalAllocateCode /rax :movqImmReg
+      /rax :callqReg
+
+      # rax == code block on heap
+
+      # copy opcodes
+      :quoteEncodingBufferCode /rsi :movqImmReg
+      16 /rax /rdi :leaqMemDisp8Reg
+      /rcx :popqReg
+      /rcx 8 /rax :movqRegMemDisp8
+      :reprcx :movsb
+
+      # copy object pointers
+      :quoteEncodingBufferObjects /rsi :movqImmReg
+      /rcx :popqReg
+      :reprcx :movsb
+
+      # mark buffer unused
+      :quoteEncodingBufferObjects /rdi :movqImmReg
+      /rcx /rdi :movqRegMem # rcx is conveniently zero
+
+      :retn
+    ]] /internalAllocateCodeFromEncodingBuffer defv
+  > { defv }' allocateOffsetStruct
+
   [
     8 /r15 :subqImm8Reg
     /r15 :popqMem
@@ -1058,47 +1138,6 @@
     8 /r15 :addqImm8Reg
     :retn
   ] /unscopingFunctionFooter defv
-
-  # rdi -> end of allocated code (address after last used opcode in quoteEncodingBufferCode)
-  # rbp -> end of allocated object pointers (address after last used address in quoteEncodingBufferObjects)
-  # rax <- resulting code object
-  {
-    :quoteEncodingBufferCode /rax :movqImmReg
-    /rax /rdi :subqRegReg
-
-    :quoteEncodingBufferObjects /rax :movqImmReg
-    /rax /rbp :subqRegReg
-
-    /rdi :decqReg
-    3 /rdi :shrqImm8Reg
-    /rdi :incqReg
-    3 /rdi :shlqImm8Reg
-
-    /rbp :pushqReg # store pointer byte count
-    /rdi :pushqReg # store opcode byte count (rounded up to 8 byte)
-
-    /rbp /rdi :addqRegReg
-    internalAllocateCode /rax :movqImmReg
-    /rax :callqReg
-
-    # rax == code block on heap
-
-    # copy opcodes
-    :quoteEncodingBufferCode /rsi :movqImmReg
-    16 /rax /rdi :leaqMemDisp8Reg
-    /rcx :popqReg
-    /rcx 8 /rax :movqRegMemDisp8
-    :reprcx :movsb
-
-    # copy object pointers
-    :quoteEncodingBufferObjects /rsi :movqImmReg
-    /rcx :popqReg
-    :reprcx :movsb
-
-    # mark buffer unused
-    :quoteEncodingBufferObjects /rdi :movqImmReg
-    /rcx /rdi :movqRegMem # rcx is conveniently zero
-  } /allocateCodeFromEncodingBuffer deff
 
   { strToUTF8Bytes _ =*v len _ ==exactLength
     1 sub 8 div 4 add 8 mul ==memoryLength

@@ -62,7 +62,7 @@
     -01                0 gt %08 mul add
   } /rex deff
 
-  { =mem =reg
+  { ==mem ==reg
     mem [ /spl /sp /esp /rsp /bpl /bp /ebp /rbp ] streq any {
       "modrm00 not possible on rsp / rbp and their partial registers" die
     } rep
@@ -72,7 +72,7 @@
     reg regno 8 mul %38 band add
   } /modrm00 deff
 
-  { =mem =reg
+  { ==mem ==reg
     mem [ /spl /sp /esp /rsp ] streq any not assert
 
                     %40
@@ -80,7 +80,7 @@
     reg regno 8 mul %38 band add
   } /modrm01 deff
 
-  { =mem =reg
+  { ==mem ==reg
     mem [ /spl /sp /esp /rsp ] streq any not assert
 
                     %80
@@ -88,7 +88,7 @@
     reg regno 8 mul %38 band add
   } /modrm10 deff
 
-  { =mem =reg
+  { ==mem ==reg
                     %C0
     mem regno       %07 band add
     reg regno 8 mul %38 band add
@@ -1090,6 +1090,15 @@
     %0F
     %0B
   } /ud2 deff
+
+  { ==regb ==rega
+    rega bit64assert
+    regb bit64assert
+
+    1 rega /none regb rex
+    %87
+    rega regb modrm11
+  } /xchgqRegReg deff
 
   { ==mem ==reg
     reg bit64assert

@@ -1,0 +1,413 @@
+<
+  "../compiler/elymasAsm.ey" include
+
+  assembler ":" via
+
+  [
+    8 /r15 :subqImm8Reg
+    /r15 :popqMem
+  ] ==:generalHeaderPattern
+
+  [
+    8 /r15 :subqImm8Reg
+    0 /rbx :movqImmReg
+    /rbx /rsi :movqMemReg
+    /rsi /r15 :movqRegMem
+    8 /rdi :movqImmReg
+    0 /rax :movqImmReg
+    /rax :callqReg
+    /rax /rbx :movqRegMem
+  ] ==:scopingHeaderPattern
+
+  [
+    0 /rax :movqImmReg
+    /rax :pushqReg
+  ] ==:pushConstantPattern
+
+  [
+    0 /rax :movqImmReg
+    /rax :callqReg
+  ] ==:callConstantPattern
+
+  [
+    0 :callqRel32
+  ] ==:footerPattern
+
+  [
+    /rbx :popqReg
+    0 /rax :movqImmReg
+    /rax :pushqReg
+    /rbx :pushqReg
+    0 /rax :movqImmReg
+    /rax :jmpqReg
+  ] ==:constantActiveGeneralPattern
+
+  [
+    0 /rsi :movqImmReg
+    16 /r15 :subqImm8Reg
+    8 /r15 :popqMemDisp8
+
+    0 /rax :movqImmReg
+    /rsi /rax :xchgqRegMem
+    /rsi /r15 :movqRegMem
+    0 /rdi :movqImmReg
+    /rdi :callqReg
+
+    /r15 /rsi :movqMemReg
+    0 /rax :movqImmReg
+    /rsi /rax :movqRegMem
+
+    8 /r15 :pushqMemDisp8
+    16 /r15 :addqImm8Reg
+    :retn
+  ] ==:constantNormalFunctionScopedUntypedPattern
+
+  [
+    0 /rax :movqImmReg
+    /rax :jmpqReg
+  ] ==:constantNormalFunctionUnscopedUntypedPattern
+
+  [
+    /rbx :popqReg
+    0 /rax :movqImmReg
+    /rax :pushqReg
+    /rbx :jmpqReg
+  ] ==:constantPassivePattern
+
+  [
+    0 /rax :movqImmReg
+    /rax /rax :movqMemReg
+  ] ==:staticLoadPattern
+
+  [
+    16 /rax /rax :movqMemDisp8Reg
+  ] ==:staticLoadParentPattern
+
+  [
+    /rbx :popqReg
+    0 /rax :pushqMemDisp32
+    /rbx :jmpqReg
+  ] ==:staticLoadPassiveFromScopePattern
+
+  [
+    24 /rax /rcx :movqMemDisp8Reg # load extension area pointer
+    /rax /edx :movlMemReg # load scope length
+    /rdx :negqReg # prepare for substraction
+    /rbx :popqReg
+    0 1 /rdx /rcx :pushqMemIndexScaleDisp32 # push loaded entry to stack
+    /rbx :jmpqReg
+  ] ==:staticLoadPassiveFromExtensionPattern
+
+  [
+    /rbx :popqReg
+    0 /rax :pushqMemDisp32
+    /rbx :pushqReg
+    0 /rax :movqImmReg
+    /rax :jmpqReg
+  ] ==:staticLoadActiveFromScopePattern
+
+  [
+    24 /rax /rcx :movqMemDisp8Reg # load extension area pointer
+    /rax /edx :movlMemReg # load scope length
+    /rdx :negqReg # prepare for substraction
+    /rbx :popqReg
+    0 1 /rdx /rcx :pushqMemIndexScaleDisp32 # push loaded entry to stack
+    /rbx :pushqReg
+    0 /rax :movqImmReg
+    /rax :jmpqReg
+  ] ==:staticLoadActiveFromExtensionPattern
+
+  [
+    8 /r15 :subqImm8Reg
+    /r15 :popqMem
+  ] ==:customFunctionHeaderPattern
+
+  { ==o
+    sys .asm "+" via
+    sys .asm .|peek ==:peek
+    sys .opt "::" via
+
+    o +rawAddress ==addr
+    # "Addr: " dump addr dump
+    [ addr       _ 4 add range peek each ] 256 math .unbase ==totalLength
+    [ addr 8 add _ 4 add range peek each ] 256 math .unbase ==codeLength
+    # "Total length: " dump totalLength dump
+    # "Code length: " dump codeLength dump
+    addr 16 add ==i
+
+    [ ] ==newOpcodes
+    { newOpcodes -01 cat =newOpcodes }' /emitOpcodes deffst
+    [ ] ==newReferences
+    { newReferences [ -102 ] cat =newReferences }' /emitReference deffst
+
+    { =*ops =*set =*get ==pattern
+      1 ==found
+      get ==j
+      pattern { _ j ops -01 { eq not { 0 =found }' rep }" { -- -- }" ? * j 1 add =j }' each
+      found _ { j set }' { }" ? *
+    } /generalMatch deff
+
+    { { i }' { =i }' peek generalMatch }' /match deff
+
+    generalHeaderPattern match not { "failure while matching generalHeaderPattern" die }" rep
+    scopingHeaderPattern match ==isScoping
+
+    # [ :ud2 ] emitOpcodes # enable for further development
+
+    isScoping {
+      # "scoping function" dump
+      [
+        8 /r15 :subqImm8Reg
+        /r15 :popqMem
+        8 /r15 :subqImm8Reg
+        ::currentScope /rbx :movqImmReg
+        /rbx /rsi :movqMemReg
+        /rsi /r15 :movqRegMem
+        8 /rdi :movqImmReg
+        ::internalAllocateScope /rax :movqImmReg
+        /rax :callqReg
+        /rax /rbx :movqRegMem
+      ] emitOpcodes
+    }" {
+      # "unscoping function" dump
+      [
+        8 /r15 :subqImm8Reg
+        /r15 :popqMem
+      ] emitOpcodes
+    }" ? *
+
+    1 ==continueParsing
+
+    { continueParsing }' { i ==s
+      [
+        { footerPattern match }' {
+          # "footerPattern matched" dump
+          0 =continueParsing
+        }
+
+        { pushConstantPattern match }' {
+          # "pushConstantPattern matched" dump
+          [ s 2 add _ 8 add range peek each ] 256 math .unbase ==pushedConstant
+          # "pushedConstant: " dump pushedConstant dump
+
+          [
+            pushedConstant /rax :movqImmReg
+            /rax :pushqReg
+          ] emitOpcodes
+
+          pushedConstant emitReference
+        }
+
+        { callConstantPattern match }' {
+          # "callConstantPattern matched" dump
+          [ s 2 add _ 8 add range peek each ] 256 math .unbase ==calledAddress
+          # "calledAddress: " dump calledAddress dump
+          calledAddress ==j
+          { { j }' { =j }' peek generalMatch }' /callTargetMatch deff
+          [
+            { constantActiveGeneralPattern callTargetMatch }' {
+              # "constantActiveGeneralPattern matched" dump
+              [ calledAddress 3 add _ 8 add range peek each ] 256 math .unbase ==calledConstant
+              # "calledConstant: " dump calledConstant dump
+
+              [
+                calledConstant /rax :movqImmReg
+                /rax :pushqReg
+                "*" | +rawCodeAddress /rax :movqImmReg
+                /rax :callqReg
+              ] emitOpcodes
+
+              calledConstant emitReference
+            }
+
+            { constantNormalFunctionScopedUntypedPattern callTargetMatch }' {
+              # "constantNormalFunctionScopedUntypedPattern matched" dump
+              [ calledAddress  2 add _ 8 add range peek each ] 256 math .unbase ==functionScope
+              [ calledAddress 36 add _ 8 add range peek each ] 256 math .unbase ==finalAddress
+              # "functionScope: " dump functionScope dump
+              # "finalAddress: " dump finalAddress dump
+
+              [
+                functionScope /rsi :movqImmReg
+                8 /r15 :subqImm8Reg
+
+                ::currentScope /rax :movqImmReg
+                /rsi /rax :xchgqRegMem
+                /rsi /r15 :movqRegMem
+                finalAddress /rdi :movqImmReg
+                /rdi :callqReg
+
+                /r15 /rsi :movqMemReg
+                ::currentScope /rax :movqImmReg
+                /rsi /rax :movqRegMem
+
+                8 /r15 :addqImm8Reg
+              ] emitOpcodes
+
+              functionScope emitReference
+              finalAddress 16 sub emitReference
+            }
+
+            { constantNormalFunctionUnscopedUntypedPattern callTargetMatch }' {
+              # "constantNormalFunctionUnscopedUntypedPattern matched" dump
+              [ calledAddress 2 add _ 8 add range peek each ] 256 math .unbase ==finalAddress
+              # "finalAddress: " dump finalAddress dump
+
+              [
+                finalAddress /rax :movqImmReg
+                /rax :callqReg
+              ] emitOpcodes
+
+              finalAddress 16 sub emitReference
+            }
+
+            { constantPassivePattern callTargetMatch }' {
+              # "constantPassivePattern matched" dump
+              [ calledAddress 3 add _ 8 add range peek each ] 256 math .unbase ==pushedConstant
+              # "pushedConstant: " dump pushedConstant dump
+
+              [
+                pushedConstant /rax :movqImmReg
+                /rax :pushqReg
+              ] emitOpcodes
+
+              pushedConstant emitReference
+            }
+
+            { staticLoadPattern callTargetMatch }' {
+              # "staticLoadPattern matched" dump
+
+              [
+                ::currentScope /rax :movqImmReg
+                /rax /rax :movqMemReg
+              ] emitOpcodes
+
+              { staticLoadParentPattern callTargetMatch }' {
+                # "staticLoadParentPattern matched" dump
+
+                [
+                  16 /rax /rax :movqMemDisp8Reg
+                ] emitOpcodes
+              } loop
+
+              j ==loadStart
+
+              [
+                { staticLoadPassiveFromScopePattern callTargetMatch }' {
+                  # "staticLoadPassiveFromScopePattern" dump
+                  [ loadStart 3 add _ 4 add range peek each ] 256 math .unbase ==offsetInScope
+                  # "loadStart: " dump loadStart dump
+                  # "offsetInScope: " dump offsetInScope dump
+
+                  [
+                    offsetInScope /rax :pushqMemDisp32
+                  ] emitOpcodes
+                }
+
+                { staticLoadPassiveFromExtensionPattern callTargetMatch }' {
+                  # "staticLoadPassiveFromExtensionPattern" dump
+                  [ loadStart 13 add _ 4 add range peek each ] 256 math .unbase ==offsetInScope
+                  # "loadStart: " dump loadStart dump
+                  # "offsetInScope: " dump offsetInScope dump
+                  
+                  [
+                    24 /rax /rcx :movqMemDisp8Reg # load extension area pointer
+                    /rax /edx :movlMemReg # load scope length
+                    /rdx :negqReg # prepare for substraction
+                    offsetInScope 1 /rdx /rcx :pushqMemIndexScaleDisp32 # push loaded entry to stack
+                  ] emitOpcodes
+                }
+
+                { staticLoadActiveFromScopePattern callTargetMatch }' {
+                  # "staticLoadActiveFromScopePattern" dump
+                  [ loadStart 3 add _ 4 add range peek each ] 256 math .unbase ==offsetInScope
+                  # "loadStart: " dump loadStart dump
+                  # "offsetInScope: " dump offsetInScope dump
+
+                  [
+                    offsetInScope /rax :pushqMemDisp32
+                    "*" | +rawCodeAddress /rax :movqImmReg
+                    /rax :callqReg
+                  ] emitOpcodes
+                }
+
+                { staticLoadActiveFromExtensionPattern callTargetMatch }' {
+                  # "staticLoadActiveFromExtensionPattern" dump
+                  [ loadStart 13 add _ 4 add range peek each ] 256 math .unbase ==offsetInScope
+                  # "loadStart: " dump loadStart dump
+                  # "offsetInScope: " dump offsetInScope dump
+
+                  [
+                    24 /rax /rcx :movqMemDisp8Reg # load extension area pointer
+                    /rax /edx :movlMemReg # load scope length
+                    /rdx :negqReg # prepare for substraction
+                    offsetInScope 1 /rdx /rcx :pushqMemIndexScaleDisp32 # push loaded entry to stack
+                    "*" | +rawCodeAddress /rax :movqImmReg
+                    /rax :callqReg
+                  ] emitOpcodes
+                }
+
+                { 1 }' {
+                  [ j j 16 add range peek each ] dump
+                  o dump
+                  j dump
+                  "unparsed static load opcodes in sys .opt .hook (optimizing version)" die
+                }
+              ] conds
+            }
+
+            { customFunctionHeaderPattern callTargetMatch }' {
+              # "customFunctionHeaderPattern matched" dump
+
+              [
+                calledAddress /rax :movqImmReg
+                /rax :callqReg
+              ] emitOpcodes
+
+              calledAddress 16 sub emitReference
+            }
+
+            { 1 }' {
+              [ j j 16 add range peek each ] dump
+              o dump
+              j dump
+              "unparsed call target opcodes in sys .opt .hook (optimizing version)" die
+            }
+          ] conds
+        }
+
+        { 1 }' {
+          [ i i 16 add range peek each ] dump
+          o dump
+          i dump
+          "unparsed opcodes in sys .opt .hook (optimizing version)" die
+        }
+      ] conds
+    } loop
+
+    isScoping {
+      [
+        /r15 /rcx :movqMemReg
+        ::currentScope /rax :movqImmReg
+        /rcx /rax :movqRegMem
+        8 /r15 :addqImm8Reg
+        /r15 :pushqMem
+        8 /r15 :addqImm8Reg
+        :retn
+      ] emitOpcodes
+    }' {
+      [
+        /r15 :pushqMem
+        8 /r15 :addqImm8Reg
+        :retn
+      ] emitOpcodes
+    }' ? *
+
+    # "optimization finished" dump
+
+     newReferences newOpcodes o ::replace
+     1 # return something different from o to signal successful optimization
+  } /hook sys .opt .deff
+> --
+
+# vim: syn=elymas

@@ -1,0 +1,8 @@
+#!/usr/bin/env elymas
+
+[
+  "lib/math.ey"
+  "lib/sys/opt.ey"
+] { _ dump include }' each
+
+{ "/proc/self/fd/0" include }' "optimized" sys .freeze

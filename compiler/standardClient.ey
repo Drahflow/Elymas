@@ -646,16 +646,17 @@
         } each
       ] ==?toBeAbstractedTypes
 
-      "toBeAbstractedTypes: " dump
-      toBeAbstractedTypes dump
+      # "toBeAbstractedTypes: " dump
+      # toBeAbstractedTypes dump
 
       [ toBeAbstractedTypes { len } each ] any not {
         # no types need to be abstracted, function can be called
-        concreteArgs _ dump _ len dearray f
-        "attempting to call function (w.o. abstraction)" dump
+        concreteArgs # _ dump
+                     _ len dearray f
+        # "attempting to call function (w.o. abstraction)" dump
         0 concreteArgs len range { ==?i
-          i concreteArgs * sys .typed .type _ dump
-          i inputs       * sys .typed .type _ dump
+          i concreteArgs * sys .typed .type # _ dump
+          i inputs       * sys .typed .type # _ dump
           neq { "invalid input type at argument index " dump i dump "" die } rep
         } each
         *
@@ -695,14 +696,14 @@
           } loop
         } each
 
-        "concreteArgs: " dump
-        concreteArgs dump
-        "stageCalls: " dump
-        stageCalls dump
-        "argTypes: " dump
-        argTypes dump
-        "loops: " dump
-        loops dump
+        # "concreteArgs: " dump
+        # concreteArgs dump
+        # "stageCalls: " dump
+        # stageCalls dump
+        # "argTypes: " dump
+        # argTypes dump
+        # "loops: " dump
+        # loops dump
         
         { ==?loops ==?argTypes ==?stageCalls ==?concreteArgs
           stageCalls len not {
@@ -725,7 +726,7 @@
 
                 [ concreteArgsCopy stageCalls argTypes loops unravel ]
                 results -01 cat =results
-                results dump
+                # results dump
                 # TODO: think about a single function returning multiple values
                 # should be solved by producing two arrays side by side
 
@@ -751,7 +752,7 @@
 
         concreteArgs stageCalls argTypes loops unravel
 
-        "execution complete" dump
+        # "execution complete" dump
       } ? *
     } /execute sys .typed .deff
   > --
@@ -779,7 +780,7 @@
       invalid # name table
       invalid # extension area
       { "<function: " o sys .asm .rawAddress base16encode64 cat ">" cat sys .err .writeall }
-      invalid # function code
+      { "<function code: " o sys .asm .rawAddress base16encode64 cat ">" cat sys .err .writeall }
       {
         "[\n" sys .err .writeall
         o { indent 1 add dumpIndented } each
@@ -801,7 +802,7 @@
   { 0 dumpIndented }
 > -- /dump deffd
 
-{ ==filename # ==?f (left on the stack and executed from sys .asm .programStart)
+{ ==filename # ==f (left on the stack and executed from sys .asm .programStart)
   sys .asm .patchProgramStart ==frozenAllocationCount
 
   # hex decoding
@@ -998,6 +999,11 @@
   } each
 
   out .close
+
+  sys .asm .patchProgramStart frozenAllocationCount neq {
+    "freezing allocated new memory chunks, retrying..." dump
+    filename sys .freeze
+  }
 } /freeze sys .deff
 
 # no long-term stack use here as the executed program uses it as well

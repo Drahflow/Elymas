@@ -1,7 +1,7 @@
 all: elymas/loaded
 
-elymas/loaded: elymas/interpreter $(shell find elymas/lib/ -name '*.ey' )
-	cd elymas && $(MAKE) loaded
+elymas/loaded: elymas/interpreter $(shell find elymas/ -name '*.ey' )
+	cd elymas && $(MAKE)
 
 elymas/interpreter: elymas/interpreter.ey compiler/*.ey interpreter/Metal.so interpreter/ACME
 	cd compiler && \

@@ -150,6 +150,7 @@
       /rdx :popqReg
       /rax /rax :testqRegReg
       /nameOffsetKnown :jnzLbl8
+      /nameSearch :jmpLbl8
 
       # if not exists, insert
       @nameUndefined
@@ -1448,138 +1449,48 @@
       /rdi :jmpqReg # continue with freshly patched code
     ]] /internalExecuteIdentifierUnquotedAndPatchLateResolve defv
 
-    # optimize function code by
-    # * patching double redirects, # FIXME correctly detect out-of-heap even if below heap
+    # call function optimize hook on code block
     # 0 -> address of code block
     [[
-      /rbx :popqReg
-      /rsi :popqReg
-# FIXME FIXME FIXME this should be reenabled soonish
-#      8 /rsi :addqImm8Reg # move to start of code
-#      /rsi :pushqReg
-#      :quoteEncodingBuffer /rdi :movqImmReg
-#
-#      %34 /rcx :movqImmReg # skip to generated code
-#      :reprcx :movsb
-#
-#      @parseLoop
-#      0 [ 0 :callqRel32 ] * 0 /rsi :cmpbImmMemDisp8
-#      /parseFooter :jzLbl32
-#      1 [ 8 /rax :addqImm8Reg ] * 11 /rsi :cmpbImmMemDisp8
-#      /parseFunctionCall :jzLbl32
-#      0 [ /rax :pushqReg ] * 10 /rsi :cmpbImmMemDisp8
-#      /parseConstantPush :jzLbl32
-#      0 [ /rax :callqReg ] * 10 /rsi :cmpbImmMemDisp8
-#      /parseConstantCall :jzLbl32
-#
-#      "unknown assembly instruction during internalOptimizeGeneratedScopedFunction" ::outputError
-#      :ud2
-#
-#      @parseFunctionCall
-#      2 /rsi /rdx :movqMemDisp8Reg # load function address
-#      1 [ 0 /rax :movqImmReg ] * 9 /rdx :cmpbImmMemDisp8
-#      /parseFunctionCallSkip :jnzLbl32
-#      0 [ /rax :jmpqReg ] * 18 /rdx :cmpbImmMemDisp8
-#      /parseFunctionCallSkip :jnzLbl32
-#      1 [ /rax :jmpqReg ] * 19 /rdx :cmpbImmMemDisp8
-#      /parseFunctionCallSkip :jnzLbl32
-#  
-#      10 /rdx /rcx :movqMemDisp8Reg # load final function address
-#      /rax :movqImmOOBReg ::HEAPEND
-#      /rax /rcx :cmpqRegReg
-#      /parseFunctionUnGCable :jaeLbl8
-#
-#      # @parseFunctionGCable
-#      [
-#        /rax :movqImmOOBReg
-#      ] ::loadToRdi
-#      8 /rcx :subqImm8Reg # make address point to code block object
-#      /rcx /rdi :movqRegMem # load final function address
-#      8 /rdi :addqImm8Reg
-#      [
-#        8 /rax :addqImm8Reg # skip code block object header
-#        /rax :callqReg
-#      ] ::loadToRdi
-#      /parseFunctionCallDone :jmpLbl8
-#
-#      @parseFunctionUnGCable
-#      [
-#        /rax :movqImmOOBReg
-#      ] ::loadToRdi
-#      /rcx /rdi :movqRegMem # load final function address
-#      8 /rdi :addqImm8Reg
-#      [
-#        /rax :callqReg
-#      ] ::loadToRdi
-#
-#      @parseFunctionCallDone
-#      16 /rsi :addqImm8Reg
-#      /parseLoop :jmpLbl32
-#
-#      @parseFunctionCallSkip
-#      :movsq # verbatim copy
-#      :movsq
-#      /parseLoop :jmpLbl32
-#
-#      @parseConstantPush
-#      :movsq # verbatim copy
-#      :movsw
-#      :movsb
-#      /parseLoop :jmpLbl32
-#
-#      @parseConstantCall
-#      :movsq # verbatim copy
-#      :movsl
-#      /parseLoop :jmpLbl32
-#
-#      @parseFooter
-#      ::scopingFunctionFooter ::loadToRdi
-#      ::allocateCodeFromEncodingBuffer
-#      # rax == optimized code object on heap
-#
-#      # patch indirection to new code into old
-#      /rsi :popqReg # rsi == old code start
-#      /rsi /rdi :movqRegReg
-#      [
-#        /rax :movqImmOOBReg
-#      ] ::loadToRdi
-#      8 /rax :addqImm8Reg
-#      /rax /rdi :movqRegMem
-#      8 /rax :subqImm8Reg
-#      8 /rdi :addqImm8Reg
-#      [
-#        /rax :jmpqReg
-#        /rax :movqImmOOBReg
-#      ] ::loadToRdi
-#      /rax /rdi :movqRegMem
-#
-#      # TODO kill remaining opcodes to remove GC-followable memory addresses
-#      # possible solution: updatable exact-length field for code blocks
-#      # but think of the return stack
-      /rbx :jmpqReg
-    ]] /internalOptimizeGeneratedScopedFunction defv
+      8 /r15 :subqImm8Reg
+      /r15 :popqMem
 
-    # optimize function code by
-    # * TODO patching double redirects
-    # 0 -> address of code block
-    [[
-      # :ud2 # FIXME enable here to debug function optimization
-      /rbx :popqReg
-      /rax :popqReg # FIXME do something useful here
-      /rbx :pushqReg
-      :retn
-    ]] /internalOptimizeGeneratedUnscopedFunction defv
+      /rax :popqReg
+      58 /rax :btsqImm8Mem
+      /alreadyOptimized :jcLbl8
+      /rax :pushqReg
+      /rax :pushqReg
 
-    # optimize function code by
-    # * TODO patching double redirects
-    # 0 -> address of code block
-    [[
-      # :ud2 # FIXME enable here to debug function optimization
-      /rbx :popqReg
-      /rax :popqReg # FIXME do something useful here
-      /rbx :pushqReg
+      /rax :movqImmOOBReg "sys" ::string
+      /rax :pushqReg
+      /rax :movqImmOOBReg "internalCallOptimizeHook" "ey|" ::linkAbs64
+      /rax :callqReg
+
+      /rax :movqImmOOBReg "opt" ::string
+      /rax :pushqReg
+      /rax :movqImmOOBReg "internalCallOptimizeHook" "ey." ::linkAbs64
+      /rax :callqReg
+
+      /rax :movqImmOOBReg "hook" ::string
+      /rax :pushqReg
+      /rax :movqImmOOBReg "internalCallOptimizeHook" "ey." ::linkAbs64
+      /rax :callqReg
+
+      /rcx :popqReg # result object (not necessarily new code object though)
+      /rax :popqReg # old object
+
+      /rax /rcx :cmpqRegReg
+      /optimizationHappened :jnzLbl8
+
+      58 /rax :btrqImm8Mem # reset optimized bit
+
+      @optimizationHappened
+      @alreadyOptimized
+
+      /r15 :pushqMem
+      8 /r15 :addqImm8Reg
       :retn
-    ]] /internalOptimizeGeneratedUncapturingFunction defv
+    ]] /internalCallOptimizeHook defv
   > { defv }' ::allocateOffsetStruct
 
   <
@@ -1683,7 +1594,8 @@
         /rax :callqReg
       ] ::unscopingFunctionFooter cat ::loadToRdi
 
-      ::allocateCodeFromEncodingBuffer
+      ::internalAllocateCodeFromEncodingBuffer /rax :movqImmReg
+      /rax :callqReg
       # rax == code block on heap
 
       # create non-capturing function object
@@ -1777,7 +1689,8 @@
         /rax :callqReg
       ] ::unscopingFunctionFooter cat ::loadToRdi
 
-      ::allocateCodeFromEncodingBuffer
+      ::internalAllocateCodeFromEncodingBuffer /rax :movqImmReg
+      /rax :callqReg
       # rax == code block on heap
 
       # create non-capturing function object
@@ -2348,7 +2261,7 @@
         ] ::loadToRdi
         :quoteEncodingBufferCode /rbx :movqImmReg
         /rdi /rax :movqRegReg
-        5 /rax :addqImm8Reg
+        13 /rax :addqImm8Reg
         /rbx /rax :subqRegReg
         /rax /rdi :movqRegMem
         8 /rdi :addqImm8Reg
@@ -2361,7 +2274,8 @@
         ] ::loadToRdi
 
         footer ::loadToRdi
-        ::allocateCodeFromEncodingBuffer
+        ::internalAllocateCodeFromEncodingBuffer /rax :movqImmReg
+        /rax :callqReg
 
         # rax == code block on heap
 
@@ -2421,7 +2335,8 @@
           /rax :pushqReg
         ] ::unscopingFunctionFooter cat ::loadToRdi
         
-        ::allocateCodeFromEncodingBuffer
+        ::internalAllocateCodeFromEncodingBuffer /rax :movqImmReg
+        /rax :callqReg
 
         # rax == code object on heap
 
@@ -2436,9 +2351,10 @@
 
         /done :jmpLbl32
       ]]
-    } _ 1 ::scopingFunctionHeader   ::scopingFunctionFooter   internalOptimizeGeneratedScopedFunction      -32104* /ey}  defv
-      _ 1 ::unscopingFunctionHeader ::unscopingFunctionFooter internalOptimizeGeneratedUnscopedFunction    -32104* /ey}' defv
-      _ 0 ::unscopingFunctionHeader ::unscopingFunctionFooter internalOptimizeGeneratedUncapturingFunction -32104* /ey}" defv
+    } _ 1 ::scopingFunctionHeader   ::scopingFunctionFooter   internalCallOptimizeHook -32104* /ey}  defv
+      _ 1 ::unscopingFunctionHeader ::unscopingFunctionFooter internalCallOptimizeHook -32104* /ey}' defv
+      _ 0 ::unscopingFunctionHeader ::unscopingFunctionFooter internalCallOptimizeHook -32104* /ey}" defv
+      _ 1 ::scopingFunctionHeader   ::scopingFunctionFooter   "ey--" |                 -32104* /ey}~ defv # TODO just to test the optimizer, remove this and optimize the optimizer while optimizing once everything works
       --
   > _ ==globalMacros { defv }' ::allocateOffsetStruct
 
