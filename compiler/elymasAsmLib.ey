@@ -769,11 +769,12 @@
     [[
       /rax /rax :xorqRegReg
       /rax :pushqReg
+      /rdi :pushqReg
+      /rsi :pushqReg
 
       @retryWithParent
 
       # CHECK this is just sanity checking
-      /rdi :pushqReg
       7 /rdi /al :movbMemDisp8Reg
       %F0 /al :andbImmReg
       %20 /al :cmpbImmReg
@@ -783,51 +784,57 @@
       :ud2
 
       @isScope
-      /rdi :popqReg
       # ENDCHECK
 
-      8 /rdi /rcx :movqMemDisp8Reg # load name table
-      /rcx /rdx :movqRegReg
-      16 /rdx :addqImm8Reg # rdx will iterate over entries
-      8 /rcx /rcx :addqMemDisp8Reg # compute name table effective end
+      8 /rdi /rbp :movqMemDisp8Reg # load name table
+      16 /rbp /rdx :leaqMemDisp8Reg # rdx will iterate over entries
+      8 /rbp /rbp :addqMemDisp8Reg # compute name table effective end
+      /rsi /rax :movqRegReg
+
+      /rdx /rbp :cmpqRegReg
+      /end :jbeLbl8
 
       @loop
-      /rdx /rcx :cmpqRegReg
-      /end :jbeLbl8
-      # TODO this is ridiculous
-      /rdi :pushqReg
-      /rsi :pushqReg
-      /rdx :pushqReg
-      /rcx :pushqReg
       /rdx /rdi :movqMemReg
-      internalStringEqualsCode _ len dearray
-      /rcx :popqReg
-      /rdx :popqReg
+      16 /rax /rcx :movqMemDisp8Reg # load exact length
+      16 /rdi /rdi :leaqMemDisp8Reg
+      16 /rax /rsi :leaqMemDisp8Reg
+      :cmpsq # same exact length
+      /fail :jnzLbl8
+      :repz :cmpsb
+      /found :jzLbl8
+
+      @fail
+      16 /rdx :addqImm8Reg
+      /rdx /rbp :cmpqRegReg
+      /loop :jaLbl8
+
+      @end
+      # not found at all, retry with parent
       /rsi :popqReg
       /rdi :popqReg
-
-      /rax /rax :testqRegReg
-      /found :jnzLbl8
-
-      16 /rdx :addqImm8Reg
-      /loop :jmpLbl8
-      @end
-
-      # not found at all, retry with parent
       /rax :popqReg
+
       /rax :incqReg
-      /rax :pushqReg
       16 /rdi /rdi :movqMemDisp8Reg
       /rdi /rdi :testqRegReg
+
+      /rax :pushqReg
+      /rdi :pushqReg
+      /rsi :pushqReg
       /retryWithParent :jnzLbl8
 
       @failed
+      /rsi :popqReg
+      /rdi :popqReg
       /rax :popqReg
       /rax /rax :xorqRegReg
       /rdx /rdx :xorqRegReg
       :retn
 
       @found
+      /rsi :popqReg # rsi == name to resolve
+      /rdi :popqReg # rdi == scope we are resolving in
       # top of stack -> number of parent pointers followed
 
       8 /rdx /rax :movqMemDisp8Reg # load default activation
