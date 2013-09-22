@@ -73,19 +73,39 @@
   } /modrm00 deff
 
   { ==mem ==reg
-    mem [ /spl /sp /esp /rsp ] streq any not assert
+    mem [ /spl /sp /esp /rsp ] streq any {
+      # actually encode sib with rsp index register (to get it ignored)
+                      %40
+      /sib regno      %07 band add
+      reg regno 8 mul %38 band add
 
-                    %40
-    mem regno       %07 band add
-    reg regno 8 mul %38 band add
+      # sib-byte
+      %00 # index = 1 (ignored anyway)
+      %38 /rsp regno 8 mul band add # (ignored)
+      %07 mem regno band add
+    } {
+                      %40
+      mem regno       %07 band add
+      reg regno 8 mul %38 band add
+    } ? *
   } /modrm01 deff
 
   { ==mem ==reg
-    mem [ /spl /sp /esp /rsp ] streq any not assert
+    mem [ /spl /sp /esp /rsp ] streq any {
+      # actually encode sib with rsp index register (to get it ignored)
+                      %80
+      /sib regno      %07 band add
+      reg regno 8 mul %38 band add
 
-                    %80
-    mem regno       %07 band add
-    reg regno 8 mul %38 band add
+      # sib-byte
+      %00 # index = 1 (ignored anyway)
+      %38 /rsp regno 8 mul band add # (ignored)
+      %07 mem regno band add
+    } {
+                      %80
+      mem regno       %07 band add
+      reg regno 8 mul %38 band add
+    } ? *
   } /modrm10 deff
 
   { ==mem ==reg

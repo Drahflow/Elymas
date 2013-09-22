@@ -885,7 +885,7 @@
     # %40 ==? section header size, %38 == program header size
     metaSections len allocSections len add %40 mul
                      allocSections len     %38 mul add
-                                           %40     add ==dataOffset
+                                           %40     add ==?dataOffset
     metaSections { ==s
       dataOffset s .setDataOffset
       dataOffset s .dataSize add =dataOffset

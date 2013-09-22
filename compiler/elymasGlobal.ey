@@ -1459,6 +1459,9 @@
       58 /rax :btsqImm8Mem
       /alreadyOptimized :jcLbl8
       /rax :pushqReg
+
+      ::currentScope /rcx :movqImmReg
+      /rcx :pushqMem
       /rax :pushqReg
 
       /rax :movqImmOOBReg "sys" ::string
@@ -1477,6 +1480,7 @@
       /rax :callqReg
 
       /rcx :popqReg # result object (not necessarily new code object though)
+      /rax :popqReg # pop returned scope object
       /rax :popqReg # old object
 
       /rax /rcx :cmpqRegReg
@@ -2312,28 +2316,55 @@
         # rax == (inner) code object on heap
 
         # create function which
-        # returns a function with the current scope captured
-        :quoteEncodingBufferCode /rdi :movqImmReg
-        :quoteEncodingBufferObjects /rbp :movqImmReg
-        ::unscopingFunctionHeader ::loadToRdi
+        capturing {
+          # returns a function with the current scope captured
+          :quoteEncodingBufferCode /rdi :movqImmReg
+          :quoteEncodingBufferObjects /rbp :movqImmReg
+          ::unscopingFunctionHeader ::loadToRdi
 
-        # 1. load inner code block
-        [ /rdi :movqImmOOBReg ] _ len 2 eq assert
-          2 dearray 256 mul add 
-          /rdi :movwImmMem
-        /rax 2 /rdi :movqRegMemDisp8
-        /rax 0 /rbp :movqRegMemDisp8
-        10 /rdi :addqImm8Reg
-        8 /rbp :addqImm8Reg
+          # load inner code block
+          [ /rdi :movqImmOOBReg ] _ len 2 eq assert
+            2 dearray 256 mul add 
+            /rdi :movwImmMem
+          /rax 2 /rdi :movqRegMemDisp8
+          /rax 0 /rbp :movqRegMemDisp8
+          10 /rdi :addqImm8Reg
+          8 /rbp :addqImm8Reg
 
-        [
-          ::currentScope /rax :movqImmReg
-          /rax /rsi :movqMemReg
+          [
+            ::currentScope /rax :movqImmReg
+            /rax /rsi :movqMemReg
+            /rdx /rdx :xorqRegReg
+            ::internalAllocateFunction /rax :movqImmReg
+            /rax :callqReg
+            /rax :pushqReg
+          ] ::unscopingFunctionFooter cat ::loadToRdi
+        } {
+          # create constant function from inner code block
+          /rax /rdi :movqRegReg
+          /rsi /rsi :xorqRegReg # non-capturing
           /rdx /rdx :xorqRegReg
           ::internalAllocateFunction /rax :movqImmReg
           /rax :callqReg
-          /rax :pushqReg
-        ] ::unscopingFunctionFooter cat ::loadToRdi
+          
+          :quoteEncodingBufferCode /rdi :movqImmReg
+          :quoteEncodingBufferObjects /rbp :movqImmReg
+          ::unscopingFunctionHeader ::loadToRdi
+
+          # rax == function object
+
+          [ /rax :movqImmOOBReg ] _ len 2 eq assert
+            2 dearray 256 mul add 
+            /rdi :movwImmMem
+          /rax 2 /rdi :movqRegMemDisp8
+          /rax 0 /rbp :movqRegMemDisp8
+          10 /rdi :addqImm8Reg
+          8 /rbp :addqImm8Reg
+
+          [
+            /rax :pushqReg
+          ] ::unscopingFunctionFooter cat ::loadToRdi
+        } ? *
         
         ::internalAllocateCodeFromEncodingBuffer /rax :movqImmReg
         /rax :callqReg

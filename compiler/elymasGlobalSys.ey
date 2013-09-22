@@ -2,7 +2,7 @@
   "sys" enterSubScope
 
   <
-    # handle an identifier in the current scope according to current quote level
+    # handle an identifier in a given scope according to current quote level
     # 0 -> scope to execute identifier in
     # 1 -> identifier to handle
     # 0 <- scope after execution
@@ -29,6 +29,61 @@
       8 /r15 :addqImm8Reg
       :retn
     ]] /eyexecuteIdentifier defv
+
+    # resolve an identifier in a given scope and return full resolve information
+    # 0 -> scope to resolve identifier in
+    # 1 -> identifier to resolve
+    # 0 <- address of resolved object (0 if nonexistent)
+    # 1 <- activation mode and constness of element (only present if resolution successful)
+    # 2 <- memory address of entry (only present if resolution successful)
+    # 3 <- number of parent pointers followed (only present if resolution successful)
+    # 4 <- entry index * 8 within scope (only present if resolution successful)
+    # 5 <- 0 if within scope data area, 1 if within extension area (only present if resolution successful)
+    [[
+      8 /r15 :subqImm8Reg
+      /r15 :popqMem
+      
+      /rdi :popqReg
+      /rsi :popqReg
+
+      ::internalResolve /rax :movqImmReg
+      /rax :callqReg
+
+      /rax /rax :andqRegReg
+      /failure :jzLbl32
+
+      48 /r15 :subqImm8Reg
+      /rbp 40 /r15 :movqRegMemDisp8
+      /rsi 32 /r15 :movqRegMemDisp8
+      /rdi 24 /r15 :movqRegMemDisp8
+      /rcx 16 /r15 :movqRegMemDisp8
+      /rdx 8 /r15 :movqRegMemDisp8
+      /rax /r15 :movqRegMem
+
+      [ 40 32 24 16 8 0 ] { ==o
+        ::internalAllocateInteger /rax :movqImmReg
+        /rax :callqReg
+        /rax :pushqReg
+        o /r15 /rdx :movqMemDisp8Reg
+        /rdx 8 /rax :movqRegMemDisp8
+      } each
+
+      48 /r15 :addqImm8Reg
+      /done :jmpLbl8
+
+      @failure
+
+      ::internalAllocateInteger /rax :movqImmReg
+      /rax :callqReg
+      /rax :pushqReg
+      0 8 /rax :andqImm8MemDisp8 
+
+      @done
+
+      /r15 :pushqMem
+      8 /r15 :addqImm8Reg
+      :retn
+    ]] /eyresolveInfo defv
   > _ ==globalFunctions { defv }' ::allocateOffsetStruct
 
   [

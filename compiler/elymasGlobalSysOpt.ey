@@ -4,7 +4,9 @@
   <
     # stub
     # 0 -> code object
+    # 1 -> current scope
     # 0 <- same code object (if different object, optimization would have taken place)
+    # 1 <- current scope (value ignored)
     [[
       :retn
     ]] /eyhook defv

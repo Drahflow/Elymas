@@ -5,4 +5,4 @@
   "lib/sys/opt.ey"
 ] { _ dump include }' each
 
-{ "/proc/self/fd/0" include }' "optimized" sys .freeze
+2 { { "/proc/self/fd/0" include }' "optimized" sys .freeze } rep # FIXME freeze wonkyness (the optimizer allocates during freeze)
