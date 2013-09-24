@@ -1079,7 +1079,7 @@
 
       %40 /dl :testbImmReg
       /patchConstant :jnzLbl8
-      %10 /dl :testbImmReg
+      %30 /dl :testbImmReg # TODO separate cases for static and typed
       /patchStatic :jnzLbl32
 
       /rdx /rcx :movqRegReg
@@ -1102,11 +1102,11 @@
       /rax :callqReg
       :ud2
 
-      @active
+      @active # TODO patch late resolve call away
       |ey* /rax :movqImmReg
       /rax :callqReg
 
-      @inactive
+      @inactive # TODO patch late resolve call away
       @done
 
       16 /r15 :addqImm8Reg
@@ -1301,90 +1301,38 @@
       :ud2
 
       @patchStaticPassive
-      /rdi /rcx :movqRegReg # save parent pointer count
-      # FIXME: keep enough place for repeated parent dereference when creating the to-be-patched-code
-
-      15 /rcx :cmpqImm8Reg
-      /patchStaticPassiveParentCountWithinLimits :jbeLbl8
-
-      "parent count out of save limits in internalExecuteIdentifierUnquotedAndPatchLateResolve" ::outputError
-      :ud2
-
-      @patchStaticPassiveParentCountWithinLimits
-      8 /r15 /rdi :movqMemDisp8Reg
-      # TODO: could reset string reference here
-      16 /rdi :addqImm8Reg
-
-      [
-        ::currentScope /rax :movqImmReg
-        /rax /rax :movqMemReg
-      ] ::loadToRdi
-
-      /rcx /rcx :testqRegReg
-      /patchStaticPassiveNoFollowParents :jzLbl8
-      @patchStaticPassiveFollowParents
-      [
-        16 /rax /rax :movqMemDisp8Reg
-      ] ::loadToRdi
-      /patchStaticPassiveFollowParents :loopLbl8
-      @patchStaticPassiveNoFollowParents
-
-      %01 /bpl :testbImmReg
-      /patchStaticPassiveLoadFromExtensionArea :jnzLbl8
-
-      # @patchStaticPassiveLoadFromScope
-      32 /rsi :addqImm8Reg # now: rsi == offset of entry in scope
-      [
-        /rbx :popqReg
-        %EE /rax :pushqMemDisp32
-        /rbx :jmpqReg
-      ] ::loadToRdi
-      6 /rdi :subqImm8Reg
-      /esi /rdi :movlRegMem # patch offset
-
-      8 /r15 /rdi :movqMemDisp8Reg
-      16 /rdi :addqImm8Reg
-
-      16 /r15 :addqImm8Reg
-      /r15 :pushqMem
-      8 /r15 :addqImm8Reg
-      /rdi :jmpqReg # continue with freshly patched code
-
-      @patchStaticPassiveLoadFromExtensionArea
-      40 /rsi :addqImm8Reg # now: rsi == offset of entry in extension area + scope length
-
-      [
-        24 /rax /rcx :movqMemDisp8Reg # load extension area pointer
-        /rax /edx :movlMemReg # load scope length
-        /rdx :negqReg # prepare for substraction
-        /rbx :popqReg
-        %EE 1 /rdx /rcx :pushqMemIndexScaleDisp32 # push loaded entry to stack
-        /rbx :jmpqReg
-      ] ::loadToRdi
-      6 /rdi :subqImm8Reg
-      /esi /rdi :movlRegMem # patch offset
-
-      8 /r15 /rdi :movqMemDisp8Reg
-      16 /rdi :addqImm8Reg
-
-      16 /r15 :addqImm8Reg
-      /r15 :pushqMem
-      8 /r15 :addqImm8Reg
-      /rdi :jmpqReg # continue with freshly patched code
+      0 /rax :movqImmReg
+      /rax :pushqReg
+      /patchStaticImplementation :jmpLbl8
 
       @patchStaticActive
+      1 /rax :movqImmReg
+      /rax :pushqReg
+
+      @patchStaticImplementation
+
       /rdi /rcx :movqRegReg # save parent pointer count
       # FIXME: keep enough place for repeated parent dereference when creating the to-be-patched-code
 
       15 /rcx :cmpqImm8Reg
-      /patchStaticActiveParentCountWithinLimits :jbeLbl8
+      /patchStaticParentCountWithinLimits :jbeLbl8
 
       "parent count out of save limits in internalExecuteIdentifierUnquotedAndPatchLateResolve" ::outputError
       :ud2
 
-      @patchStaticActiveParentCountWithinLimits
+      @patchStaticParentCountWithinLimits
       8 /r15 /rdi :movqMemDisp8Reg
-      # TODO: could reset string reference here
+      # replace string reference with example object (for later optimizer inspection)
+      8 /rdi /rdx :movqMemDisp8Reg
+      16 1 /rdx /rdi /rdx :leaqMemIndexScaleDisp8Reg
+      /rdi /eax :movlMemReg
+      /rdi /rax :addqRegReg
+      /rdx /rax :cmpqRegReg
+      /patchStaticParentCountWithinLimitsSpaceExists :jaLbl8
+      "no space available for example object" ::outputError
+      :ud2
+      @patchStaticParentCountWithinLimitsSpaceExists
+      0 /rdx :andqImm8Mem # reset example object pointer
       16 /rdi :addqImm8Reg
 
       [
@@ -1393,53 +1341,67 @@
       ] ::loadToRdi
 
       /rcx /rcx :testqRegReg
-      /patchStaticActiveNoFollowParents :jzLbl8
-      @patchStaticActiveFollowParents
+      /patchStaticNoFollowParents :jzLbl8
+      @patchStaticFollowParents
       [
         16 /rax /rax :movqMemDisp8Reg
       ] ::loadToRdi
-      /patchStaticActiveFollowParents :loopLbl8
-      @patchStaticActiveNoFollowParents
+      /patchStaticFollowParents :loopLbl8
+      @patchStaticNoFollowParents
 
       %01 /bpl :testbImmReg
-      /patchStaticActiveLoadFromExtensionArea :jnzLbl8
+      /patchStaticLoadFromExtensionArea :jnzLbl8
 
-      # @patchStaticActiveLoadFromScope
+      # @patchStaticLoadFromScope
       32 /rsi :addqImm8Reg # now: rsi == offset of entry in scope
       [
         /rbx :popqReg
-        %EE /rax :pushqMemDisp32
-        /rbx :pushqReg
-        |ey* /rax :movqImmReg
-        /rax :jmpqReg
+        %EE /rax /rax :movqMemDisp32Reg
       ] ::loadToRdi
-      17 /rdi :subqImm8Reg
-      /esi /rdi :movlRegMem # patch offset
+      /esi 4 neg /rdi :movlRegMemDisp8 # patch offset
+      /patchStaticLoadTail :jmpLbl8
 
-      8 /r15 /rdi :movqMemDisp8Reg
-      16 /rdi :addqImm8Reg
-
-      16 /r15 :addqImm8Reg
-      /r15 :pushqMem
-      8 /r15 :addqImm8Reg
-      /rdi :jmpqReg # continue with freshly patched code
-
-      @patchStaticActiveLoadFromExtensionArea
+      @patchStaticLoadFromExtensionArea
       40 /rsi :addqImm8Reg # now: rsi == offset of entry in extension area + scope length
-
       [
         24 /rax /rcx :movqMemDisp8Reg # load extension area pointer
         /rax /edx :movlMemReg # load scope length
         /rdx :negqReg # prepare for substraction
         /rbx :popqReg
-        %EE 1 /rdx /rcx :pushqMemIndexScaleDisp32 # push loaded entry to stack
+        %EE 1 /rdx /rcx /rax :movqMemIndexScaleDisp32Reg # load entry
+      ] ::loadToRdi
+      /esi 4 neg /rdi :movlRegMemDisp8 # patch offset
+
+      @patchStaticLoadTail
+      [
+        /rax :pushqReg
+        /rcx :movqImmOOBReg
+      ] ::loadToRdi
+      /rdx /rdi :movqRegMem
+      8 /rdi :addqImm8Reg
+      [
+        /rax /rcx :movqRegMem
+      ] ::loadToRdi
+
+      /rax :popqReg
+      /rax /rax :testqRegReg
+      /patchStaticLoadActive :jnzLbl8
+
+      # @patchStaticLoadPassive
+      [
+        /rbx :jmpqReg
+      ] ::loadToRdi
+
+      /patchStaticLoadTail2 :jmpLbl8
+
+      @patchStaticLoadActive
+      [
         /rbx :pushqReg
         |ey* /rax :movqImmReg
         /rax :jmpqReg
       ] ::loadToRdi
-      17 /rdi :subqImm8Reg
-      /esi /rdi :movlRegMem # patch offset
 
+      @patchStaticLoadTail2
       8 /r15 /rdi :movqMemDisp8Reg
       16 /rdi :addqImm8Reg
 

@@ -220,17 +220,20 @@
   }" /cloneThread deffd
 
   { #==thread ==newpc
+    0 -1201 =[]
+  }" /updateThread deffd
+
+  { #==thread ==newpc
     [ -0201 threadGetCaptures _ len dearray ] ]
   }" /fullCloneThread deffd
 
   |add /origadd deffd
+  str .|bitTest /bitTest deffd
+  str .|bitSet /bitSet deffd
+  str .|zero /zero deffd
 
   # TODO think about implementation efficiency
   { ==maxSize
-    str .|bitTest /bitTest deffd
-    str .|bitSet /bitSet deffd
-    str .|zero /zero deffd
-
     <
     0 ==size
     [ maxSize { 0 }" rep ] =*get
@@ -281,7 +284,7 @@
         clist .clear
       }" { # TERM
         position maxPosition lt {
-          position string * 1 code * { pc 1 add thread cloneThread nlist .add }" rep
+          position string * 1 code * { pc 1 add thread updateThread nlist .add }" rep
         }" rep
       }" { # JUMP
         pc 1 code add thread cloneThread iPush
@@ -302,6 +305,7 @@
     0 ==i
     { position maxPosition le }" {
       0 =i
+
       { i clist .size lt }" {
         i clist .get _ =thread
                        threadGetPC _ =pc

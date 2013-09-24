@@ -85,37 +85,32 @@
 
   [
     /rbx :popqReg
-    0 /rax :pushqMemDisp32
-    /rbx :jmpqReg
-  ] ==:staticLoadPassiveFromScopePattern
+    0 /rax /rax :movqMemDisp32Reg
+  ] ==:staticLoadFromScopePattern
 
   [
     24 /rax /rcx :movqMemDisp8Reg # load extension area pointer
     /rax /edx :movlMemReg # load scope length
     /rdx :negqReg # prepare for substraction
     /rbx :popqReg
-    0 1 /rdx /rcx :pushqMemIndexScaleDisp32 # push loaded entry to stack
+    0 1 /rdx /rcx /rax :movqMemIndexScaleDisp32Reg # load entry
+  ] ==:staticLoadFromExtensionPattern
+
+  [
+    /rax :pushqReg
+    0 /rcx :movqImmReg
+    /rax /rcx :movqRegMem
     /rbx :jmpqReg
-  ] ==:staticLoadPassiveFromExtensionPattern
+  ] ==:staticLoadPassivePattern
 
   [
-    /rbx :popqReg
-    0 /rax :pushqMemDisp32
+    /rax :pushqReg
+    0 /rcx :movqImmReg
+    /rax /rcx :movqRegMem
     /rbx :pushqReg
     0 /rax :movqImmReg
     /rax :jmpqReg
-  ] ==:staticLoadActiveFromScopePattern
-
-  [
-    24 /rax /rcx :movqMemDisp8Reg # load extension area pointer
-    /rax /edx :movlMemReg # load scope length
-    /rdx :negqReg # prepare for substraction
-    /rbx :popqReg
-    0 1 /rdx /rcx :pushqMemIndexScaleDisp32 # push loaded entry to stack
-    /rbx :pushqReg
-    0 /rax :movqImmReg
-    /rax :jmpqReg
-  ] ==:staticLoadActiveFromExtensionPattern
+  ] ==:staticLoadActivePattern
 
   [
     8 /r15 :subqImm8Reg
@@ -127,7 +122,9 @@
   /CALL ==:CALL
   /CALLSCOPED ==:CALLSCOPED
   /STATIC ==:STATIC
+  /STATICTYPED ==:STATICTYPED
   /STATICWRITE ==:STATICWRITE
+  /STATICDOT ==:STATICDOT
   /NATIVE ==:NATIVE
 
   { =*f ==t
@@ -152,7 +149,7 @@
     } /testScopeModifications deffst
 
     { ==logic
-      [ /NOP ] ==last
+      [ NOP ] ==last
       [ logic { ==entry 0 entry * ==action
         [
           { action CALL streq { 1 entry * "|" | +rawCodeAddress eq }' andif { 0 last * PUSH streq }' andif }' {
@@ -164,7 +161,7 @@
 
               mode 16 div 1 band {
                 [ STATIC offsetInScope parentCount inExtensionArea ] =last
-                [ /NOP ] =entry
+                [ NOP ] =entry
               } { } ? *
             } {
               executingScope dump
@@ -181,7 +178,7 @@
     } /rewriteConstantPipe deffst
 
     { ==logic
-      [ /NOP ] ==last
+      [ NOP ] ==last
       [ logic { ==entry 0 entry * ==action
         [
           { action CALL streq { 1 entry * "=" | +rawCodeAddress eq }' andif { 0 last * PUSH streq }' andif }' {
@@ -193,7 +190,7 @@
 
               mode 16 div 1 band {
                 [ STATICWRITE offsetInScope parentCount inExtensionArea ] =last
-                [ /NOP ] =entry
+                [ NOP ] =entry
               } { } ? *
             } {
               executingScope dump
@@ -209,8 +206,42 @@
       } each last ]
     } /rewriteConstantEquals deffst
 
+    { _ ==logic
+      2 logic len range { ==i i logic * ==entry 0 entry * ==action i 1 sub logic * ==last i 2 sub logic * ==secondLast
+        [
+          { action CALL streq
+            { 1 entry * "." | +rawCodeAddress eq }' andif
+            { 0 last * PUSH streq }' andif
+            { 0 secondLast * STATICTYPED streq }' andif
+          }' {
+            1 last * +rawObject ==constant
+            4 secondLast * +rawObject ==relevantScope
+
+            constant relevantScope sys .resolveInfo {
+              ==mode -- ==parentCount 32 add ==offsetInScope ==inExtensionArea
+              inExtensionArea { offsetInScope 8 add =offsetInScope } rep
+
+              mode 16 div 1 band {
+                [ STATICDOT offsetInScope parentCount inExtensionArea ] i 1 sub logic =[]
+                mode 1 band { # TODO bail out for activation mode of 2
+                  [ CALL "*" | +rawCodeAddress ] i logic =[]
+                } {
+                  [ NOP ] i logic =[]
+                } ? *
+              } { } ? *
+            } {
+              relevantScope dump
+              relevantScope keys dump
+              constant dump
+              "resolution failed" die
+            } ? *
+          }
+        ] conds
+      } each
+    } /rewriteConstantDot deffst
+
     { ==logic
-      [ /NOP ] ==last
+      [ NOP ] ==last
       [ logic { ==entry 0 entry * ==action
         [
           { action CALL streq { 1 entry * "_" | +rawCodeAddress eq }' andif }' {
@@ -306,30 +337,37 @@
               j ==loadStart
 
               [
-                { staticLoadPassiveFromScopePattern callTargetMatch }' {
-                  [ loadStart 3 add _ 4 add range peek each ] 256 math .unbase ==offsetInScope
+                { staticLoadFromScopePattern callTargetMatch }' {
+                  [ loadStart 4 add _ 4 add range peek each ] 256 math .unbase ==offsetInScope
+                  [ calledAddress 8 sub _ 8 add range peek each ] 256 math .unbase ==exampleObjectOffset
+                  [ calledAddress exampleObjectOffset add _ 8 add range peek each ] 256 math .unbase ==exampleObject
 
-                  [ STATIC offsetInScope parentCount 0 ] emitLogic
+                  [ STATICTYPED offsetInScope parentCount 0 exampleObject ] emitLogic
                 }
 
-                { staticLoadPassiveFromExtensionPattern callTargetMatch }' {
-                  [ loadStart 13 add _ 4 add range peek each ] 256 math .unbase ==offsetInScope
+                { staticLoadFromExtensionPattern callTargetMatch }' {
+                  [ loadStart 14 add _ 4 add range peek each ] 256 math .unbase ==offsetInScope
+                  [ calledAddress 8 sub _ 8 add range peek each ] 256 math .unbase ==exampleObjectOffset
+                  [ calledAddress exampleObjectOffset add _ 8 add range peek each ] 256 math .unbase ==exampleObject
                   
-                  [ STATIC offsetInScope parentCount 1 ] emitLogic
+                  [ STATICTYPED offsetInScope parentCount 1 exampleObject ] emitLogic
                 }
 
-                { staticLoadActiveFromScopePattern callTargetMatch }' {
-                  [ loadStart 3 add _ 4 add range peek each ] 256 math .unbase ==offsetInScope
+                { 1 }' {
+                  [ j j 16 add range peek each ] dump
+                  o dump
+                  j dump
+                  "unparsed static load opcodes in sys .opt .hook (optimizing version)" die
+                }
+              ] conds
 
-                  [ STATIC offsetInScope parentCount 0 ] emitLogic
+              [
+                { staticLoadActivePattern callTargetMatch }' {
                   [ CALL "*" | +rawCodeAddress ] emitLogic
                 }
 
-                { staticLoadActiveFromExtensionPattern callTargetMatch }' {
-                  [ loadStart 13 add _ 4 add range peek each ] 256 math .unbase ==offsetInScope
-
-                  [ STATIC offsetInScope parentCount 1 ] emitLogic
-                  [ CALL "*" | +rawCodeAddress ] emitLogic
+                { staticLoadPassivePattern callTargetMatch }' {
+                  # nothing to emit
                 }
 
                 { 1 }' {
@@ -396,6 +434,7 @@
     testScopeModifications
     containsScopeModifications not |rewriteConstantPipe rep
     containsScopeModifications not |rewriteConstantEquals rep
+    containsScopeModifications not |rewriteConstantDot rep
     rewriteStackOps
     { =*entry 0 entry ==action
       [
@@ -439,7 +478,7 @@
           2 entry emitReference
         }
 
-        { action STATIC streq }' {
+        { action [ STATIC STATICTYPED ] streq any }' {
           [
             ::currentScope /rax :movqImmReg
             /rax /rax :movqMemReg
@@ -448,7 +487,7 @@
             3 entry {
               24 /rax /rcx :movqMemDisp8Reg # load extension area pointer
               /rax /edx :movlMemReg # load scope length
-              /rdx :negqReg # prepare for substraction
+              /rdx :negqReg # prepare for substraction # TODO the length calculation could be done beforehand
               1 entry 1 /rdx /rcx :pushqMemIndexScaleDisp32 # push loaded entry to stack
             } {
               1 entry /rax :pushqMemDisp32
@@ -469,6 +508,22 @@
               1 entry 1 /rdx /rcx :popqMemIndexScaleDisp32 # load entry from stack
             } {
               1 entry /rax :popqMemDisp32
+            } ? *
+          ] emitOpcodes
+        }
+
+        { action STATICDOT streq }' {
+          [
+            /rax :popqReg
+            2 entry { 16 /rax /rax :movqMemDisp8Reg } rep
+
+            3 entry {
+              24 /rax /rcx :movqMemDisp8Reg # load extension area pointer
+              /rax /edx :movlMemReg # load scope length
+              /rdx :negqReg # prepare for substraction
+              1 entry 1 /rdx /rcx :pushqMemIndexScaleDisp32 # push loaded entry to stack
+            } {
+              1 entry /rax :pushqMemDisp32
             } ? *
           ] emitOpcodes
         }

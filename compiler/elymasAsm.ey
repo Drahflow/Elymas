@@ -12,16 +12,16 @@
   } "%" defq
 
   # registers
-  < [ /rax /rcx /rdx /rbx /rsp /rbp /rsi /rdi /r8 /r9 /r10 /r11 /r12 /r13 /r14 /r15 ] { 1 -01 defv }' each > ==bit64table
+  < [ /rax /rcx /rdx /rbx /rsp /rbp /rsi /rdi /r8 /r9 /r10 /r11 /r12 /r13 /r14 /r15 ] { 1 -01 defv }' each > ==:bit64table
   { bit64table -01 . -- } /bit64assert deff
 
-  < [ /eax /ecx /edx /ebx /esp /ebp /esi /edi /r8d /r9d /r10d /r11d /r12d /r13d /r14d /r15d ] { 1 -01 defv }' each > ==bit32table
+  < [ /eax /ecx /edx /ebx /esp /ebp /esi /edi /r8d /r9d /r10d /r11d /r12d /r13d /r14d /r15d ] { 1 -01 defv }' each > ==:bit32table
   { bit32table -01 . -- } /bit32assert deff
 
-  < [ /ax /cx /dx /bx /sp /bp /si /di /r8w /r9w /r10w /r11w /r12w /r13w /r14w /r15w ] { 1 -01 defv }' each > ==bit16table
+  < [ /ax /cx /dx /bx /sp /bp /si /di /r8w /r9w /r10w /r11w /r12w /r13w /r14w /r15w ] { 1 -01 defv }' each > ==:bit16table
   { bit16table -01 . -- } /bit16assert deff
 
-  < [ /al /cl /dl /bl /spl /ah /bpl /ch /sil /dh /dil /bh /r8b /r9b /r10b /r11b /r12b /r13b /r14b /r15b ] { 1 -01 defv }' each > ==bit8table
+  < [ /al /cl /dl /bl /spl /ah /bpl /ch /sil /dh /dil /bh /r8b /r9b /r10b /r11b /r12b /r13b /r14b /r15b ] { 1 -01 defv }' each > ==:bit8table
   { bit8table -01 . -- } /bit8assert deff
   
   <
@@ -41,7 +41,7 @@
     [ /r13b /r13w /r13d /r13 ] { 13 -01 defv }' each
     [ /r14b /r14w /r14d /r14 ] { 14 -01 defv }' each
     [ /r15b /r15w /r15d /r15 ] { 15 -01 defv }' each
-  > ==regnoTable
+  > ==:regnoTable
 
   { regnoTable -01 . } /regno deff
 
@@ -49,7 +49,7 @@
     [ /al /cl /dl /bl ] { 0 -01 defv }' each
     [ /spl /bpl /sil /dil ] { 1 -01 defv }' each
     [ /r8b /r9b /r10b /r11b /r12b /r13b /r14b /r15b ] { 1 -01 defv }' each
-  > ==rexreqbyteTable
+  > ==:rexreqbyteTable
   
   { rexreqbyteTable -01 . } /rexreqbyte deff
 
@@ -228,13 +228,13 @@
       } /encode deff >
     } ==Mem
     # base register plus 8 bit displacement
-    { < _ bit64assert ==base _ 128 lt assert ==disp /none ==idx { ==r
+    { < _ bit64assert ==base /none ==idx _ 128 lt assert ==disp { ==r
         r base modrm01
         disp imm8
       } /encode deff >
     } ==MemDisp8
     # base register plus 32 bit displacement
-    { < _ bit64assert ==base ==disp /none ==idx { ==r
+    { < _ bit64assert ==base /none ==idx ==disp { ==r
         r base modrm10
         disp imm32
       } /encode deff >
@@ -1196,10 +1196,10 @@
   }' each
 
   STACKSIZE sys .asm .alloc _ globalAllocations .register
-                              .base ==quoteEncodingBufferCode
+                              .base ==:quoteEncodingBufferCode
 
   STACKSIZE sys .asm .alloc _ globalAllocations .register
-                              .base ==quoteEncodingBufferObjects
+                              .base ==:quoteEncodingBufferObjects
 
   { ==opcodes
     opcodes len 1 sub PAGESIZE div 1 add PAGESIZE mul sys .asm .alloc /codearea defv
