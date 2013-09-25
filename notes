@@ -114,16 +114,61 @@ a-z: bareword characters
 
 = Memory Management =
 
+== Currently implemented ==
+
 Inspiration: http://wiki.luajit.org/new-garbage-collector
 
 0x6???????????: Heap memory ("16 TB should be enough for everyone.")
 0x5???????????: GC block bitmap
 0x4???????????: GC mark bitmap
 
+== Musings about possibly better schemes ==
+
+0x500?????????: GC block bitmap
+0x501?????????: GC block bitmap
+0x502?????????: GC mark bitmap
+0x503?????????: GC mark bitmap
+0x504?????????: GC free bitmap
+0x505?????????: GC free bitmap
+0x506?????????: GC "all cells used"-tree
+0x507?????????: GC "all cells used"-tree
+0x508?????????: GC "any cells used"-tree
+0x509?????????: GC "any cells used"-tree
+
 Large set of reachable, old objects
 Large set of unreachable, new objects
 Small set in between
 
+=== How to find free space ===
+
+A valid state:
+
+1                16-cell element blocked
+1       1         8-cell element blocked
+1   0   1   1     4-cell element blocked
+1 1 0 0 1 1 1 1   2-cell element blocked
+1011000010101010  usage of cells
+
+Tree-Layout:
+
+E
+6   D
+2 5 9 C
+013478AB
+
+Right child: 1 sub
+Left child: 1 height level sub shl sub 
+
+Algorithm of allocation (of byte-count n):
+
+Find correct level m = height-log_2(n/16) (from top).
+Walk zeros in "all cells used"-tree down to level m-1.
+Find zero in "any cells used"-tree on level m.
+Set "all cells used"-bit on level m (or multiple bits on the lower levels according to object size)
+  Propagate as necessary.
+Set "any cells used"-bits on levels m to 0.
+
+Overhead: 1/32.
 
 == Object Memory Layout ==
 
@@ -232,7 +277,7 @@ Main problem: How do we find out if the names mean what we believe they do?
 * Default scopes are dynamic, but the user can specify otherwise
 - many methods would not get optimized because the user forgot to flag the scope
 
-== Dynamic / Static / Constant Names ==
+== Dynamic / Static / Constant Names (implemented) ==
 * A name can be static (i.e. it is never overwritten after being resolved in a child scope and remains at the same scope index)
 * A name can be constant (i.e. its value never changes after being resolved in a child scope)
 * An optimized version of the code can be generated whenever it is called (using current name values)

@@ -255,6 +255,7 @@
       /noFreeBlockAvailable :jbeLbl32
       /rbx /r8 :btqRegMem # test block bitmap
       /resumeFreeBlockStartSearch :jcLbl8 # block not free
+      /rbx /r9 :btrqRegMem # reset mark bit to reconnect free blocks
       /freeBlockStartFound :jmpLbl8
 
       @freeBlockFound
@@ -269,65 +270,19 @@
       /rbx /rbp :cmpqRegReg
       /dontSplit :jbeLbl8
 
-      %FE /rsi :movqImmReg
-      /rbx /rcx :movqRegReg
-      7 /cl :andbImmReg
-      /sil :rolbClReg # rsi now contains mask bit for block/mark in byte (reset bit at relevant position)
-
-      /rbx /rax :movqRegReg
-      3 /rax :shrqImm8Reg
-      1 /r8 /rax /sil :orbMemIndexScaleReg # sil now { mask block bor }
-      /rsi :notqReg # sil now { mask block bor bnot }
-      /sil 1 /r9 /rax :orbRegMemIndexScale # set mark bit if block bit was zero
+      /rbx /r8 :btqRegMem # the next block already starts here?
+      /dontSplit :jcLbl8 # yes
+      /rbx /r9 :btsqRegMem # set mark bit if block bit was zero
 
       @dontSplit
       # mark block as used (-> white)
-      /rdi /rsi :movqRegReg
-      /rsi :decqReg
+      1 neg /rdi /rsi :leaqMemDisp8Reg
       4 /rsi :shrqImm8Reg
       /rsi :incqReg
       /rsi /rbx :subqRegReg
 
-      1 /rsi :movqImmReg
-      /rbx /rcx :movqRegReg
-      7 /cl :andbImmReg
-      /rsi :shlqClReg # rsi now contains mask bit for block/mark in byte (set bit at relevant position)
-
-      /rbx /rax :movqRegReg
-      3 /rax :shrqImm8Reg
-      /sil 1 /r8 /rax :orbRegMemIndexScale # set block bit
-      /rsi :notqReg # sil now { mask bnot }
-      /sil 1 /r9 /rax :andbRegMemIndexScale # reset mark bit
-
-      # ensure the new block is marked as block extend throughout in the bitmaps
-      # TODO reconnect free blocks while scanning instead
-      /rbx :pushqReg
-      /rdi :pushqReg
-
-      /rdi :decqReg
-      4 /rdi :shrqImm8Reg
-
-      @markBlockFree
-      /rdi /rdi :andqRegReg
-      /markedBlockFree :jzLbl8
-      /rdi :decqReg
-      /rbx :incqReg
-
-      1 /rsi :movqImmReg
-      /rbx /rcx :movqRegReg
-      7 /cl :andbImmReg
-      /rsi :shlqClReg # rsi now contains mask bit for block/mark in byte (set bit at relevant position)
-      /rsi :notqReg # (reset bit at relevant position)
-
-      /rbx /rax :movqRegReg
-      3 /rax :shrqImm8Reg
-      /sil 1 /r8 /rax :andbRegMemIndexScale # reset block bit
-      /sil 1 /r9 /rax :andbRegMemIndexScale # reset mark bit
-      /markBlockFree :jmpLbl8
-
-      @markedBlockFree
-      /rdi :popqReg
-      /rbx :popqReg
+      /rbx /r8 :btsqRegMem # set block bit
+      /rbx /r9 :btrqRegMem # reset mark bit
 
       # prepare block length and GC header (-> light grey)
       4 /rbx :shlqImm8Reg
@@ -339,10 +294,9 @@
       # zero rest of block # TODO eliminate this one day
       /rax :pushqReg
       /rdi /rcx :movqRegReg
-      /rax /rdi :movqRegReg
+      8 /rax /rdi :leaqMemDisp8Reg
       3 /rcx :shrqImm8Reg
       /rcx :decqReg
-      8 /rdi :addqImm8Reg
       /rax /rax :xorqRegReg
       :reprcx :stosq
       /rax :popqReg
