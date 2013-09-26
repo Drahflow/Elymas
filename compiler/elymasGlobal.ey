@@ -138,12 +138,22 @@
       /rdx /rsi :cmpqRegReg
       /nameUndefined :jbeLbl8
 
-      /rdx :pushqReg
+      /rdx :pushqReg # TODO code does not seem optimal here
       /rsi :pushqReg
       /rdi :pushqReg
       /rcx :pushqReg
       /rdx /rsi :movqMemReg
-      ::internalStringEqualsCode _ len dearray
+      /rax /rax :xorqRegReg
+      :cmpsq # ignore memory length header
+      :cmpsq # ignore hash
+      /rsi /rdx :movqMemReg # load exact length
+      :cmpsq # same exact length
+      /fail :jnzLbl8
+      /rdx /rcx :movqRegReg
+      :repz :cmpsb
+      /fail :jnzLbl8
+      /rax :incqReg
+      @fail
       /rcx :popqReg
       /rdi :popqReg
       /rsi :popqReg

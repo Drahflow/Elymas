@@ -1106,6 +1106,17 @@
     src dst modrm11
   } /testqRegReg deff
 
+  { ==mem ==idx ==scale ==reg
+    reg bit64assert
+    mem bit64assert
+    idx bit64assert
+
+    1 reg idx mem rex
+    %85
+    reg /sib modrm00
+    scale idx mem sib
+  } /testqRegMemIndexScale deff
+
   {
     %0F
     %0B

@@ -123,24 +123,6 @@
 
   # internal functions, ABI follows SysV standards
 
-  # compare two strings
-  # rdi -> address of first string
-  # rsi -> address of second string
-  # rax <- 1 if both strings are equal, 0 otherwise
-  [
-    /rax /rax :xorqRegReg
-    :cmpsq # ignore memory length header
-    :cmpsq # ignore hash
-    /rsi /rdx :movqMemReg # load exact length
-    :cmpsq # same exact length
-    /fail :jnzLbl8
-    /rdx /rcx :movqRegReg
-    :repz :cmpsb
-    /fail :jnzLbl8
-    /rax :incqReg
-    @fail
-  ] :labelResolve /internalStringEqualsCode defv
-
   <
     # dump string to stderr for internal error reporting
     # rdi -> address of string on heap
@@ -158,7 +140,17 @@
     # rsi -> address of second string
     # rax <- 1 if both strings are equal, 0 otherwise
     [
-      internalStringEqualsCode _ len dearray
+      /rax /rax :xorqRegReg
+      :cmpsq # ignore memory length header
+      :cmpsq # ignore hash
+      /rsi /rdx :movqMemReg # load exact length
+      :cmpsq # same exact length
+      /fail :jnzLbl8
+      /rdx /rcx :movqRegReg
+      :repz :cmpsb
+      /fail :jnzLbl8
+      /rax :incqReg
+      @fail
       :retn
     ] /internalStringEquals defv
   > { defv }' allocateOffsetStruct
