@@ -748,6 +748,15 @@
     /four reg modrm11
   } /jmpqReg deff
 
+  memoryAddressingVariants keys { ==variant memoryAddressingVariants variant . =*parse
+    { parse ==mem
+      mem .base regno %07 gt mem .idx regno %07 gt or
+        { 0 /none mem .idx mem .base rex } rep
+      %FF
+      /four mem .encode
+    } /jmpq variant defOp
+  } each
+
   { ==reg ==mem ==idx ==scale ==disp
     reg bit32assert
     mem bit64assert
