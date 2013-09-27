@@ -545,7 +545,7 @@ EOPERL
       my $s = pop @$data or die "Stack underflow";
 
       if(ref($s->[1]) eq 'ARRAY' and $s->[1]->[0] eq 'struct') {
-        my @keys = grep { /^[^ ]/ } keys %{$s->[0]};
+        my @keys = sort grep { /^[^ ]/ } keys %{$s->[0]};
 
         push @$data, [[map { [$_, 'string'] } @keys], ['array', '[]', [['range', 0, $#keys]], ['string']]];
       } else {
