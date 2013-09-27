@@ -243,9 +243,9 @@
       ::unusedHeapStart /rax :movqImmReg # 53
       /rbx :movqImmOOBReg %EE %EE %EE %EE %EE %EE %EE %EE # 63
       /rbx /rax :movqRegMem # 66
-      ::currentScope /rax :movqImmReg # 76
-      /rbx :movqImmOOBReg %EE %EE %EE %EE %EE %EE %EE %EE # 86
-      /rbx /rax :movqRegMem # 89
+      0 /rax :movqImmReg # 76 # TODO remove this line once r14 scoping is stable
+      /r14 :movqImmOOBReg %EE %EE %EE %EE %EE %EE %EE %EE # 86
+      /rbx /rax :movqRegReg # 89 # TODO remove this line once r14 scoping is stable
       :globalAllocations .base /rax :movqImmReg # 99
       /rbx :movqImmOOBReg %EE %EE %EE %EE %EE %EE %EE %EE # 109
       /rbx /rax :movqRegMem # 112
@@ -282,8 +282,7 @@
       ::unusedHeapStart /rdx :movqImmReg
       /rdx /rdx :movqMemReg
       /rdx 55 /rax :movqRegMemDisp8
-      ::currentScope /rdx :movqImmReg
-      /rdx /rdx :movqMemReg
+      /r14 /rdx :movqRegReg
       16 /rdx /rdx :movqMemDisp8Reg # unwind one scope
       /rdx 78 /rax :movqRegMemDisp8
       :globalAllocations .base /rdx :movqImmReg

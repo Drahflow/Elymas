@@ -10,13 +10,12 @@
 
   [
     8 /r15 :subqImm8Reg
-    0 /rbx :movqImmReg
-    /rbx /rsi :movqMemReg
-    /rsi /r15 :movqRegMem
+    /r14 /r15 :movqRegMem
+    /r14 /rsi :movqRegReg
     8 /rdi :movqImmReg
     0 /rax :movqImmReg
     /rax :callqReg
-    /rax /rbx :movqRegMem
+    /rax /r14 :movqRegReg
   ] ==:scopingHeaderPattern
 
   [
@@ -43,20 +42,13 @@
   ] ==:constantActiveGeneralPattern
 
   [
-    0 /rsi :movqImmReg
     16 /r15 :subqImm8Reg
     8 /r15 :popqMemDisp8
-
-    0 /rax :movqImmReg
-    /rsi /rax :xchgqRegMem
-    /rsi /r15 :movqRegMem
+    /r14 /r15 :movqRegMem
+    0 /r14 :movqImmReg
     0 /rdi :movqImmReg
     /rdi :callqReg
-
-    /r15 /rsi :movqMemReg
-    0 /rax :movqImmReg
-    /rsi /rax :movqRegMem
-
+    /r15 /r14 :movqMemReg
     8 /r15 :pushqMemDisp8
     16 /r15 :addqImm8Reg
     :retn
@@ -75,8 +67,7 @@
   ] ==:constantPassivePattern
 
   [
-    0 /rax :movqImmReg
-    /rax /rax :movqMemReg
+    /r14 /rax :movqRegReg
   ] ==:staticLoadPattern
 
   [
@@ -349,8 +340,8 @@
             }
 
             { constantNormalFunctionScopedUntypedPattern callTargetMatch }' {
-              [ calledAddress  2 add _ 8 add range peek each ] 256 math .unbase ==functionScope
-              [ calledAddress 36 add _ 8 add range peek each ] 256 math .unbase ==finalAddress
+              [ calledAddress 13 add _ 8 add range peek each ] 256 math .unbase ==functionScope
+              [ calledAddress 23 add _ 8 add range peek each ] 256 math .unbase ==finalAddress
 
               [ CALLSCOPED finalAddress functionScope ] emitLogic
             }
@@ -453,13 +444,12 @@
         8 /r15 :subqImm8Reg
         /r15 :popqMem
         8 /r15 :subqImm8Reg
-        ::currentScope /rbx :movqImmReg
-        /rbx /rsi :movqMemReg
-        /rsi /r15 :movqRegMem
+        /r14 /r15 :movqRegMem
+        /r14 /rsi :movqRegReg
         8 /rdi :movqImmReg
         ::internalAllocateScope /rax :movqImmReg
         /rax :callqReg
-        /rax /rbx :movqRegMem
+        /rax /r14 :movqRegReg
       ] emitOpcodes
     }" {
       # "unscoping function" dump
@@ -497,19 +487,14 @@
 
         { action CALLSCOPED streq }' {
           [
-            2 entry /rsi :movqImmReg
             8 /r15 :subqImm8Reg
+            /r14 /r15 :movqRegMem
 
-            ::currentScope /rax :movqImmReg
-            /rsi /rax :xchgqRegMem
-            /rsi /r15 :movqRegMem
+            2 entry /r14 :movqImmReg
             1 entry /rdi :movqImmReg
             /rdi :callqReg
 
-            /r15 /rsi :movqMemReg
-            ::currentScope /rax :movqImmReg
-            /rsi /rax :movqRegMem
-
+            /r15 /r14 :movqMemReg
             8 /r15 :addqImm8Reg
           ] emitOpcodes
 
@@ -519,8 +504,7 @@
 
         { action [ STATIC STATICTYPED ] streq any }' {
           [
-            ::currentScope /rax :movqImmReg
-            /rax /rax :movqMemReg
+            /r14 /rax :movqRegReg
             2 entry { 16 /rax /rax :movqMemDisp8Reg } rep
 
             3 entry {
@@ -536,8 +520,7 @@
 
         { action STATICWRITE streq }' {
           [
-            ::currentScope /rax :movqImmReg
-            /rax /rax :movqMemReg
+            /r14 /rax :movqRegReg
             2 entry { 16 /rax /rax :movqMemDisp8Reg } rep
 
             3 entry {
@@ -583,9 +566,7 @@
 
     isScoping {
       [
-        /r15 /rcx :movqMemReg
-        ::currentScope /rax :movqImmReg
-        /rcx /rax :movqRegMem
+        /r15 /r14 :movqMemReg
         16 /r15 :addqImm8Reg
         8 neg /r15 :jmpqMemDisp8
       ] emitOpcodes

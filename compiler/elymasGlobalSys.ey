@@ -10,19 +10,15 @@
       8 /r15 :subqImm8Reg
       /r15 :popqMem
       
-      ::currentScope /rax :movqImmReg
       8 /r15 :subqImm8Reg
-      /rax /rcx :movqMemReg
-      /rcx /r15 :movqRegMem
-      /rax :popqMem # load scope from argument
+      /r14 /r15 :movqRegMem
+      /r14 :popqReg # load scope from argument
 
       internalExecuteIdentifier /rax :movqImmReg
       /rax :callqReg
 
-      ::currentScope /rax :movqImmReg
-      /rax :pushqMem
-      /r15 /rcx :movqMemReg
-      /rcx /rax :movqRegMem # restore old scope
+      /r14 :pushqReg
+      /r15 /r14 :movqMemReg
       8 /r15 :addqImm8Reg
 
       /r15 :pushqMem

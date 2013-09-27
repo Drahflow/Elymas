@@ -60,8 +60,7 @@
       /rcx :pushqReg
 
       # scope resolution
-      ::currentScope /rdi :movqImmReg
-      /rdi /rdi :movqMemReg
+      /r14 /rdi :movqRegReg
       /rbx /rsi :movqRegReg
       ::internalResolve /rax :movqImmReg
       /rax :callqReg
@@ -123,8 +122,7 @@
       @realObject # CHECK end of checking
 
       # search for name in nametable
-      ::currentScope /rax :movqImmReg
-      /rax /rbx :movqMemReg # rbx == start of scope in heap
+      /r14 /rbx :movqRegReg # rbx == start of scope in heap
       8 /rbx /rdx :movqMemDisp8Reg # rdx == start of nametable in heap
       8 /rbx /rsi :movqMemDisp8Reg # rsi == start of nametable in heap
       8 /rsi /rsi :addqMemDisp8Reg # rsi == end of nametable in heap (according to fill)
@@ -301,8 +299,7 @@
       8 /r15 :subqImm8Reg
       /r15 :popqMem
 
-      ::currentScope /rdi :movqImmReg
-      /rdi /rdi :movqMemReg
+      /r14 /rdi :movqRegReg
       /rbx :popqReg
       /rbx /rsi :movqRegReg
       ::internalResolve /rax :movqImmReg
@@ -360,12 +357,10 @@
       /unscoped :jzLbl8
 
       # save current scope
-      ::currentScope /rax :movqImmReg
-      /rax /rsi :movqMemReg
       8 /r15 :subqImm8Reg
-      /rsi /r15 :movqRegMem
+      /r14 /r15 :movqRegMem
       # enter scope
-      /rcx /rax :movqRegMem
+      /rcx /r14 :movqRegReg
 
       # handle typed function
       16 /rdx /rcx :movqMemDisp8Reg
@@ -378,9 +373,7 @@
       16 /rax :addqImm8Reg
       /rax :callqReg
 
-      /r15 /rcx :movqMemReg
-      ::currentScope /rax :movqImmReg
-      /rcx /rax :movqRegMem
+      /r15 /r14 :movqMemReg
       8 /r15 :addqImm8Reg
       /r15 :pushqMem
       8 /r15 :addqImm8Reg
@@ -402,10 +395,8 @@
 
       @typedUnscoped
       # save current scope
-      ::currentScope /rax :movqImmReg
-      /rax /rsi :movqMemReg
       8 /r15 :subqImm8Reg
-      /rsi /r15 :movqRegMem
+      /r14 /r15 :movqRegMem
       /typed :jmpLbl32
 
       @arrayFunction
@@ -475,9 +466,7 @@
       16 /rax :addqImm8Reg
       /rax :callqReg
 
-      /r15 /rcx :movqMemReg
-      ::currentScope /rax :movqImmReg
-      /rcx /rax :movqRegMem
+      /r15 /r14 :movqMemReg
       8 /r15 :addqImm8Reg
       /r15 :pushqMem
       8 /r15 :addqImm8Reg
@@ -502,9 +491,7 @@
       /rax :movqImmOOBReg "ey*" "ey." ::linkAbs64
       /rax :callqReg
 
-      /r15 /rcx :movqMemReg
-      ::currentScope /rax :movqImmReg
-      /rcx /rax :movqRegMem
+      /r15 /r14 :movqMemReg
       8 /r15 :addqImm8Reg
       /r15 :pushqMem
       8 /r15 :addqImm8Reg
@@ -909,13 +896,11 @@
 
     # create a new scope capturing the current one
     [
-      ::currentScope /rbx :movqImmReg
-
       INITIALSCOPESIZE /rdi :movqImmReg
-      /rbx /rsi :movqMemReg
+      /r14 /rsi :movqRegReg
       ::internalAllocateScope /rax :movqImmReg
       /rax :callqReg
-      /rax /rbx :movqRegMem # switch to new scope
+      /rax /r14 :movqRegReg # switch to new scope
 
       :retn
     ] /ey< defv
@@ -925,11 +910,8 @@
     # 0 <- scope just exited
     [
       /rbx :popqReg
-      ::currentScope /rax :movqImmReg
-      /rax :pushqMem
-      /rax /rcx :movqMemReg
-      16 /rcx /rcx :movqMemDisp8Reg
-      /rcx /rax :movqRegMem
+      /r14 :pushqReg
+      16 /r14 /r14 :movqMemDisp8Reg
       /rbx :pushqReg
 
       :retn
@@ -939,10 +921,7 @@
     # 0 <- current scope
     [
       /rbx :popqReg
-
-      ::currentScope /rax :movqImmReg
-      /rax :pushqMem
-
+      /r14 :pushqReg
       /rbx :pushqReg
       :retn
     ] /eyscope defv
@@ -979,33 +958,34 @@
     ]] /eyquoted defv
   > _ ==globalFunctions { defv }' ::allocateOffsetStruct
 
-  <
-    # untyped scoped function jumppad
-    # rdi -> code block object to call
-    # rsi -> scope to install
-    [[
-      8 /r15 :subqImm8Reg
-      /r15 :popqMem
-
-      ::currentScope /rax :movqImmReg
-      /rax /rcx :movqMemReg
-      8 /r15 :subqImm8Reg
-      /rcx /r15 :movqRegMem
-      /rsi /rax :movqRegMem
-
-      16 /rdi :addqImm8Reg
-      /rdi :callqReg
-
-      /r15 /rcx :movqMemReg
-      ::currentScope /rax :movqImmReg
-      /rcx /rax :movqRegMem
-      8 /r15 :addqImm8Reg
-
-      /r15 :pushqMem
-      8 /r15 :addqImm8Reg
-      :retn
-    ]] /internalConstantNormalFunctionScopedUntypedJumpPad defv
-  > { defv }' ::allocateOffsetStruct
+# FIXME delete this
+#  <
+#    # untyped scoped function jumppad
+#    # rdi -> code block object to call
+#    # rsi -> scope to install
+#    [[
+#      8 /r15 :subqImm8Reg
+#      /r15 :popqMem
+#
+#      ::currentScope /rax :movqImmReg
+#      /rax /rcx :movqMemReg
+#      8 /r15 :subqImm8Reg
+#      /rcx /r15 :movqRegMem
+#      /rsi /rax :movqRegMem
+#
+#      16 /rdi :addqImm8Reg
+#      /rdi :callqReg
+#
+#      /r15 /rcx :movqMemReg
+#      ::currentScope /rax :movqImmReg
+#      /rcx /rax :movqRegMem
+#      8 /r15 :addqImm8Reg
+#
+#      /r15 :pushqMem
+#      8 /r15 :addqImm8Reg
+#      :retn
+#    ]] /internalConstantNormalFunctionScopedUntypedJumpPad defv
+#  > { defv }' ::allocateOffsetStruct
 
   <
     # resolve identifier without quoting considerations and act accordingly
@@ -1018,8 +998,7 @@
       /r15 :popqMem # store identifier
       
       # scope resolution
-      ::currentScope /rdi :movqImmReg
-      /rdi /rdi :movqMemReg
+      /r14 /rdi :movqRegReg
       /r15 /rsi :movqMemReg
 
       ::internalResolve /rax :movqImmReg
@@ -1076,8 +1055,7 @@
       /r15 :popqMem # store identifier
       
       # scope resolution
-      ::currentScope /rdi :movqImmReg
-      /rdi /rdi :movqMemReg
+      /r14 /rdi :movqRegReg
       /r15 /rsi :movqMemReg
 
       ::internalResolve /rax :movqImmReg
@@ -1199,17 +1177,14 @@
       16 /rbx :addqImm8Reg
 
       [
-        /rsi :movqImmOOBReg
+        16 /r15 :subqImm8Reg
+        8 /r15 :popqMemDisp8
+        /r14 /r15 :movqRegMem
+        /r14 :movqImmOOBReg
       ] ::loadToRdi
       /rcx /rdi :movqRegMem
       8 /rdi :addqImm8Reg
       [
-        16 /r15 :subqImm8Reg
-        8 /r15 :popqMemDisp8
-
-        ::currentScope /rax :movqImmReg
-        /rsi /rax :xchgqRegMem
-        /rsi /r15 :movqRegMem
         /rdi :movqImmOOBReg
       ] ::loadToRdi
       /rbx /rdi :movqRegMem
@@ -1217,9 +1192,7 @@
       [
         /rdi :callqReg
 
-        /r15 /rsi :movqMemReg
-        ::currentScope /rax :movqImmReg
-        /rsi /rax :movqRegMem
+        /r15 /r14 :movqMemReg
 
         8 /r15 :pushqMemDisp8
         16 /r15 :addqImm8Reg
@@ -1346,8 +1319,7 @@
       16 /rdi :addqImm8Reg
 
       [
-        ::currentScope /rax :movqImmReg
-        /rax /rax :movqMemReg
+        /r14 /rax :movqRegReg
       ] ::loadToRdi
 
       /rcx /rcx :testqRegReg
@@ -1432,8 +1404,7 @@
       /alreadyOptimized :jcLbl8
       /rax :pushqReg
 
-      ::currentScope /rcx :movqImmReg
-      /rcx :pushqMem
+      /r14 :pushqReg
       /rax :pushqReg
 
       /rax :movqImmOOBReg "sys" ::string
@@ -1480,8 +1451,7 @@
       /r15 :popqMem # store identifier
       
       # scope resolution
-      ::currentScope /rdi :movqImmReg
-      /rdi /rdi :movqMemReg
+      /r14 /rdi :movqRegReg
       /r15 /rsi :movqMemReg
       ::internalResolve /rax :movqImmReg
       /rax :callqReg
@@ -2263,8 +2233,7 @@
         # create function object
         /rax /rdi :movqRegReg
         capturing {
-          ::currentScope /rax :movqImmReg
-          /rax /rsi :movqMemReg
+          /r14 /rsi :movqRegReg
         } {
           /rsi /rsi :xorqRegReg
         } ? *
@@ -2304,8 +2273,7 @@
           8 /rbp :addqImm8Reg
 
           [
-            ::currentScope /rax :movqImmReg
-            /rax /rsi :movqMemReg
+            /r14 /rsi :movqRegReg
             /rdx /rdx :xorqRegReg
             ::internalAllocateFunction /rax :movqImmReg
             /rax :callqReg
@@ -2662,8 +2630,7 @@
     [ /eydefv /eydeff /eydefq ] { ==name
       # create function
       name | 16 sub /rdi :movqImmReg # adjust for expected (but non-existent) code block header size
-      ::currentScope /rsi :movqImmReg
-      /rsi /rsi :movqMemReg
+      /r14 /rsi :movqRegReg
       /rdx /rdx :xorqRegReg # untyped
 
       ::internalAllocateFunction /rax :movqImmReg
@@ -2692,8 +2659,7 @@
     ::internalAllocateScope /rax :movqImmReg
     /rax :callqReg
 
-    ::currentScope /rdi :movqImmReg
-    /rax /rdi :movqRegMem
+    /rax /r14 :movqRegReg
 
     globalFunctions keys eydeffd { | }' createScopeEntries
     globalFunctions2 keys eydeffd { | }' createScopeEntries
@@ -2707,10 +2673,9 @@
   { ==name
     [[
       INITIALSCOPESIZE /rdi :movqImmReg
-      ::currentScope /rsi :movqImmReg
       8 /r15 :subqImm8Reg
-      /rsi /rsi :movqMemReg
-      /rsi /r15 :movqRegMem # save scope
+      /r14 /r15 :movqRegMem # save scope
+      /r14 /rsi :movqRegReg
       ::internalAllocateScope /rax :movqImmReg
       /rax :callqReg
       /rax :pushqReg
@@ -2721,17 +2686,14 @@
       |eydefv /rax :movqImmReg
       /rax :callqReg
 
-      ::currentScope /rsi :movqImmReg
-      /rsi :popqMem
+      /r14 :popqReg
     ]] :execute
   } /enterSubScope deff
 
   {
     [[
-      ::currentScope /rsi :movqImmReg
-      /r15 /rax :movqMemReg
+      /r15 /r14 :movqMemReg
       8 /r15 :addqImm8Reg
-      /rax /rsi :movqRegMem
     ]] :execute
   } /leaveSubScope deff
 

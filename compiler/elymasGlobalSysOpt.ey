@@ -104,22 +104,6 @@
       :retn
     ]] /eyreplace defv
 
-    # returns currentScope into userspace
-    # 0 <- ::currentScope as integer
-    [[
-      /rbx :popqReg
-
-      ::internalAllocateInteger /rax :movqImmReg
-      /rax :callqReg
-      /rax :pushqReg
-
-      ::currentScope /rdx :movqImmReg
-      /rdx 8 /rax :movqRegMemDisp8
-
-      /rbx :pushqReg
-      :retn
-    ]] /eycurrentScope defv
-
     # returns internalAllocateScope into userspace
     # 0 <- ::internalAllocateScope as integer
     [[

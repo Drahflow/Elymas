@@ -332,8 +332,7 @@
       @noResetNecessary
 
       # start from current scope and mark all reachable blocks
-      currentScope /rdi :movqImmReg
-      /rdi /rdi :movqMemReg
+      /r14 /rdi :movqRegReg
       /markObject :callqLbl32
 
       # start from stack and mark all reachable blocks
@@ -1059,19 +1058,16 @@
     8 /r15 :subqImm8Reg
     /r15 :popqMem
     8 /r15 :subqImm8Reg
-    currentScope /rbx :movqImmReg
-    /rbx /rsi :movqMemReg
-    /rsi /r15 :movqRegMem
+    /r14 /r15 :movqRegMem
+    /r14 /rsi :movqRegReg
     8 /rdi :movqImmReg
     internalAllocateScope /rax :movqImmReg
     /rax :callqReg
-    /rax /rbx :movqRegMem
+    /rax /r14 :movqRegReg
   ] /scopingFunctionHeader defv
 
   [
-    /r15 /rcx :movqMemReg
-    currentScope /rax :movqImmReg
-    /rcx /rax :movqRegMem
+    /r15 /r14 :movqMemReg
     8 /r15 :addqImm8Reg
     /r15 :pushqMem
     8 /r15 :addqImm8Reg

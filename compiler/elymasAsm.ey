@@ -1131,24 +1131,6 @@
     %0B
   } /ud2 deff
 
-  { ==regb ==rega
-    rega bit64assert
-    regb bit64assert
-
-    1 rega /none regb rex
-    %87
-    rega regb modrm11
-  } /xchgqRegReg deff
-
-  { ==mem ==reg
-    reg bit64assert
-    mem bit64assert
-
-    1 reg /none mem rex
-    %87
-    reg mem modrm00
-  } /xchgqRegMem deff
-
   { ==dst ==src
     dst bit64assert
     src bit64assert
@@ -1157,6 +1139,16 @@
     %87
     src dst modrm11
   } /xchgqRegReg deff
+
+  memoryAddressingVariants keys { ==variant memoryAddressingVariants variant . =*parse
+    { parse ==mem ==reg
+      reg bit64assert
+
+      1 reg mem .idx mem .base rex
+      %87
+      reg mem .encode
+    } /xchgqReg variant defOp
+  } each
 
   /xor %31 defAsmAddq
 
@@ -1249,11 +1241,13 @@
       /rsp /rbx xchgqRegMem
       callStack /rbx movqImmReg
       /r15 /rbx xchgqRegMem
+      /r14 8 /rbx xchgqRegMemDisp8
 
       opcodes _ len dearray
 
       callStack /rbx movqImmReg
       /r15 /rbx xchgqRegMem
+      /r14 8 /rbx xchgqRegMemDisp8
       valueStack /rbx movqImmReg
       /rsp /rbx xchgqRegMem
       /r15 popqReg
