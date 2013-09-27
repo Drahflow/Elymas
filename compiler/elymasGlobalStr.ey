@@ -272,11 +272,14 @@
     [[
       /rbx :popqReg
 
-      /rax /rax :xorqRegReg
       /rdi :popqReg
+      /rax /rax :xorqRegReg
       16 /rdi /rcx :movqMemDisp8Reg
       24 /rdi :addqImm8Reg
-      :reprcx :stosb
+      /rcx :decqReg
+      3 /rcx :shrqImm8Reg
+      /rcx :incqReg
+      :reprcx :stosq
 
       /rbx :pushqReg
       :retn
