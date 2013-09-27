@@ -547,16 +547,27 @@
 
         { action STATICWRITE streq }' {
           [
-            /r14 /rax :movqRegReg
-            2 entry { 16 /rax /rax :movqMemDisp8Reg } rep
+            2 entry {
+              16 /r14 /rax :movqMemDisp8Reg
+              2 entry 1 sub { 16 /rax /rax :movqMemDisp8Reg } rep
 
-            3 entry {
-              24 /rax /rcx :movqMemDisp8Reg # load extension area pointer
-              /rax /edx :movlMemReg # load scope length
-              /rdx :negqReg # prepare for substraction
-              1 entry 1 /rdx /rcx :popqMemIndexScaleDisp32 # load entry from stack
+              3 entry {
+                24 /rax /rcx :movqMemDisp8Reg # load extension area pointer
+                /rax /edx :movlMemReg # load scope length
+                /rdx :negqReg # prepare for substraction
+                1 entry 1 /rdx /rcx :popqMemIndexScaleDisp32 # load entry from stack
+              } {
+                1 entry /rax :popqMemDisp32
+              } ? *
             } {
-              1 entry /rax :popqMemDisp32
+              3 entry {
+                24 /r14 /rcx :movqMemDisp8Reg # load extension area pointer
+                /r14 /edx :movlMemReg # load scope length
+                /rdx :negqReg # prepare for substraction
+                1 entry 1 /rdx /rcx :popqMemIndexScaleDisp32 # load entry from stack
+              } {
+                1 entry /r14 :popqMemDisp32
+              } ? *
             } ? *
           ] emitOpcodes
         }
