@@ -97,6 +97,8 @@
         /rax :jmpqReg
       ] ::loadToRdi
 
+      # TODO old references still around (and possibly used by later code)
+
       24 /r15 :pushqMemDisp8
       32 /r15 :addqImm8Reg
       :retn

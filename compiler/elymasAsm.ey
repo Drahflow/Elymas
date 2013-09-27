@@ -1151,6 +1151,14 @@
 
   /xor %31 defAsmAddq
 
+  # map "anonymous" allocations away from interpreter heap
+
+  52776558133248 ==miscAllocBase # 0x300000000000
+  { ==size
+    size miscAllocBase sys .asm .allocAt
+    size miscAllocBase add =miscAllocBase
+  } /alloc deff
+
   # global alloc list layout
   # %0 : next unused byte of global alloc list as an offset from beginning of list
   # %8 : <unused>
@@ -1166,7 +1174,7 @@
       [ value imm64 ] { addr sys .asm .poke addr 1 add =addr } each
     } /pokeImm64 deff
 
-    GLOBALALLOCSSIZE sys .asm .alloc ==allocs
+    GLOBALALLOCSSIZE alloc ==allocs
     allocs .base ==i
     [
       %20 imm64
@@ -1195,8 +1203,8 @@
   # STACKSTART - ...: real stack
   [ /mainStack /mainCallStack ] {
     <
-      STACKSIZE sys .asm .alloc _ globalAllocations .register
-                                  ==stack
+      STACKSIZE alloc _ globalAllocations .register
+                        ==stack
       stack .base ==i
       [
         stack .base STACKSIZE add imm64
@@ -1206,14 +1214,14 @@
     > -12 ==
   }' each
 
-  STACKSIZE sys .asm .alloc _ globalAllocations .register
-                              .base ==:quoteEncodingBufferCode
+  STACKSIZE alloc _ globalAllocations .register
+                    .base ==:quoteEncodingBufferCode
 
-  STACKSIZE sys .asm .alloc _ globalAllocations .register
-                              .base ==:quoteEncodingBufferObjects
+  STACKSIZE alloc _ globalAllocations .register
+                    .base ==:quoteEncodingBufferObjects
 
   { ==opcodes
-    opcodes len 1 sub PAGESIZE div 1 add PAGESIZE mul sys .asm .alloc /codearea defv
+    opcodes len 1 sub PAGESIZE div 1 add PAGESIZE mul alloc /codearea defv
     sys .asm .|poke =*poke
     codearea .base opcodes { -101 poke 1 add } each --
     codearea
@@ -1223,6 +1231,10 @@
   { ==callStack ==valueStack ==opcodes
     [
       /rbx pushqReg
+      /rbp pushqReg
+      /r12 pushqReg
+      /r13 pushqReg
+      /r14 pushqReg
       /r15 pushqReg
       valueStack /rbx movqImmReg
       /rsp /rbx xchgqRegMem
@@ -1236,6 +1248,10 @@
       valueStack /rbx movqImmReg
       /rsp /rbx xchgqRegMem
       /r15 popqReg
+      /r14 popqReg
+      /r13 popqReg
+      /r12 popqReg
+      /rbp popqReg
       /rbx popqReg
       retn
     ]
