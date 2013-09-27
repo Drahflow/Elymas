@@ -586,10 +586,8 @@
         /r15 /rcx :movqMemReg
         ::currentScope /rax :movqImmReg
         /rcx /rax :movqRegMem
-        8 /r15 :addqImm8Reg
-        /r15 :pushqMem
-        8 /r15 :addqImm8Reg
-        :retn
+        16 /r15 :addqImm8Reg
+        8 neg /r15 :jmpqMemDisp8
       ] emitOpcodes
     }' {
       [
