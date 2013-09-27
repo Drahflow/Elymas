@@ -249,6 +249,45 @@
               0 /rsp :pushqMemDisp8
             ] ] =entry
           }
+          { action CALL streq { 1 entry * "-" | +rawCodeAddress eq }' andif { 0 last * PUSH streq }' andif }' {
+            1 last * +rawObject ==constant
+            #"Rewriting constant -" dump constant dump
+
+            { -1010 lt -012 ? } /max deffd
+
+            0 ==largestNumber
+            0 ==starUsed
+
+            constant {
+              _ 0 "*" * eq { 1 =starUsed } rep
+                0 "0" * sub largestNumber max =largestNumber
+            } each
+
+            [ /rax /rcx /rdx /rbp /rsi /rdi ] =*:availableRegisters
+
+            #"starUsed: " dump starUsed dump
+            #"largestNumber: " dump starUsed dump
+
+            starUsed {
+              # TODO maybe implement this one day
+            } {
+              largestNumber |availableRegisters len gt {
+                # TODO maybe implement this one day
+              } {
+                #"Rewriting implemented" dump
+
+                [ NATIVE [
+                  0 largestNumber 1 add range {
+                    availableRegisters :popqReg
+                  } each
+                  constant {
+                    0 "0" * sub availableRegisters :pushqReg
+                  } each
+                ] ] =entry
+                [ NOP ] =last
+              } ? *
+            } ? *
+          }
         ] conds
 
         last
