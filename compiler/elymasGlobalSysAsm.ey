@@ -237,7 +237,7 @@
     [[
       /rsp :movqImmOOBReg %EE %EE %EE %EE %EE %EE %EE %EE # 10
       /r15 :movqImmOOBReg %EE %EE %EE %EE %EE %EE %EE %EE # 20
-      ::heapEnd /rax :movqImmReg # 30
+      ::heapSize /rax :movqImmReg # 30
       /rbx :movqImmOOBReg %EE %EE %EE %EE %EE %EE %EE %EE # 40
       /rbx /rax :movqRegMem # 43
       ::unusedHeapStart /rax :movqImmReg # 53
@@ -276,7 +276,7 @@
       # /r15 12 /rax :movqRegMemDisp8 # TODO: something like this (but correctly adjusted) would be right
       :mainCallStack .base :STACKSIZE add /rdx :movqImmReg # TODO whereas this just flushes the stack
       /rdx 12 /rax :movqRegMemDisp8
-      ::heapEnd /rdx :movqImmReg
+      ::heapSize /rdx :movqImmReg
       /rdx /rdx :movqMemReg
       /rdx 32 /rax :movqRegMemDisp8
       ::unusedHeapStart /rdx :movqImmReg

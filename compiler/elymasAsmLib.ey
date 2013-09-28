@@ -85,7 +85,7 @@
 
   <
     # current end of heap memory (grows upwards)
-    [ HEAPBASE ] ==heapEnd
+    [ %00 %00 %00 %00 %00 %00 %00 %00 ] ==heapSize
 
     # index of next cell likely to be free
     [ HEAPBASE ] ==unusedHeapStart
@@ -197,10 +197,8 @@
       # rdi -> size of chunk in bytes
       # rax <- address of allocated chunk or zero if no free block was found
 
-      /rax :movqImmOOBReg HEAPBASE
-      heapEnd /rbp :movqImmReg
+      heapSize /rbp :movqImmReg
       0 /rbp /rbp :movqMemDisp8Reg
-      /rax /rbp :subqRegReg
       # rbp now holds number of bytes in heap
       4 /rbp :shrqImm8Reg
       # rbp now holds number of 16 byte cells in heap
@@ -303,8 +301,9 @@
       /r8 :movqImmOOBReg HEAPBASE # constant through mark
       /r9 :movqImmOOBReg BLOCKBASE # constant through mark
       /r10 :movqImmOOBReg MARKBASE # constant through mark
-      heapEnd /r11 :movqImmReg
+      heapSize /r11 :movqImmReg
       /r11 /r11 :movqMemReg # constant through mark
+      /r8 /r11 :addqRegReg # r11 == end of heap
 
       unusedHeapStart /rax :movqImmReg
       /rbx /rbx :xorqRegReg
@@ -618,19 +617,19 @@
 
       # allocate next chunk of memory from the operating system
       @allocateFromSystem
-      heapEnd /rax :movqImmReg
+      heapSize /rax :movqImmReg
       /rax /rdi :movqMemReg
       ALLOCCHUNKSIZE /rsi :movqImmReg # size of new block
       /rsi /rdi :addqRegReg
       /rdi /rax :movqRegMem
       /rsi /rdi :subqRegReg
+      /rax :movqImmOOBReg HEAPBASE
+      /rax /rdi :addqRegReg
       /mmapBlock :callqLbl32
 
       # also allocate block and mark bitmaps
-      heapEnd /rax :movqImmReg
+      heapSize /rax :movqImmReg
       /rax /rdi :movqMemReg
-      /rax :movqImmOOBReg HEAPBASE
-      /rax /rdi :subqRegReg
       7 /rdi :shrqImm8Reg
       ALLOCCHUNKSIZE 128 div /rsi :movqImmReg
       /rsi /rdi :subqRegReg
@@ -638,10 +637,8 @@
       /rax /rdi :addqRegReg
       /mmapBlock :callqLbl32
 
-      heapEnd /rax :movqImmReg
+      heapSize /rax :movqImmReg
       /rax /rdi :movqMemReg
-      /rax :movqImmOOBReg HEAPBASE
-      /rax /rdi :subqRegReg
       7 /rdi :shrqImm8Reg
       ALLOCCHUNKSIZE 128 div /rsi :movqImmReg
       /rsi /rdi :subqRegReg
@@ -813,15 +810,14 @@
     # rax <- address of allocated integer
     #        chunk will have GC length header initialized correctly
     [[
-      heapEnd /rbp :movqImmReg
+      heapSize /rbp :movqImmReg
       unusedHeapStart /rcx :movqImmReg
       /rdx :movqImmOOBReg HEAPBASE
       0 /rbp /rbp :movqMemDisp8Reg
+      # rbp now holds number of bytes in heap
       /rcx /rcx :movqMemReg
       /rdi :movqImmOOBReg BLOCKBASE
       /rsi :movqImmOOBReg MARKBASE
-      /rdx /rbp :subqRegReg
-      # rbp now holds number of bytes in heap
       6 /rcx :shrqImm8Reg # extract quadword
       10 /rbp :shrqImm8Reg
       # rbp now holds number of quad-words in bitmaps
