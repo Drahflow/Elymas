@@ -45,15 +45,20 @@
     [[
       /rbx :popqReg
 
-      ::internalAllocateInteger /rax :movqImmReg
-      /rax :callqReg
-
       /rdx :popqReg
+      63 /rdx :btrqImm8Reg
+      /integerType :jcLbl8
+
       7 /rdx /rdx :movzxMem8Disp8Reg64
       4 /rdx :shrqImm8Reg
-      /rdx 8 /rax :movqRegMemDisp8
+      /done :jmpLbl8
 
-      /rax :pushqReg
+      @integerType
+      /rdx /rdx :xorqRegReg
+
+      @done
+      63 /rdx :btsqImm8Reg
+      /rdx :pushqReg
 
       /rbx :pushqReg
       :retn

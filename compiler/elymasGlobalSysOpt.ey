@@ -34,7 +34,7 @@
 
       @opcodeCopyLoop
       /rsi /rax :movqMemReg
-      8 /rax /rax :movqMemDisp8Reg
+      /rax ::unboxInteger
       :stosb
       8 /rsi :addqImm8Reg
       /opcodeCopyLoop :loopLbl8

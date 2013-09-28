@@ -120,6 +120,12 @@
   /rdi loadToXXX /loadToRdi deff
   /rbp loadToXXX /loadToRbp deff
 
+  { ==register
+    63 register :btrqImm8Reg
+    [ 8 register register :movqMemDisp8Reg ] len :jcRel8
+    8 register register :movqMemDisp8Reg
+  } /unboxInteger deff
+
   # internal functions, ABI follows SysV standards
 
   <
@@ -1084,7 +1090,7 @@
   { strToUTF8Bytes _ =*v len _ ==exactLength
     1 sub 8 div 4 add 8 mul ==memoryLength
 
-    memoryLength 2147483648 lt assert
+    memoryLength 2147483648 lt not { "constant string too long" die } rep
 
     [
       # allocate string

@@ -10,8 +10,8 @@
 
       /rdi :popqReg
       /rdi :pushqReg
+      /rdi ::unboxInteger
 
-      8 /rdi /rdi :movqMemDisp8Reg
       24 /rdi :addqImm8Reg
       ::internalAllocate /rax :movqImmReg
       /rax :callqReg
@@ -25,7 +25,7 @@
 
       # set exact length
       /rdi :popqReg
-      8 /rdi /rdi :movqMemDisp8Reg
+      /rdi ::unboxInteger
       /rdi 16 /rax :movqRegMemDisp8
 
       /rax :pushqReg
@@ -44,7 +44,7 @@
 
       /rax :popqReg
       /rcx :popqReg
-      8 /rcx /rcx :movqMemDisp8Reg
+      /rcx ::unboxInteger
 
       16 /rax /rcx :cmpqMemDisp8Reg
       /ok :jbeLbl8
@@ -75,14 +75,14 @@
       16 /rcx /rbp :movqMemDisp8Reg
 
       /rdi :popqReg
-      8 /rdi /rdi :movqMemDisp8Reg
+      /rdi ::unboxInteger
       0 /rdi :cmpqImm8Reg
       /positiveEndOffset :jgeLbl8
       /rbp /rdi :addqRegReg
       @positiveEndOffset
 
       /rsi :popqReg
-      8 /rsi /rsi :movqMemDisp8Reg
+      /rsi ::unboxInteger
       0 /rsi :cmpqImm8Reg
       /positiveStartOffset :jgeLbl8
       /rbp /rsi :addqRegReg
@@ -133,7 +133,7 @@
       16 /rcx /rbp :movqMemDisp8Reg
 
       /rdi :popqReg
-      8 /rdi /rdi :movqMemDisp8Reg
+      /rdi ::unboxInteger
       0 /rdi :cmpqImm8Reg
       /positiveEndOffset :jgeLbl8
       /rbp /rdi :addqRegReg
@@ -189,7 +189,7 @@
       /rbp /rdi :movqRegReg
 
       /rsi :popqReg
-      8 /rsi /rsi :movqMemDisp8Reg
+      /rsi ::unboxInteger
       0 /rsi :cmpqImm8Reg
       /positiveStartOffset :jgeLbl8
       /rbp /rsi :addqRegReg
@@ -254,7 +254,7 @@
 
       @copyByte
       /rsi /rdx :movqMemReg # load object pointer
-      8 /rdx /rdx :movqMemDisp8Reg # load integer value
+      /rdx ::unboxInteger
       /dl /rax :movbRegMem
 
       8 /rsi :addqImm8Reg
@@ -297,7 +297,7 @@
 
       /rdi :popqReg
       /rax :popqReg
-      8 /rax /rax :movqMemDisp8Reg
+      /rax ::unboxInteger
 
       /rdx :pushqReg
 
@@ -319,7 +319,7 @@
 
       /rdi :popqReg
       /rax :popqReg
-      8 /rax /rax :movqMemDisp8Reg
+      /rax ::unboxInteger
 
       /rax 24 /rdi :btsqRegMemDisp8
 
@@ -335,7 +335,7 @@
 
       /rdi :popqReg
       /rax :popqReg
-      8 /rax /rax :movqMemDisp8Reg
+      /rax ::unboxInteger
 
       /rax 24 /rdi :btrqRegMemDisp8
 

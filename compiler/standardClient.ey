@@ -815,7 +815,7 @@
     1 0 { strNumber * 48 sub [ 0 1 2 3 4 5 6 7 8 9  0 0 0 0 0 0 0  10 11 12 13 14 15 ] * } -20*10* 16 mul add
   } "%" defq
 
-  { _ 0 ge assert 8 { _ 256 mod -01 256 div } rep -- } /uint64 deffd
+  {                                               8 { _ 256 mod -01 256 div } rep -- } /uint64 deffd
   { _ 0 lt { 4294967296 add } rep 4294967295 band 4 { _ 256 mod -01 256 div } rep -- } /uint32 deffd
   { _ 0 lt { 65536 add } rep 65535 band 2 { _ 256 mod -01 256 div } rep -- } /uint16 deffd
   { _ 0 lt { 256 add } rep 255 band } /uint8 deffd

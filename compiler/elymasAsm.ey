@@ -115,21 +115,22 @@
   } /modrm11 deff
 
   { ==base ==idx ==scale
-    idx [ /spl /sp /esp /rsp ] streq any not assert
-    base [ /bpl /bp /ebp /rbp ] streq any not assert
-    scale _ 0 gt assert 8 le assert
+    idx [ /spl /sp /esp /rsp ] streq any { "sib cannot encode rsp as index" die } rep
+    base [ /bpl /bp /ebp /rbp ] streq any { "sib cannot encode rbp as base" die } rep
+    scale _ 0 gt not { "invalid scale chosen for sib" die } rep
+            8 le not { "invalid scale chosen for sib" die } rep
 
     scale [ 1 %00 %40 1 %80 1 1 1 %C0 ] *
-      _ 1 neq assert
+      _ 1 eq { "invalid scale chosen for sib" die } rep
     %C0 band
     %38 idx regno 8 mul band add
     %07 base regno band add
   } /sib deff
 
-  { _ 0 ge assert 8 { _ 256 mod -01 256 div } rep -- } /imm64 deff
+  {                                               8 { _ 256 mod -01 256 div } rep -- } /imm64 deff # div / mod unsigned
   { _ 0 lt { 4294967296 add } rep 4294967295 band 4 { _ 256 mod -01 256 div } rep -- } /imm32 deff
-  { _ 0 lt { 65536 add } rep 65535 band 2 { _ 256 mod -01 256 div } rep -- } /imm16 deff
-  { _ 0 lt { 256 add } rep 255 band } /imm8 deff
+  { _ 0 lt { 65536 add } rep 65535 band           2 { _ 256 mod -01 256 div } rep -- } /imm16 deff
+  { _ 0 lt { 256 add } rep 255 band                                                  } /imm8  deff
 
   { %66 } /width16 deff
 
@@ -182,8 +183,8 @@
 
   { < ==opcode ==name
     { ==offset
-      offset 128 neg ge assert
-      offset 128 lt assert
+      offset 128 neg ge not { "Rel8 offset below -128" die } rep
+      offset 128 lt not { "Rel8 offset above 127" die } rep
 
       opcode
       offset imm8
@@ -201,8 +202,8 @@
 
   { < ==opcode ==name
     { ==offset
-      offset 2147483648 neg ge assert
-      offset 2147483648 lt assert
+      offset 2147483648 neg ge not { "Rel32 offset below -2147483648" die } rep
+      offset 2147483648 lt not { "Rel32 offset above 2147483647" die } rep
 
       %0F
       opcode
@@ -228,7 +229,7 @@
       } /encode deff >
     } ==Mem
     # base register plus 8 bit displacement
-    { < _ bit64assert ==base /none ==idx _ 128 lt assert ==disp { ==r
+    { < _ bit64assert ==base /none ==idx _ 128 lt not { "Disp8 too large" die } rep ==disp { ==r
         r base modrm01
         disp imm8
       } /encode deff >
@@ -252,7 +253,7 @@
       } /encode deff >
     } ==MemIndexScale
     # base and scaled index register plus 8 bit displacement
-    { < _ bit64assert ==base _ bit64assert ==idx ==scale _ 128 lt assert ==disp { ==r
+    { < _ bit64assert ==base _ bit64assert ==idx ==scale _ 128 lt not { "Disp8 too large" die } rep ==disp { ==r
         r /sib modrm01
         scale idx base sib
         disp imm8
@@ -362,7 +363,7 @@
   { ==modrmOpcode ==mnemonic
     { ==reg =i
       reg bit8assert
-      i 256 lt assert
+      i 256 lt not { "Imm8 too large" die } rep
 
       reg regno %07 gt reg rexreqbyte or { 0 /none /none reg rex } rep
       %80
@@ -372,7 +373,7 @@
 
     { ==reg ==i
       reg bit64assert
-      i 256 lt assert
+      i 256 lt not { "Imm8 too large" die } rep
 
       1 /none /none reg rex
       %83
@@ -382,7 +383,7 @@
 
     memoryAddressingVariants keys { ==variant memoryAddressingVariants variant . =*parse
       { parse ==mem ==i
-        i 256 lt assert
+        i 256 lt not { "Imm8 too large" die } rep
 
         mem .base regno %07 gt mem .idx regno %07 gt or
           { 0 /none mem .idx mem .base rex } rep
@@ -392,7 +393,7 @@
       } mnemonic /bImm variant cat defOp
 
       { parse ==mem ==i
-        i 65536 lt assert
+        i 65536 lt not { "Imm16 too large" die } rep
 
         width16
         mem .base regno %07 gt mem .idx regno %07 gt or
@@ -403,7 +404,7 @@
       } mnemonic /wImm variant cat defOp
 
       { parse ==mem ==i
-        i 256 lt assert
+        i 256 lt not { "Imm8 too large" die } rep
 
         1 /none mem .idx mem .base rex
         %83
@@ -572,7 +573,17 @@
     %0F
     %42
     dst src modrm11
-  } /cmovaeqRegReg deff
+  } /cmovnaeqRegReg deff
+
+  { ==dst ==src
+    src bit64assert
+    dst bit64assert
+
+    1 dst /none src rex
+    %0F
+    %42
+    dst src modrm11
+  } /cmovcqRegReg deff
 
   { ==dst ==src
     src bit64assert
@@ -583,6 +594,28 @@
     %4F
     dst src modrm11
   } /cmovgqRegReg deff
+
+  { ==reg ==mem
+    mem bit64assert
+    reg bit64assert
+
+    1 reg /none mem rex
+    %0F
+    %43
+    reg mem modrm00
+  } /cmovncqMemReg deff
+
+  { ==reg ==mem ==disp
+    disp 128 lt not { "Disp8 out of range" die } rep
+    mem bit64assert
+    reg bit64assert
+
+    1 reg /none mem rex
+    %0F
+    %43
+    reg mem modrm01
+    disp imm8
+  } /cmovncqMemDisp8Reg deff
 
   { ==dst ==src
     src bit64assert
@@ -761,7 +794,7 @@
     reg bit32assert
     mem bit64assert
     idx bit64assert
-    disp 128 lt assert
+    disp 128 lt not { "Disp8 out of range" die } rep
 
     reg regno %07 gt mem regno %07 gt idx regno %07 gt or or { 0 reg idx mem rex } rep
     %8D
@@ -782,7 +815,7 @@
 
   { ==mem ==i
     mem bit64assert
-    i 256 lt assert
+    i 256 lt not { "Imm8 too large" die } rep
 
     mem regno %07 gt { 0 /none /none mem rex } rep
     %C6
@@ -792,8 +825,8 @@
 
   { ==mem ==disp ==i
     mem bit64assert
-    disp 128 lt assert
-    i 256 lt assert
+    disp 128 lt not { "Disp8 out of range" die } rep
+    i 256 lt not { "Imm8 too large" die } rep
 
     mem regno %07 gt { 0 /none /none mem rex } rep
     %C6
@@ -804,7 +837,7 @@
 
   { ==mem ==i
     mem bit64assert
-    i 65536 lt assert
+    i 65536 lt not { "Imm16 too large" die } rep
 
     width16
     mem regno %07 gt { 0 /none /none mem rex } rep
@@ -815,7 +848,7 @@
 
   { ==mem ==i
     mem bit64assert
-    i 65536 65536 mul lt assert
+    i 65536 65536 mul lt not { "Imm32 too large" die } rep
 
     mem regno %07 gt { 0 /none /none mem rex } rep
     %C7
@@ -825,8 +858,8 @@
 
   { ==mem ==disp ==i
     mem bit64assert
-    disp 128 lt assert
-    i 65536 65536 mul lt assert
+    disp 128 lt not { "Disp8 out of range" die } rep
+    i 65536 65536 mul lt not { "Imm32 too large" die } rep
 
     mem regno %07 gt { 0 /none /none mem rex } rep
     %C7
@@ -845,8 +878,8 @@
 
   { ==mem ==disp ==i
     mem bit64assert
-    i 2147483648 lt assert
-    i 2147483648 neg ge assert
+    i 2147483648 lt not { "Imm32 too small" die } rep
+    i 2147483648 neg ge not { "Imm32 too large" die } rep
 
     1 /none /none mem rex
     %C7
@@ -897,7 +930,7 @@
   { ==reg ==mem ==disp
     reg bit64assert
     mem bit64assert
-    disp 128 lt assert
+    disp 128 lt not { "Disp8 out of range" die } rep
 
     1 reg /none mem rex
     %0F
@@ -910,7 +943,7 @@
     reg bit64assert
     mem bit64assert
     idx bit64assert
-    disp 128 lt assert
+    disp 128 lt not { "Disp8 out of range" die } rep
 
     1 reg idx mem rex
     %0F
@@ -1026,7 +1059,7 @@
 
   { ==reg ==i
     reg bit64assert
-    i 64 lt assert
+    i 64 lt not { "Shift immediate too large" die } rep
 
     1 /none /none reg rex
     %C1
@@ -1052,7 +1085,7 @@
 
   { ==reg ==i
     reg bit64assert
-    i 64 lt assert
+    i 64 lt not { "Shift immediate too large" die } rep
 
     1 /none /none reg rex
     %C1
@@ -1098,7 +1131,7 @@
 
   { ==reg =i
     reg bit8assert
-    i 256 lt assert
+    i 256 lt not { "Imm8 too large" die } rep
 
     reg regno %07 gt reg rexreqbyte or { 0 /none /none reg rex } rep
     %F6

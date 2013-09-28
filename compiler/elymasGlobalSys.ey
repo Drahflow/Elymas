@@ -35,6 +35,7 @@
     # 3 <- number of parent pointers followed (only present if resolution successful)
     # 4 <- entry index * 8 within scope (only present if resolution successful)
     # 5 <- 0 if within scope data area, 1 if within extension area (only present if resolution successful)
+    # TODO simplify by returning unboxed ints where appropriate maybe
     [[
       8 /r15 :subqImm8Reg
       /r15 :popqMem

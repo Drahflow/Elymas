@@ -21,28 +21,43 @@
   # 1 -> integer
   # 0 <- result of the arithmetic operation
   { ==opcodes
-    [
+    [[
       /rbx :popqReg
 
+      # load arguments and test for boxed integers
+      /rcx :popqReg
+      /rcx ::unboxInteger
+
+      /rdx :popqReg
+      /rdx ::unboxInteger
+
+      # actual calculation, result expected in rdx
+      opcodes _ len dearray
+
+      /rdx /rax :movqRegReg
+      32 /rax :shrqImm8Reg
+      /boxResult :jnzLbl8
+
+      # push unboxed result
+      63 /rdx :btsqImm8Reg
+      /rdx :pushqReg
+      /rbx :pushqReg
+      :retn
+
+      @boxResult
+      /rdx :pushqReg
       # allocate result
       ::internalAllocateInteger /rax :movqImmReg
       /rax :callqReg
 
-      # actual calculation
-      /rcx :popqReg
-      8 /rcx /rcx :movqMemDisp8Reg
-
-      /rdx :popqReg
-      8 /rdx /rdx :movqMemDisp8Reg
-
-      opcodes _ len dearray
-      /rdx 8 /rax :movqRegMemDisp8
+      # save result into boxed int
+      8 /rax :popqMemDisp8
 
       # push int address on program stack
       /rax :pushqReg
       /rbx :pushqReg
       :retn
-    ]
+    ]]
   } /makeArith deff
 
   <
@@ -91,7 +106,7 @@
       /rcx :popqReg
       /rdx :popqReg
       /rax :popqReg
-      8 /rax /rax :movqMemDisp8Reg
+      /rax ::unboxInteger
       /rax /rax :testqRegReg
       /rcx /rdx :cmovzqRegReg
       /rdx :pushqReg
@@ -173,7 +188,7 @@
       @insertIntoNameTable
       /rdi /rsi :movqRegMem
       /r15 /rax :movqMemReg
-      8 /rax /rax :movqMemDisp8Reg # load int value
+      /rax ::unboxInteger
       /rax 8 /rsi :movqRegMemDisp8 # set default activation mode
       8 /rbx /rdx :movqMemDisp8Reg # rdx == start of nametable in heap
       16 8 /rdx :addqImm8MemDisp8 # increment fill
@@ -332,6 +347,8 @@
       /r15 :popqMem
 
       /rdx :popqReg
+      63 /rdx :btrqImm8Reg
+      /unexecutable :jcLbl8
 
       7 /rdx /cl :movbMemDisp8Reg
       %F0 /cl :andbImmReg
@@ -402,17 +419,25 @@
       @arrayFunction
       # rdx == array on heap
       /rbx :popqReg
+      63 /rbx :btrqImm8Reg
+      /arrayIntArgumentUnboxed :jcLbl8
 
       7 /rbx /cl :movbMemDisp8Reg
       %F0 /cl :andbImmReg
       %00 /cl :cmpbImmReg
-      /arrayIntArgument :jeLbl8
+      /arrayIntArgumentBoxed :jeLbl8
 
       "FIXME: typed array application" ::outputError
       :ud2
 
-      @arrayIntArgument
+      @arrayIntArgumentBoxed
       8 /rbx /rax :movqMemDisp8Reg # rax == requested index
+      /arrayIntArgumentLoaded :jmpLbl8
+
+      @arrayIntArgumentUnboxed
+      /rbx /rax :movqRegReg # rax == requested value
+
+      @arrayIntArgumentLoaded
       /rdx /ecx :movlMemReg # load array length
       3 /rcx :shrqImm8Reg # divide by object pointer size
       /rcx :decqReg # rcx == number of elements in array
@@ -446,12 +471,25 @@
       /rsp /rdi :movqRegReg
 
       @typedCommonCheck
+      /rbp /rbp :xorqRegReg
+
       /rbx /rsi :movqMemReg # rsi == address of abstract argument
-      7 /rsi /al :movbMemDisp8Reg # al == type of abstract argument
-      %F0 /al :andbImmReg
+      63 /rsi :btrqImm8Reg
+      /unboxedAbstract :jcLbl8
+      /rsi /rax :movqMemReg
+      @unboxedAbstract
+      /rbp /rax :cmovcqRegReg
+      56 /rax :shrqImm8Reg
+      %F0 /al :andbImmReg # al == type of abstract argument
+
       /rdi /rsi :movqMemReg # rsi == address of concrete argument
-      7 /rsi /sil :movbMemDisp8Reg # sil = type of concrete argument
-      %F0 /sil :andbImmReg
+      63 /rsi :btrqImm8Reg
+      /unboxedConcrete :jcLbl8
+      /rsi /rsi :movqMemReg
+      @unboxedConcrete
+      /rbp /rsi :cmovcqRegReg
+      56 /rsi :shrqImm8Reg
+      %F0 /sil :andbImmReg # sil = type of concrete argument
 
       /al /sil :cmpbRegReg
       /typedNonCommon :jnzLbl8 # non-equal types
@@ -500,17 +538,26 @@
       @stringFunction
       # rdx == string on heap
       /rbx :popqReg
+      
+      63 /rbx :btrqImm8Reg
+      /stringIntArgumentUnboxed :jcLbl8
 
       7 /rbx /cl :movbMemDisp8Reg
       %F0 /cl :andbImmReg
       %00 /cl :cmpbImmReg
-      /stringIntArgument :jeLbl8
+      /stringIntArgumentBoxed :jeLbl8
 
       "FIXME: typed string application" ::outputError
       :ud2
 
-      @stringIntArgument
+      @stringIntArgumentBoxed
       8 /rbx /rax :movqMemDisp8Reg # rax == requested index
+      /stringIntArgumentLoaded :jmpLbl8
+
+      @stringIntArgumentUnboxed
+      /rbx /rax :movqRegReg
+
+      @stringIntArgumentLoaded
       16 /rdx /rcx :movqMemDisp8Reg # load (exact) string length
 
       /rsi /rsi :xorqRegReg
@@ -529,11 +576,8 @@
       # rdx == correct string index
       24 1 /rdx /rsi /rbx :movzxMem8IndexScaleDisp8Reg64 # use some of the CISC goodness
 
-      ::internalAllocateInteger /rax :movqImmReg
-      /rax :callqReg
-      /rax :pushqReg # push integer on the stack
-      
-      /rbx 8 /rax :movqRegMemDisp8 # store integer value
+      63 /rbx :btsqImm8Reg
+      /rbx :pushqReg # push unboxed integer
 
       /r15 :pushqMem
       8 /r15 :addqImm8Reg
@@ -611,7 +655,7 @@
 
       @arrayAssign
       /rax :popqReg
-      8 /rax /rax :movqMemDisp8Reg
+      /rax ::unboxInteger
 
       /rbx /ecx :movlMemReg # load array length
       3 /rcx :shrqImm8Reg # divide by object pointer size
@@ -633,7 +677,7 @@
 
       @stringAssign
       /rax :popqReg
-      8 /rax /rax :movqMemDisp8Reg
+      /rax ::unboxInteger
 
       16 /rbx /rcx :movqMemDisp8Reg # load string length
       /rdx /rdx :xorqRegReg
@@ -643,7 +687,7 @@
       # rdx == correct string offset
 
       /rax :popqReg
-      8 /rax /rax :movqMemDisp8Reg # load int value
+      /rax ::unboxInteger
       
       /al 24 1 /rdx /rbx :movbRegMemIndexScaleDisp8
 
@@ -681,11 +725,8 @@
       16 /rax /rbx :movqMemDisp8Reg
 
       @done
-      ::internalAllocateInteger /rax :movqImmReg
-      /rax :callqReg
-      /rax :pushqReg # push integer on the stack
-      
-      /rbx 8 /rax :movqRegMemDisp8 # store integer value
+      63 /rbx :btsqImm8Reg
+      /rbx :pushqReg # store unboxed integer # TODO can larger arrays/strings ever exist?
 
       /r15 :pushqMem
       8 /r15 :addqImm8Reg
@@ -804,7 +845,7 @@
       /r15 :popqMem
       
       /rcx :popqReg
-      8 /rcx /rcx :movqMemDisp8Reg
+      /rcx ::unboxInteger
 
       /rax :popqReg
 
@@ -844,9 +885,9 @@
       # /r15 == first element
 
       8 /r15 /rdi :movqMemDisp8Reg
-      8 /rdi /rdi :movqMemDisp8Reg
+      /rdi ::unboxInteger
       /r15 /rbx :movqMemReg
-      8 /rbx /rbx :movqMemDisp8Reg
+      /rbx ::unboxInteger
 
       /rbx /rdi :subqRegReg
       /positiveRange :jnsLbl8
@@ -866,12 +907,25 @@
 
       8 /rax /rdi :leaqMemDisp8Reg # fill target
       8 /r15 /rax :movqMemDisp8Reg
-      8 /rax /rax :movqMemDisp8Reg # largest element + 1
+      /rax ::unboxInteger # largest element + 1
 
       @fill
       /rax /rbx :cmpqRegReg
       /done :jaeLbl8
 
+      /rbx /rcx :movqRegReg
+      32 /rcx :shrqImm8Reg
+      /largeElement :jnzLbl8
+
+      /rbx /rcx :movqRegReg
+      63 /rcx :btsqImm8Reg
+      /rcx /rdi :movqRegMem # store into array
+
+      /rbx :incqReg
+      8 /rdi :addqImm8Reg
+      /fill :jmpLbl8
+
+      @largeElement
       /rax :pushqReg
       /rdi :pushqReg
       # create int
@@ -943,49 +997,15 @@
     [[
       /rbx :popqReg
 
-      # allocate result int
-      ::internalAllocateInteger /rax :movqImmReg
-      /rax :callqReg
-      # and push to stack
-      /rax :pushqReg
-
       ::currentQuoted /rcx :movqImmReg
       /rcx /rcx :movqMemReg
-      /rcx 8 /rax :movqRegMemDisp8
+      63 /rcx :btsqImm8Reg
+      /rcx :pushqReg
 
       /rbx :pushqReg
       :retn
     ]] /eyquoted defv
   > _ ==globalFunctions { defv }' ::allocateOffsetStruct
-
-# FIXME delete this
-#  <
-#    # untyped scoped function jumppad
-#    # rdi -> code block object to call
-#    # rsi -> scope to install
-#    [[
-#      8 /r15 :subqImm8Reg
-#      /r15 :popqMem
-#
-#      ::currentScope /rax :movqImmReg
-#      /rax /rcx :movqMemReg
-#      8 /r15 :subqImm8Reg
-#      /rcx /r15 :movqRegMem
-#      /rsi /rax :movqRegMem
-#
-#      16 /rdi :addqImm8Reg
-#      /rdi :callqReg
-#
-#      /r15 /rcx :movqMemReg
-#      ::currentScope /rax :movqImmReg
-#      /rcx /rax :movqRegMem
-#      8 /r15 :addqImm8Reg
-#
-#      /r15 :pushqMem
-#      8 /r15 :addqImm8Reg
-#      :retn
-#    ]] /internalConstantNormalFunctionScopedUntypedJumpPad defv
-#  > { defv }' ::allocateOffsetStruct
 
   <
     # resolve identifier without quoting considerations and act accordingly
@@ -1611,7 +1631,7 @@
       /rdx :popqReg
 
       # push function f
-      [ /rax :movqImmOOBReg ] _ len 2 eq assert
+      [ /rax :movqImmOOBReg ] _ len 2 neq { "unexpected opcode length" die } rep
         2 dearray 256 mul add 
         /rdi :movwImmMem
       /rdx 2 /rdi :movqRegMemDisp8
@@ -1757,7 +1777,7 @@
 
       8 /r15 :subqImm8Reg
       /rcx :popqReg
-      8 /rcx /rcx :movqMemDisp8Reg
+      /rcx ::unboxInteger
 
       /rcx /rcx :testqRegReg
       /end :jzLbl8
@@ -1803,7 +1823,8 @@
       /rax :callqReg
 
       /rax :popqReg
-      0 8 /rax :cmpqImm8MemDisp8
+      /rax ::unboxInteger
+      /rax /rax :testqRegReg
       /end :jzLbl8
 
       8 /r15 :pushqMemDisp8
@@ -2032,6 +2053,9 @@
       /r15 :popqMem
       
       /rax :popqReg
+      63 /rax :btqImm8Reg
+      /unboxedIntegerPassed :jcLbl8
+
       7 /rax /cl :movbMemDisp8Reg
       %F0 /cl :andbImmReg
       %70 /cl :cmpbImmReg
@@ -2039,6 +2063,7 @@
       %20 /cl :cmpbImmReg
       /scopeDom :jeLbl8
 
+      @unboxedIntegerPassed
       "non-array passed to dom" ::outputError
       :ud2
 
@@ -2060,14 +2085,10 @@
       /rcx /rbx :cmpqRegReg
       /end :jnbLbl8
 
-      /rdi :pushqReg
-      /rcx :pushqReg
-      ::internalAllocateInteger /rax :movqImmReg
-      /rax :callqReg
-      /rcx :popqReg
-      /rdi :popqReg
+      /rbx /rax :movqRegReg # TODO can larger arrays ever exist?
+      63 /rax :btsqImm8Reg
       /rax 8 /rbx /rdi :movqRegMemIndexScale # store in array
-      /rbx 8 /rax :movqRegMemDisp8 # store value in int
+
       /rbx :incqReg
       /loop :jmpLbl8
 
@@ -2126,6 +2147,9 @@
         /markerFound :jeLbl32
 
         /rdx /rsi :movqMemReg
+        63 /rsi :btqImm8Reg
+        /immediateFound :jcLbl8
+
         7 /rsi /al :movbMemDisp8Reg
         %F0 /al :andbImmReg
         /immediateFound :jzLbl8
@@ -2140,12 +2164,12 @@
         :ud2
 
         @immediateFound
-        [ /rax :movqImmOOBReg ] _ len 2 eq assert
+        [ /rax :movqImmOOBReg ] _ len 2 neq { "unexpected opcode length" die } rep
           2 dearray 256 mul add 
           /rdi :movwImmMem
         /rsi 2 /rdi :movqRegMemDisp8
         /rsi 0 /rbp :movqRegMemDisp8
-        [ /rax :pushqReg ] _ len 1 eq assert
+        [ /rax :pushqReg ] _ len 1 neq { "unexpected opcode length" die } rep
           1 dearray
           10 /rdi :movbImmMemDisp8
         11 /rdi :addqImm8Reg
@@ -2163,7 +2187,7 @@
         # @nonScopingNonTypedFound
         24 /rsi /rax :movqMemDisp8Reg
 
-        [ /rax :movqImmOOBReg ] _ len 2 eq assert
+        [ /rax :movqImmOOBReg ] _ len 2 neq { "unexpected opcode length" die } rep
           2 dearray 256 mul add 
           /rdi :movwImmMem
         /rax 0 /rbp :movqRegMemDisp8 # save code object pointer
@@ -2177,12 +2201,12 @@
         /search :jmpLbl32
 
         @generalFunctionFound
-        [ /rax :movqImmOOBReg ] _ len 2 eq assert
+        [ /rax :movqImmOOBReg ] _ len 2 neq { "unexpected opcode length" die } rep
           2 dearray 256 mul add 
           /rdi :movwImmMem
         /rsi 2 /rdi :movqRegMemDisp8
         /rsi 0 /rbp :movqRegMemDisp8
-        [ /rax :pushqReg ] _ len 1 eq assert
+        [ /rax :pushqReg ] _ len 1 neq { "unexpected opcode length" die } rep
           1 dearray
           10 /rdi :movbImmMemDisp8
         11 /rdi :addqImm8Reg
@@ -2264,7 +2288,7 @@
           ::unscopingFunctionHeader ::loadToRdi
 
           # load inner code block
-          [ /rdi :movqImmOOBReg ] _ len 2 eq assert
+          [ /rdi :movqImmOOBReg ] _ len 2 neq { "unexpected opcode length" die } rep
             2 dearray 256 mul add 
             /rdi :movwImmMem
           /rax 2 /rdi :movqRegMemDisp8
@@ -2293,7 +2317,7 @@
 
           # rax == function object
 
-          [ /rax :movqImmOOBReg ] _ len 2 eq assert
+          [ /rax :movqImmOOBReg ] _ len 2 neq { "unexpected opcode length" die } rep
             2 dearray 256 mul add 
             /rdi :movwImmMem
           /rax 2 /rdi :movqRegMemDisp8
@@ -2331,25 +2355,20 @@
 
   <
     [
-      %10 %00 %00 %00 %00 %00 %00 %00
-      %01 %00 %00 %00 %00 %00 %00 %00
-    ] /t1 defv
-
-    [
       %28 %00 %00 %00 %00 %00 %00 %80
       %01 %00 %00 %00 %00 %00 %00 %00
-      /t1t1 /t1 ::linkAbs64
+      %01 %00 %00 %00 %00 %00 %00 %80 # unboxed 1
       %01 %00 %00 %00 %00 %00 %00 %00
-      /t1t1 /t1 ::linkAbs64
+      %01 %00 %00 %00 %00 %00 %00 %80 # unboxed 1
     ] /t1t1 defv
 
     [
       %30 %00 %00 %00 %00 %00 %00 %80
       %02 %00 %00 %00 %00 %00 %00 %00
-      /t11t1 /t1 ::linkAbs64
-      /t11t1 /t1 ::linkAbs64
+      %01 %00 %00 %00 %00 %00 %00 %80 # unboxed 1
+      %01 %00 %00 %00 %00 %00 %00 %80 # unboxed 1
       %01 %00 %00 %00 %00 %00 %00 %00
-      /t11t1 /t1 ::linkAbs64
+      %01 %00 %00 %00 %00 %00 %00 %80 # unboxed 1
     ] /t11t1 defv
 
     [
@@ -2365,7 +2384,7 @@
       /taat1 /ta ::linkAbs64
       /taat1 /ta ::linkAbs64
       %01 %00 %00 %00 %00 %00 %00 %00
-      /taat1 /t1 ::linkAbs64
+      %01 %00 %00 %00 %00 %00 %00 %80 # unboxed 1
     ] /taat1 defv
   > _ =globalTypes { defv }' ::allocateOffsetStruct
 
@@ -2473,13 +2492,8 @@
     [[
       /rbx :popqReg
 
-      # allocate result int
-      ::internalAllocateInteger /rax :movqImmReg
-      /rax :callqReg
-
       /rdx :popqReg
       /rdi :popqReg
-      /rax :pushqReg
 
       16 /rdx /rsi :movqMemDisp8Reg
       16 /rdi /rcx :movqMemDisp8Reg
@@ -2501,7 +2515,9 @@
       /rdx /rdx :xorqRegReg
 
       @done
-      /rdx 8 /rax :movqRegMemDisp8
+      63 /rdx :btsqImm8Reg
+      /rdx :pushqReg
+
       /rbx :pushqReg
       :retn
     ]] /eystreq defv
@@ -2517,11 +2533,9 @@
       ::internalAllocateInteger /rax :movqImmReg
       /rax :callqReg
 
-      # type zero does not need to be changed
-
       # actual negation
       /rcx :popqReg
-      8 /rcx /rcx :movqMemDisp8Reg
+      /rcx ::unboxInteger
       /rcx :notqReg
       /rcx 8 /rax :movqRegMemDisp8
 
@@ -2540,11 +2554,9 @@
       ::internalAllocateInteger /rax :movqImmReg
       /rax :callqReg
 
-      # type zero does not need to be changed
-
       # actual negation
       /rcx :popqReg
-      8 /rcx /rcx :movqMemDisp8Reg
+      /rcx ::unboxInteger
       /rcx :negqReg
       /rcx 8 /rax :movqRegMemDisp8
 
@@ -2559,25 +2571,20 @@
     [[
       /rbx :popqReg
 
-      # allocate result int
-      ::internalAllocateInteger /rax :movqImmReg
-      /rax :callqReg
-
-      # type zero does not need to be changed
-
       # actual negation
       /rcx :popqReg
-      8 /rcx /rcx :movqMemDisp8Reg
+      /rcx ::unboxInteger
 
       /rdx /rdx :xorqRegReg
       /rcx /rcx :testqRegReg
       /zero :jnzLbl8
       /rdx :incqReg
       @zero
-      /rdx 8 /rax :movqRegMemDisp8
 
-      # push int address on program stack
-      /rax :pushqReg
+      # push int on program stack
+      63 /rdx :btsqImm8Reg
+      /rdx :pushqReg
+
       /rbx :pushqReg
       :retn
     ]] /eynot defv
@@ -2598,7 +2605,7 @@
       /rax :pushqReg
 
       # create string
-      name "ey(.*)" regex assert ::constStringCode _ len dearray
+      name "ey(.*)" regex not { "could not extract client-side name" die } rep ::constStringCode _ len dearray
 
       # enter into current (i.e. global) scope
       createScopeEntry /rax :movqImmReg
@@ -2618,7 +2625,7 @@
       /rax :pushqReg
 
       # create string
-      name "ey(.*)" regex assert ::constStringCode _ len dearray
+      name "ey(.*)" regex not { "could not extract client-side name" die } rep ::constStringCode _ len dearray
 
       # enter into current (i.e. global) scope
       createScopeEntry /rax :movqImmReg
@@ -2638,7 +2645,7 @@
       /rax :pushqReg
 
       # create string
-      name "ey(.*)" regex assert ::constStringCode _ len dearray
+      name "ey(.*)" regex not { "could not extract client-side name" die } rep ::constStringCode _ len dearray
 
       # enter into current scope
       |eydeff /rax :movqImmReg

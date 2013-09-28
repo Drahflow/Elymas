@@ -6,15 +6,11 @@
     [[
       /rbx :popqReg
 
-      ::internalAllocateInteger /rax :movqImmReg
-      /rax :callqReg
-
       /rcx :popqReg
-      /rax :pushqReg
-
-      8 /rcx /rcx :movqMemDisp8Reg
+      /rcx ::unboxInteger
       /rcx /rcx :movzxMem8Reg64
-      /rcx 8 /rax :movqRegMemDisp8
+      63 /rcx :btsqImm8Reg
+      /rcx :pushqReg
 
       /rbx :pushqReg
       :retn
@@ -27,9 +23,9 @@
       /rbx :popqReg
 
       /rax :popqReg
-      8 /rax /rax :movqMemDisp8Reg
+      /rax ::unboxInteger
       /rcx :popqReg
-      8 /rcx /rcx :movqMemDisp8Reg
+      /rcx ::unboxInteger
       /cl /rax :movbRegMem
 
       /rbx :pushqReg
@@ -42,7 +38,7 @@
       /rbx :popqReg
 
       /rax :popqReg
-      8 /rax /rax :movqMemDisp8Reg
+      /rax ::unboxInteger
       /rax :callqReg
 
       /rbx :pushqReg
@@ -73,9 +69,12 @@
 
       [ /rax /r9 /r8 /r10 /rdx /rsi /rdi ] { ==reg
         reg :popqReg
+        63 reg :btrqImm8Reg
+        /intLoadUnboxed reg cat :jcLbl8
+
         7 reg /bl :movbMemDisp8Reg
         %F0 /bl :andbImmReg
-        /intLoad reg cat :jzLbl8
+        /intLoadBoxed reg cat :jzLbl8
         %10 /bl :cmpbImmReg
         /stringLoad reg cat :jeLbl8
         
@@ -86,9 +85,10 @@
         24 reg reg :leaqMemDisp8Reg
         /doneLoad reg cat :jmpLbl8
 
-        /intLoad reg cat :label
+        /intLoadBoxed reg cat :label
         8 reg reg :movqMemDisp8Reg
 
+        /intLoadUnboxed reg cat :label
         /doneLoad reg cat :label
       } each
 
@@ -113,17 +113,14 @@
     # 0 <- number of allocations registered
     [[
       /rbx :popqReg
-      # allocate return integer
-      ::internalAllocateInteger /rax :movqImmReg
-      /rax :callqReg
-      /rax :pushqReg
 
       ::globalAllocationList /rdx :movqImmReg
       /rdx /rdx :movqMemReg
       /rdx /rdx :movqMemReg
       4 /rdx :shrqImm8Reg
       /rdx :decqReg
-      /rdx 8 /rax :movqRegMemDisp8
+      63 /rdx :btsqImm8Reg
+      /rdx :pushqReg
 
       /rbx :pushqReg
       :retn
@@ -142,7 +139,7 @@
       /rcx :popqReg
       /rax :pushqReg
 
-      8 /rcx /rcx :movqMemDisp8Reg
+      /rcx ::unboxInteger
 
       ::globalAllocationList /rdx :movqImmReg
       /rdx /rdx :movqMemReg
@@ -169,7 +166,7 @@
       /rcx :popqReg
       /rax :pushqReg
 
-      8 /rcx /rcx :movqMemDisp8Reg
+      /rcx ::unboxInteger
 
       ::globalAllocationList /rdx :movqImmReg
       /rdx /rdx :movqMemReg
@@ -207,7 +204,8 @@
       /rbx :popqReg
       
       /rax :popqReg
-      8 /rax :pushqMemDisp8 # push integer value
+      /rax ::unboxInteger
+      /rax :pushqReg # push integer value
 
       /rbx :pushqReg
       :retn
