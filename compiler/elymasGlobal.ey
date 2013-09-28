@@ -1586,11 +1586,9 @@
         8 /r15 :subqImm8Reg
         /r15 :popqMem
 
-        ::internalAllocateInteger /rax :movqImmReg
-        /rax :callqReg
-        /rax :pushqReg
         activation /rdx :movqImmReg
-        /rdx 8 /rax :movqRegMemDisp8
+        63 /rdx :btsqImm8Reg
+        /rdx :pushqReg
 
         eydef /rax :movqImmReg
         /rax :callqReg
