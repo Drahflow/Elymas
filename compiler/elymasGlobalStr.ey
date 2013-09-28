@@ -291,21 +291,16 @@
     [[
       /rbx :popqReg
 
-      ::internalAllocateInteger /rax :movqImmReg
-      /rax :callqReg
-      /rax /rdx :movqRegReg
-
       /rdi :popqReg
       /rax :popqReg
       /rax ::unboxInteger
-
-      /rdx :pushqReg
 
       /rcx /rcx :xorqRegReg
       /rax 24 /rdi :btqRegMemDisp8
       /cl :setcbReg
 
-      /rcx 8 /rdx :movqRegMemDisp8
+      63 /rcx :btsqImm8Reg
+      /rcx :pushqReg
 
       /rbx :pushqReg
       :retn
