@@ -531,6 +531,15 @@
     /two reg modrm11
   } /callqReg deff
 
+  memoryAddressingVariants keys { ==variant memoryAddressingVariants variant . =*parse
+    { parse ==mem
+      mem .base regno %07 gt mem .idx regno %07 gt or
+        { 0 /none mem .idx mem .base rex } rep
+      %FF
+      /two mem .encode
+    } /callq variant defOp
+  } each
+
   {
     %FC
   } /cld deff

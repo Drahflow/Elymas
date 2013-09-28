@@ -127,6 +127,8 @@
   /STATICWRITE ==:STATICWRITE
   /STATICDOT ==:STATICDOT
   /NATIVE ==:NATIVE
+  /UNTYPEDSCOPEDSTAR ==:UNTYPEDSCOPEDSTAR
+  /UNTYPEDUNSCOPEDSTAR ==:UNTYPEDUNSCOPEDSTAR
 
   { =*f ==t
     t { f } { 0 } ? *
@@ -240,6 +242,50 @@
         ] conds
       } each
     } /rewriteConstantDot deffst
+
+    { _ ==logic
+      1 logic len range { ==i i logic * ==entry 0 entry * ==action i 1 sub logic * ==last
+        [
+          { action CALL streq
+            { 1 entry * "*" | +rawCodeAddress eq }' andif
+            { 0 last * STATICTYPED streq }' andif
+          }' {
+            4 last * +rawObject ==executedObject
+            executedObject sys .typed .type ==type
+
+            type [
+              { "failed to optimize 'execution' of integer typed object" die }
+              { } # TODO string case
+              { "failed to optimize 'execution' of scope typed object" die }
+              { "failed to optimize 'execution' of name table" die }
+              { "failed to optimize 'execution' of extension area" die }
+              {
+                # TODO think about handling typed functions
+                executedObject sys .typed .inputs len { } {
+                  # handle untyped function
+                  executedObject sys .capturedScope {
+                    -- # ignore concrete scope
+                    [ UNTYPEDSCOPEDSTAR ] i logic =[]
+                  } {
+                    [ UNTYPEDUNSCOPEDSTAR ] i logic =[]
+                  } ? *
+                } ? *
+              }
+              { "failed to optimize 'execution' of raw function opcodes object" die }
+              { } # TODO array code
+              { "failed to optimize 'execution' of function type descriptor" die }
+              { "objects of type 09 should not appear" die }
+              { "objects of type 10 should not appear" die }
+              { "objects of type 11 should not appear" die }
+              { "objects of type 12 should not appear" die }
+              { "objects of type 13 should not appear" die }
+              { "objects of type 14 should not appear" die }
+              { "objects of type 15 should not appear" die }
+            ] * *
+          }
+        ] conds
+      } each
+    } /rewriteConstantStar deffst
 
     { ==logic
       [ NOP ] ==last
@@ -480,6 +526,7 @@
     containsScopeModifications not |rewriteConstantPipe rep
     containsScopeModifications not |rewriteConstantEquals rep
     containsScopeModifications not |rewriteConstantDot rep
+    containsScopeModifications not |rewriteConstantStar rep
     rewriteStackOps
     { =*entry 0 entry ==action
       [
@@ -585,6 +632,29 @@
             } {
               1 entry /rax :pushqMemDisp32
             } ? *
+          ] emitOpcodes
+        }
+
+        { action UNTYPEDSCOPEDSTAR streq }' {
+          [
+            /rax :popqReg
+            8 /r15 :subqImm8Reg
+            /r14 /r15 :movqRegMem
+            8 /rax /r14 :movqMemDisp8Reg
+            24 /rax /rax :movqMemDisp8Reg
+            16 /rax :addqImm8Reg
+            /rax :callqReg
+            /r15 /r14 :movqMemReg
+            8 /r15 :addqImm8Reg
+          ] emitOpcodes
+        }
+
+        { action UNTYPEDUNSCOPEDSTAR streq }' {
+          [
+            /rax :popqReg
+            24 /rax /rax :movqMemDisp8Reg
+            16 /rax :addqImm8Reg
+            /rax :callqReg
           ] emitOpcodes
         }
 

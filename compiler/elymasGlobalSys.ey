@@ -81,6 +81,36 @@
       8 /r15 :addqImm8Reg
       :retn
     ]] /eyresolveInfo defv
+
+    # return information about the captured scope of a function
+    # 0 -> function object
+    # 0 <- any scope captured
+    # 1 <- if any scope was caputered, that scope
+    [[
+      8 /r15 :subqImm8Reg
+      /r15 :popqMem
+
+      /rsi :popqReg
+      8 /rsi /rsi :movqMemDisp8Reg
+      /rsi /rsi :testqRegReg
+      /noScopeCaptured :jzLbl8
+
+      /rsi :pushqReg # push scope
+      1 /rax :movqImmReg
+      63 /rax :btsqImm8Reg
+      /rax :pushqReg
+
+      /done :jmpLbl8
+
+      @noScopeCaptured
+      63 /rsi :btsqImm8Reg
+      /rsi :pushqReg
+
+      @done
+      /r15 :pushqMem
+      8 /r15 :addqImm8Reg
+      :retn
+    ]] /eycapturedScope defv
   > _ ==globalFunctions { defv }' ::allocateOffsetStruct
 
   [
