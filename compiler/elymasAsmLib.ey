@@ -88,7 +88,7 @@
     [ %00 %00 %00 %00 %00 %00 %00 %00 ] ==heapSize
 
     # index of next cell likely to be free
-    [ HEAPBASE ] ==unusedHeapStart
+    [ %00 %00 %00 %00 %00 %00 %00 %00 ] ==unusedHeapStart
     
     # current parser scope
     [ %00 %00 %00 %00 %00 %00 %00 %00 ] ==currentScope
