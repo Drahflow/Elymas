@@ -13,7 +13,7 @@
     } /installSetters deffst
   > _ ==settings "::" via
 
-  { -1010 deffst = }' ::installSetters # TODO: def??? should overwrite existing values
+  { deffst }' ::installSetters
 
   sys .linux "+" via +epoll "++" via
   net .tcp "+:" via
@@ -90,7 +90,7 @@
     } /installSetters deffst
   > _ ==settings "::" via
 
-  { -1010 deffst = }' ::installSetters # TODO: def??? should overwrite existing values
+  { deffst }' ::installSetters
 
   sys .linux .epoll "++" via
 
