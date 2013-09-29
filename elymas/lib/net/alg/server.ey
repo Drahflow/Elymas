@@ -16,31 +16,32 @@
   { deffst }' ::installSetters
 
   sys .linux "+" via +epoll "++" via
+  sys .asm "+!" via
   net .tcp "+:" via
 
-  <
-    { "noHandler .in" die } =*in
-    { "noHandler .out" die } =*out
-    { "noHandler .err" die } =*err
-  > ==noHandler
-
-  <
-    { txt .produce .u defvst }' /add deffst # TODO: possibly do it without text conversion one day
-    { noHandler -01 add }' /remove deffst
-  > ==eventHandlers
+  < > ==:noHandler
 
   {
     ::port +:listenFd ==listenFd
 
+    [ ] ==allEventHandlers
+    { ==fd ==handler
+      { allEventHandlers len fd le }' {
+        allEventHandlers [ noHandler ] cat =allEventHandlers
+      } loop
+      handler fd allEventHandlers =[]
+    } /protectGC deffst
+    { ==fd noHandler fd allEventHandlers =[] } /unprotectGC deffst
+
     <
       {
         listenFd +:acceptFd ==fd
-        epoll ++EPOLLCTLADD fd ++EPOLLIN ++EPOLLERR bor fd ++ctl
+
         <
           {
             epoll ++EPOLLCTLDEL fd 0 0 ++ctl
-            fd eventHandlers .remove
             fd +close
+            fd unprotectGC
           } /close deffst
           { ==count
             count str .alloc ==buf
@@ -53,21 +54,26 @@
             _ 0 lt { "write failed" die } rep # TODO: real error handling
           } /write deff
           { ==flags
-            epoll ++EPOLLCTLMOD fd flags fd ++ctl
+            epoll ++EPOLLCTLMOD fd flags eventHandler +!rawAddress ++ctl
           } /ctl deffst
-        > ::accept fd eventHandlers .add
+        > ::accept ==eventHandler
+
+        epoll ++EPOLLCTLADD fd ++EPOLLIN ++EPOLLERR bor eventHandler +!rawAddress ++ctl
+        eventHandler fd protectGC
       } =*in
       { "unexpected output capability on listening socket" die } =*out
       { "error on main server socket" die } =*err
-    > listenFd eventHandlers .add
+    > ==listenFdEventHandler
+
+    listenFdEventHandler listenFd protectGC
 
     ++create ==epoll
-    epoll ++EPOLLCTLADD listenFd ++EPOLLIN listenFd ++ctl
+    epoll ++EPOLLCTLADD listenFd ++EPOLLIN listenFdEventHandler +!rawAddress ++ctl
 
     { ::running } {
       epoll 16 ::interval ++wait -- # TODO: error handling
       {
-        _ .data txt .produce .u eventHandlers -01 . ":" via # TODO: consider saving raw addresses in the epoll data instead
+        _ .data +!rawObject ":" via
           .events
           _ ++EPOLLIN  band not not { :in  } rep
           _ ++EPOLLOUT band not not { :out } rep
