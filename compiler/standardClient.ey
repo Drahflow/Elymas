@@ -542,7 +542,7 @@
 
     { ==earlierType ==laterType
       [
-        earlierType laterType typeEqual
+        { earlierType laterType typeEqual }
         { earlierType 1 }
 
         # TODO: maybe handle structs here one day (or move the whole affair into

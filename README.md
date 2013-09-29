@@ -28,9 +28,14 @@ A programming language...
 ... did I mention array support ...
 
     2 [ 1 2 ] add dump
+    [ 0 1 ] [ 1 2 ] add dump
     # [
     #   0000000000000003
     #   0000000000000004
+    # ]
+    # [
+    #   0000000000000001
+    #   0000000000000003
     # ]
 
 ... user definable functions ...
