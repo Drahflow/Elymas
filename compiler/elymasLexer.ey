@@ -5,21 +5,30 @@
   "%" _ : -01 deff
 
   { .value elymas .base10decode ==v
-    [
-      # allocate int
-      ::internalAllocateInteger /rax :movqImmReg
-      /rax :callqReg
+    v 4294967296 lt {
+      [
+        # load value
+        v /rdx :movqImmReg
+        63 /rdx :btsqImm8Reg
+        /rdx :pushqReg
+      ] :execute
+    } {
+      [
+        # allocate int
+        ::internalAllocateInteger /rax :movqImmReg
+        /rax :callqReg
 
-      # push int address on program stack
-      /rax :pushqReg
+        # push int address on program stack
+        /rax :pushqReg
 
-      # type zero does not need to be changed
+        # type zero does not need to be changed
 
-      # load value
-      8 /rax :addqImm8Reg
-      v /rdx :movqImmReg
-      /rdx /rax :movqRegMem
-    ] :execute
+        # load value
+        8 /rax :addqImm8Reg
+        v /rdx :movqImmReg
+        /rdx /rax :movqRegMem
+      ] :execute
+    } ? *
   } /TOKINT
 
   { .value ::constStringCode :execute } /TOKSTR
