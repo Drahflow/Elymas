@@ -366,7 +366,7 @@
     { ==callbackData ==eventMask ==fd ==action ==epollFd
       # struct epoll_event takes 16 bytes on a x86
       ""
-        eventMask <-u64
+        eventMask <-u32
         callbackData <-u64
         ==buf
 
@@ -383,7 +383,7 @@
       maxevents 16 mul str .alloc ==buf
       epollFd buf maxevents timeout 0 0 EPOLLWAIT sys .asm .syscall =errno ==ret
       [ buf ret { <
-        ->u64 ==events
+        ->u32 ==events
         ->u64 ==data
       > -01 } rep -- ]
       ret
