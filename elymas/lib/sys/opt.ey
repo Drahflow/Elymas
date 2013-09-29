@@ -228,12 +228,15 @@
               mode 16 div 1 band {
                 [ STATICDOT offsetInScope parentCount inExtensionArea ] i 1 sub logic =[]
                 [
-                  { mode 0 eq }' {
+                  { mode 16 mod 0 eq }' {
                     [ NOP ] i logic =[]
-                  } { mode 1 eq }' {
+                  } { mode 16 mod 1 eq }' {
                     [ CALL "*" | +rawCodeAddress ] i logic =[]
                   } { 1 }' {
                     # TODO this might conceivably be legal though...
+                    "SCope keys: " dump relevantScope keys dump
+                    "Constant: " dump constant dump
+                    "Mode: " dump mode dump
                     "static . resolution resulted in execution mode neither 0 nor 1" die
                   }
                 ] conds
