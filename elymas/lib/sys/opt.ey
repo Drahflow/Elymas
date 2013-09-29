@@ -127,6 +127,7 @@
   /STATICWRITE ==:STATICWRITE
   /STATICDOT ==:STATICDOT
   /NATIVE ==:NATIVE
+  /ARRAYSTAR ==:ARRAYSTAR
   /UNTYPEDSCOPEDSTAR ==:UNTYPEDSCOPEDSTAR
   /UNTYPEDUNSCOPEDSTAR ==:UNTYPEDUNSCOPEDSTAR
 
@@ -272,7 +273,9 @@
                 } ? *
               }
               { "failed to optimize 'execution' of raw function opcodes object" die }
-              { } # TODO array code
+              {
+                [ ARRAYSTAR ] i logic =[]
+              }
               { "failed to optimize 'execution' of function type descriptor" die }
               { "objects of type 09 should not appear" die }
               { "objects of type 10 should not appear" die }
@@ -310,7 +313,7 @@
                 0 "0" * sub largestNumber max =largestNumber
             } each
 
-            [ /rax /rcx /rdx /rbp /rsi /rdi ] =*:availableRegisters
+            [ /rax /rcx /rdx /rbx /rbp /rsi /rdi ] =*:availableRegisters
 
             #"starUsed: " dump starUsed dump
             #"largestNumber: " dump starUsed dump
@@ -523,10 +526,12 @@
 
     newLogic
     testScopeModifications
-    containsScopeModifications not |rewriteConstantPipe rep
-    containsScopeModifications not |rewriteConstantEquals rep
-    containsScopeModifications not |rewriteConstantDot rep
-    containsScopeModifications not |rewriteConstantStar rep
+    containsScopeModifications not {
+      rewriteConstantPipe
+      rewriteConstantEquals
+    } rep
+    rewriteConstantDot
+    rewriteConstantStar
     rewriteStackOps
     { =*entry 0 entry ==action
       [
@@ -655,6 +660,22 @@
             24 /rax /rax :movqMemDisp8Reg
             16 /rax :addqImm8Reg
             /rax :callqReg
+          ] emitOpcodes
+        }
+
+        { action ARRAYSTAR streq }' {
+          [
+            /rsi :popqReg
+            /rax :popqReg
+            63 /rax :btrqImm8Reg
+            [ 8 /rax /rax :movqMemDisp8Reg ] len :jcRel8
+            8 /rax /rax :movqMemDisp8Reg
+            /rsi /ecx :movlMemReg
+            3 /rcx :shrqImm8Reg
+            /rcx :decqReg
+            /rdx /rdx :xorqRegReg
+            /rcx :divqReg
+            8 8 /rdx /rsi :pushqMemIndexScaleDisp8
           ] emitOpcodes
         }
 
