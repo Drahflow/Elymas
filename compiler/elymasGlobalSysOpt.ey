@@ -104,6 +104,22 @@
       :retn
     ]] /eyreplace defv
 
+    # returns internalAllocateInteger into userspace
+    # 0 <- ::internalAllocateInteger as integer
+    [[
+      /rbx :popqReg
+
+      ::internalAllocateInteger /rax :movqImmReg
+      /rax :callqReg
+      /rax :pushqReg
+
+      ::internalAllocateInteger /rdx :movqImmReg
+      /rdx 8 /rax :movqRegMemDisp8
+
+      /rbx :pushqReg
+      :retn
+    ]] /eyinternalAllocateInteger defv
+
     # returns internalAllocateScope into userspace
     # 0 <- ::internalAllocateScope as integer
     [[

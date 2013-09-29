@@ -245,6 +245,163 @@
     } /rewriteConstantDot deffst
 
     { _ ==logic
+      3 logic len range { ==i
+        i logic * ==entry
+        0 entry * ==action
+        i 1 sub logic * ==last
+        i 2 sub logic * ==secondLast
+        i 3 sub logic * ==thirdLast
+
+        [
+          { action CALL streq
+            { 1 entry * "*" | +rawCodeAddress eq }' andif
+            { 0 last * PUSH streq }' andif
+              { 1 last * |add +rawAddress eq }' andif
+            {
+              0 secondLast * STATICTYPED streq
+                { 4 secondLast * sys .typed .type 0 eq }' andif
+              0 secondLast * PUSH streq
+                { 1 secondLast * sys .typed .type 0 eq }' andif
+              or
+            }' andif
+            {
+              0 thirdLast * STATICTYPED streq
+                { 4 thirdLast * sys .typed .type 0 eq }' andif
+              0 thirdLast * PUSH streq
+                { 1 thirdLast * sys .typed .type 0 eq }' andif
+              or
+            }' andif
+          }' {
+            [ NATIVE [
+              /rcx :popqReg
+              63 /rcx :btrqImm8Reg
+              [ 8 /rcx /rcx :movqMemDisp8Reg ] len :jcRel8
+              8 /rcx /rcx :movqMemDisp8Reg
+
+              /rdx :popqReg
+              63 /rdx :btrqImm8Reg
+              [ 8 /rdx /rdx :movqMemDisp8Reg ] len :jcRel8
+              8 /rdx /rdx :movqMemDisp8Reg
+
+              /rcx /rdx :addqRegReg
+
+              /rdx /rax :movqRegReg
+              32 /rax :shrqImm8Reg
+              
+              [
+                63 /rdx :btsqImm8Reg
+                /rdx :pushqReg
+                0 :jmpRel8
+              ] len :jnzRel8
+
+              63 /rdx :btsqImm8Reg
+              /rdx :pushqReg
+
+              [
+                /rdx :pushqReg
+                ::internalAllocateInteger /rax :movqImmReg
+                /rax :callqReg
+                8 /rax :popqMemDisp8
+                /rax :pushqReg
+              ] len :jmpRel8
+
+              /rdx :pushqReg
+              ::internalAllocateInteger /rax :movqImmReg
+              /rax :callqReg
+              8 /rax :popqMemDisp8
+              /rax :pushqReg
+            ] ] i logic =[]
+            [ NOP ] i 1 sub logic =[]
+          }
+
+          { action CALL streq
+            { 1 entry * "*" | +rawCodeAddress eq }' andif
+            { 0 last * PUSH streq }' andif
+              { 1 last * |le +rawAddress eq }' andif
+            {
+              0 secondLast * STATICTYPED streq
+                { 4 secondLast * sys .typed .type 0 eq }' andif
+              0 secondLast * PUSH streq
+                { 1 secondLast * sys .typed .type 0 eq }' andif
+              or
+            }' andif
+            {
+              0 thirdLast * STATICTYPED streq
+                { 4 thirdLast * sys .typed .type 0 eq }' andif
+              0 thirdLast * PUSH streq
+                { 1 thirdLast * sys .typed .type 0 eq }' andif
+              or
+            }' andif
+          }' {
+            [ NATIVE [
+              /rcx :popqReg
+              63 /rcx :btrqImm8Reg
+              [ 8 /rcx /rcx :movqMemDisp8Reg ] len :jcRel8
+              8 /rcx /rcx :movqMemDisp8Reg
+
+              /rdx :popqReg
+              63 /rdx :btrqImm8Reg
+              [ 8 /rdx /rdx :movqMemDisp8Reg ] len :jcRel8
+              8 /rdx /rdx :movqMemDisp8Reg
+
+              /rsi /rsi :xorqRegReg
+              /rcx /rdx :cmpqRegReg
+
+              [ /rsi :incqReg ] len :jnleRel8
+              /rsi :incqReg
+
+              63 /rsi :btsqImm8Reg
+              /rsi :pushqReg
+            ] ] i logic =[]
+            [ NOP ] i 1 sub logic =[]
+          }
+
+          { action CALL streq
+            { 1 entry * "*" | +rawCodeAddress eq }' andif
+            { 0 last * PUSH streq }' andif
+              { 1 last * |lt +rawAddress eq }' andif
+            {
+              0 secondLast * STATICTYPED streq
+                { 4 secondLast * sys .typed .type 0 eq }' andif
+              0 secondLast * PUSH streq
+                { 1 secondLast * sys .typed .type 0 eq }' andif
+              or
+            }' andif
+            {
+              0 thirdLast * STATICTYPED streq
+                { 4 thirdLast * sys .typed .type 0 eq }' andif
+              0 thirdLast * PUSH streq
+                { 1 thirdLast * sys .typed .type 0 eq }' andif
+              or
+            }' andif
+          }' {
+            [ NATIVE [
+              /rcx :popqReg
+              63 /rcx :btrqImm8Reg
+              [ 8 /rcx /rcx :movqMemDisp8Reg ] len :jcRel8
+              8 /rcx /rcx :movqMemDisp8Reg
+
+              /rdx :popqReg
+              63 /rdx :btrqImm8Reg
+              [ 8 /rdx /rdx :movqMemDisp8Reg ] len :jcRel8
+              8 /rdx /rdx :movqMemDisp8Reg
+
+              /rsi /rsi :xorqRegReg
+              /rcx /rdx :cmpqRegReg
+
+              [ /rsi :incqReg ] len :jnlRel8
+              /rsi :incqReg
+
+              63 /rsi :btsqImm8Reg
+              /rsi :pushqReg
+            ] ] i logic =[]
+            [ NOP ] i 1 sub logic =[]
+          }
+        ] conds
+      } each
+    } /rewriteArithmetics deffst
+
+    { _ ==logic
       1 logic len range { ==i i logic * ==entry 0 entry * ==action i 1 sub logic * ==last
         [
           { action CALL streq
@@ -531,6 +688,7 @@
       rewriteConstantEquals
     } rep
     rewriteConstantDot
+    rewriteArithmetics
     rewriteConstantStar
     rewriteStackOps
     { =*entry 0 entry ==action
