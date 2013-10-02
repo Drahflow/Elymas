@@ -806,7 +806,7 @@
   { 0 dumpIndented }
 > -- /dump deffd
 
-{ ==filename # ==f (left on the stack and executed from sys .asm .programStart)
+{ ==filename # ==f (left on the stack a while and executed from sys .asm .programStart)
   sys .asm .patchProgramStart ==frozenAllocationCount
 
   # hex decoding
@@ -1004,10 +1004,12 @@
 
   out .close
 
+  ==f
+
   sys .asm .patchProgramStart frozenAllocationCount neq {
     "freezing allocated new memory chunks, retrying..." dump
-    filename sys .freeze
-  }
+    f filename sys .freeze
+  } rep
 } /freeze sys .deff
 
 # no long-term stack use here as the executed program uses it as well
@@ -1024,9 +1026,7 @@
 }" /includeFile deffd
 
 { # ==?filename
-  sys .file -0010 .open
-                  includeFile
-                  .close
+  sys .file _ _ .|open -01 |includeFile -01 .|close ; ; -120 * # can use neither stack nor scope for storage here
 }" /include deffd
 
 # vim: syn=elymas

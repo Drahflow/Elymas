@@ -774,6 +774,7 @@
   /jnb  _ %73 defJmpRel8 %83 defJmpRel32
   /jnc  _ %73 defJmpRel8 %83 defJmpRel32
   /jne  _ %75 defJmpRel8 %85 defJmpRel32
+  /jng  _ %7E defJmpRel8 %8E defJmpRel32
   /jnl  _ %7D defJmpRel8 %8D defJmpRel32
   /jnle _ %7F defJmpRel8 %8F defJmpRel32
   /jns  _ %79 defJmpRel8 %89 defJmpRel32

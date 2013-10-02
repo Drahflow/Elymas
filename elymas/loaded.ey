@@ -14,4 +14,4 @@
   "lib/net/alg/http.ey"
 ] { _ dump include }' each
 
-{ "/proc/self/fd/0" include }' "loaded" sys .freeze
+{ "/proc/self/fd/0" include 0 sys .exit }' "loaded" sys .freeze
