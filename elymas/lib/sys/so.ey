@@ -332,22 +332,50 @@
     # "--------------------------------" dump
   } /loadFile deffd
 
-  # resolves a C function taking only pointer and integer arguments
-  # 0 -> number of arguments
+  # resolves a C function
+  # 0 -> argument specification string
+  #      "iis" == foo(int, int, char *)
+  #      i: integer argument (of any width), also used for general pointers
+  #      s: string argument (pointer to string content passed)
   # 1 -> name of symbol
   # the resulting function will take as many arguments as specified and return a single integer
   { ==args ==name
-    [ /rdi /rsi /rdx /rcx /r8 /r9 ] =*:availableRegisters
+    [ /rdi /rsi /rdx /rcx /r8 /r9 ] =*:availableIntegerRegisters
+    0 ==nextIntegerRegister
 
+    [
+      args { ==t [
+        { t 0 "i" * eq }' {
+          nextIntegerRegister availableIntegerRegisters ==reg
+          nextIntegerRegister 1 add =nextIntegerRegister
+
+          [
+            reg :popqReg
+            63 reg :btrqImm8Reg
+            [ 8 reg reg :movqMemDisp8Reg ] len :jcRel8
+            8 reg reg :movqMemDisp8Reg
+          ]
+        }
+        { t 0 "s" * eq }' {
+          nextIntegerRegister availableIntegerRegisters ==reg
+          nextIntegerRegister 1 add =nextIntegerRegister
+
+          [
+            reg :popqReg
+            24 reg :addqImm8Reg
+          ]
+        }
+        { 1 }' {
+          t dump
+          "unknown argument semantics argument" die
+        }
+      ] conds } each
+    ] ==argumentLoaders
+    
     [
       /rbx :popqReg
 
-      0 args range reverse { availableRegisters ==reg
-        reg :popqReg
-        63 reg :btrqImm8Reg
-        [ 8 reg reg :movqMemDisp8Reg ] len :jcRel8
-        8 reg reg :movqMemDisp8Reg
-      } each
+      argumentLoaders reverse { _ len dearray } each
       symbols name . .value /rax :movqImmReg
       /rax :callqReg
       
@@ -380,7 +408,7 @@
       /rbx :pushqReg
       :retn
     ] [ ] ::createFunction
-  } /resolveIntegerFunction deffd
+  } /resolveFunction deffd
 > /so sys .defv
 
 # vim: syn=elymas

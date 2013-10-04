@@ -1,0 +1,4 @@
+"lib/sys/so.ey" include
+"/lib/x86_64-linux-gnu/libc.so.6" sys .so .loadFile
+  1 "Hello World\n" 12
+"write" "isi" sys .so .resolveFunction * dump
