@@ -1,7 +1,10 @@
 <
-  "../compiler/elymasAsm.ey" include
+  <
+    "../compiler/elymasAsm.ey" include
+    assembler /ops sys .asm .defv
+  > --
 
-  assembler ":" via
+  sys .asm .ops ":" via
 
   [
     8 /r15 :subqImm8Reg
@@ -141,11 +144,11 @@
     { _ ==logic
       logic { ==entry 0 entry * ==action
         [
-          { action CALL streq { 1 entry * "<" | +rawCodeAddress eq }' andif }' {
+          { action CALL streq { 1 entry * "<" | ::rawCodeAddress eq }' andif }' {
             1 =containsScopeModifications
           }
 
-          { action CALL streq { 1 entry * ">" | +rawCodeAddress eq }' andif }' {
+          { action CALL streq { 1 entry * ">" | ::rawCodeAddress eq }' andif }' {
             1 =containsScopeModifications
           }
         ] conds
@@ -156,8 +159,8 @@
       [ NOP ] ==last
       [ logic { ==entry 0 entry * ==action
         [
-          { action CALL streq { 1 entry * "|" | +rawCodeAddress eq }' andif { 0 last * PUSH streq }' andif }' {
-            1 last * +rawObject ==constant
+          { action CALL streq { 1 entry * "|" | ::rawCodeAddress eq }' andif { 0 last * PUSH streq }' andif }' {
+            1 last * ::rawObject ==constant
 
             constant executingScope sys .resolveInfo {
               ==mode -- ==parentCount 32 add ==offsetInScope ==inExtensionArea
@@ -185,8 +188,8 @@
       [ NOP ] ==last
       [ logic { ==entry 0 entry * ==action
         [
-          { action CALL streq { 1 entry * "=" | +rawCodeAddress eq }' andif { 0 last * PUSH streq }' andif }' {
-            1 last * +rawObject ==constant
+          { action CALL streq { 1 entry * "=" | ::rawCodeAddress eq }' andif { 0 last * PUSH streq }' andif }' {
+            1 last * ::rawObject ==constant
 
             constant executingScope sys .resolveInfo {
               ==mode -- ==parentCount 32 add ==offsetInScope ==inExtensionArea
@@ -214,12 +217,12 @@
       2 logic len range { ==i i logic * ==entry 0 entry * ==action i 1 sub logic * ==last i 2 sub logic * ==secondLast
         [
           { action CALL streq
-            { 1 entry * "." | +rawCodeAddress eq }' andif
+            { 1 entry * "." | ::rawCodeAddress eq }' andif
             { 0 last * PUSH streq }' andif
             { 0 secondLast * STATICTYPED streq }' andif
           }' {
-            1 last * +rawObject ==constant
-            4 secondLast * +rawObject ==relevantScope
+            1 last * ::rawObject ==constant
+            4 secondLast * ::rawObject ==relevantScope
 
             constant relevantScope sys .resolveInfo {
               ==mode -- ==parentCount 32 add ==offsetInScope ==inExtensionArea
@@ -231,7 +234,7 @@
                   { mode 16 mod 0 eq }' {
                     [ NOP ] i logic =[]
                   } { mode 16 mod 1 eq }' {
-                    [ CALL "*" | +rawCodeAddress ] i logic =[]
+                    [ CALL "*" | ::rawCodeAddress ] i logic =[]
                   } { 1 }' {
                     # TODO this might conceivably be legal though...
                     "Scope keys: " dump relevantScope keys dump
@@ -267,13 +270,13 @@
         } /holdsInt deffd
 
         action CALL streq
-          { 1 entry * "*" | +rawCodeAddress eq }' andif
+          { 1 entry * "*" | ::rawCodeAddress eq }' andif
           { 0 last * PUSH streq }' andif
           { secondLast holdsInt }' andif
           { thirdLast holdsInt }' andif
         {
           [
-            { 1 last * |add +rawAddress eq }' {
+            { 1 last * |add ::rawAddress eq }' {
               [ NATIVE [
                 /rcx :popqReg
                 63 /rcx :btrqImm8Reg
@@ -317,7 +320,7 @@
             }
 
             { ==negatedOpcodeName ==functionName
-              { 1 last * functionName | +rawAddress eq }' {
+              { 1 last * functionName | ::rawAddress eq }' {
                 [ NATIVE [
                   /rcx :popqReg
                   63 /rcx :btrqImm8Reg
@@ -357,10 +360,10 @@
       1 logic len range { ==i i logic * ==entry 0 entry * ==action i 1 sub logic * ==last
         [
           { action CALL streq
-            { 1 entry * "*" | +rawCodeAddress eq }' andif
+            { 1 entry * "*" | ::rawCodeAddress eq }' andif
             { 0 last * STATICTYPED streq }' andif
           }' {
-            4 last * +rawObject ==executedObject
+            4 last * ::rawObject ==executedObject
             executedObject sys .typed .type ==type
 
             type [
@@ -403,18 +406,18 @@
       [ NOP ] ==last
       [ logic { ==entry 0 entry * ==action
         [
-          { action CALL streq { 1 entry * "_" | +rawCodeAddress eq }' andif }' {
+          { action CALL streq { 1 entry * "_" | ::rawCodeAddress eq }' andif }' {
             [ NATIVE [
               0 /rsp :pushqMemDisp8
             ] ] =entry
           }
-          { action CALL streq { 1 entry * "--" | +rawCodeAddress eq }' andif }' {
+          { action CALL streq { 1 entry * "--" | ::rawCodeAddress eq }' andif }' {
             [ NATIVE [
               8 /rsp :addqImm8Reg
             ] ] =entry
           }
-          { action CALL streq { 1 entry * "-" | +rawCodeAddress eq }' andif { 0 last * PUSH streq }' andif }' {
-            1 last * +rawObject ==constant
+          { action CALL streq { 1 entry * "-" | ::rawCodeAddress eq }' andif { 0 last * PUSH streq }' andif }' {
+            1 last * ::rawObject ==constant
 
             { -1010 lt -012 ? } /max deffd
 
@@ -453,11 +456,10 @@
       } each last ]
     } /rewriteStackOps deffst
 
-    sys .asm "+" via
+    sys .asm "::" via
     sys .asm .|peek ==:peek
-    sys .opt "::" via
 
-    o +rawAddress ==addr
+    o ::rawAddress ==addr
     [ addr       _ 4 add range peek each ] 256 math .unbase ==totalLength
     [ addr 8 add _ 4 add range peek each ] 256 math .unbase ==codeLength
     addr 16 add ==i
@@ -500,7 +502,7 @@
               [ calledAddress 3 add _ 8 add range peek each ] 256 math .unbase ==calledConstant
 
               [ PUSH calledConstant ] emitLogic
-              [ CALL "*" | +rawCodeAddress ] emitLogic
+              [ CALL "*" | ::rawCodeAddress ] emitLogic
             }
 
             { constantNormalFunctionScopedUntypedPattern callTargetMatch }' {
@@ -557,7 +559,7 @@
 
               [
                 { staticLoadActivePattern callTargetMatch }' {
-                  [ CALL "*" | +rawCodeAddress ] emitLogic
+                  [ CALL "*" | ::rawCodeAddress ] emitLogic
                 }
 
                 { staticLoadPassivePattern callTargetMatch }' {
@@ -811,7 +813,7 @@
       ] emitOpcodes
     }' ? *
 
-    newReferences newOpcodes o ::replace
+    newOpcodes newReferences o ::replace
     1 executingScope # return something different from o to signal successful optimization
   } /optimize deffd
 

@@ -1,0 +1,386 @@
+# Access shared libraries (and link dynamically)
+
+<
+  sys .linux "+" via
+  sys .asm "::" via
+  sys .asm .ops ":" via
+  sys .asm .|peek =*:peek
+  sys .asm .|poke =*:poke
+
+  # hex decoding
+  { ==strNumber
+    strNumber len 2 neq { "not a valid hex-string" die } rep
+    1 0 { strNumber * 48 sub [ 0 1 2 3 4 5 6 7 8 9  0 0 0 0 0 0 0  10 11 12 13 14 15 ] * } -20*10* 16 mul add
+  } "%" defq
+
+  <
+    {
+      { 8 uw } /u64 deffd
+      { 4 uw } /u32 deffd
+      { 2 uw } /u16 deffd
+      { 1 uw } /u8 deffd
+    }" /defBitVariants deffd
+
+    <
+      # 0 -> number of bytes to combine into unsigned int
+      # 1 -> base address
+      # 0 <- first w bytes of string interpreted as unsigned int
+      { ==w ==a
+        [ a _ w add range |peek each ] 256 math .unbase
+      } /uw deffst
+
+      defBitVariants
+    > /consume defvd
+
+    <
+      # 0 -> number of bytes to produce
+      # 1 -> address to write at
+      # 2 -> int to convert to bytes
+      { ==w ==a ==i
+        a _ w add range { 0 -01 poke }" each
+        i 256 math .base _ dom { -101*0 poke }" each --
+      } /uw deffst
+
+      defBitVariants
+    > /produce defvd
+  > _
+      .consume "=>" via
+      .produce "<=" via
+
+  17592186044416 ==threadLocalStorageAddress # 0x100000000000
+  17592186044416 ==threadLocalStorageEnd
+  17592186044416 ==threadLocalStorageAllocEnd
+
+  threadLocalStorageAddress +archSetFs
+
+  { ==reservedSize ==dataSize ==dataBase
+    threadLocalStorageEnd reservedSize add threadLocalStorageAllocEnd sub ==necessaryAllocation
+    necessaryAllocation 0 gt {
+      necessaryAllocation 1 sub 4096 div 1 add 4096 mul =necessaryAllocation
+      threadLocalStorageAllocEnd necessaryAllocation
+        +PROTREAD +PROTWRITE +PROTEXEC bor bor +MAPPRIVATE +MAPFIXED +MAPANONYMOUS bor bor 1 neg 0 +mmap -- # TODO: error handling
+      threadLocalStorageAllocEnd necessaryAllocation add =threadLocalStorageAllocEnd
+    } rep
+
+    0 dataSize range { ==i
+      dataBase i add peek threadLocalStorageEnd i add poke
+    } each
+    dataSize reservedSize range { ==i
+      0 threadLocalStorageEnd i add poke
+    } each
+    0 8 range { ==i
+      %EE threadLocalStorageEnd i add poke # %fs:0x0 shall hold the TLS-pointer. FIXME: what to put here?
+    } each
+
+    threadLocalStorageEnd reservedSize add =threadLocalStorageEnd # return old start and add reserved size
+  } /addToTLSTemplate deffd
+
+  35184372088832 ==freeAddress # 0x200000000000
+
+  < { ==? }' > /symbols defvst /saveSymbol deffst
+
+  # load a concrete shared library
+  # 0 -> filename of a shared library
+  {
+    "\0" cat +ORDONLY 0 +open ==fd # TODO: error handling
+    fd +fstat -- # TODO: error handling
+              .size 1 sub 4096 div 1 add 4096 mul ==size 
+    freeAddress size +PROTREAD +PROTWRITE +PROTEXEC bor bor +MAPPRIVATE +MAPFIXED bor fd 0 +mmap -- # TODO: error handling
+    freeAddress ==loadedAt
+    freeAddress size add =freeAddress
+
+    { ==err 1 -021 { -011 ==a peek eq and a 1 add } each -- not { err die } rep } /expectAt deffd
+    { loadedAt add } /at deffst
+
+    0 at [ %7F %45 %4C %46 ] "Not a valid ELF library (magic bytes missing)" expectAt
+    4 at [ %02 ] "Not a valid ELF library (not ELFCLASS64)" expectAt
+    5 at [ %01 ] "Not a valid ELF library (not little endian)" expectAt
+    6 at [ %01 ] "Not a valid ELF library (wrong version)" expectAt
+    7 at [ %00 %00 ] "Not a valid ELF library (non SYS-V ABI)" expectAt
+    16 at =>u16 3 neq { "Not a dynamic library" die } rep
+    18 at =>u16 62 neq { "Not valid for this architecture (AMD64 ABI expects EM_X86_64)" die } rep
+    20 at =>u32 1 neq { "Not a valid ELF library (wrong version, 2nd field)" die } rep
+    24 at =>u64 ==entryPoint # not that it would be useful
+    32 at =>u64 ==programHeaderOffset
+    40 at =>u64 ==sectionHeaderOffset
+    48 at =>u32 0 neq { "Unexpected processor specific flags" die } rep
+    52 at =>u16 %40 neq { "ELF header size wrong" die } rep
+    54 at =>u16 %38 neq { "ProgramHeader size wrong" die } rep
+    56 at =>u16 ==programHeaderCount
+    58 at =>u16 %40 neq { "SectionHeader size wrong" die } rep
+    60 at =>u16 ==sectionHeaderCount
+    62 at =>u16 ==sectionNameTableIndex
+
+    0 ==stringTable
+    0 ==stringTableSize
+    0 ==symbolTable
+    0 ==symbolTableEntrySize
+    0 ==initFunction
+    0 ==initFunctionArray
+    0 ==initFunctionArraySize
+    0 ==symbolHashTable
+    0 ==libraryName
+    0 ==plt
+    0 ==pltSize
+    0 ==pltRelocationType
+    0 ==pltRelocationAddress
+    [ ] ==neededLibraries
+    [ ] ==relaTables
+    [ ] ==relaTableSizes
+    0 ==relaEntrySize
+    0 ==flags
+    0 ==tlsTemplateStart
+    0 ==tlsTemplateFileSize
+    0 ==tlsTemplateMemorySize
+    0 ==tlsLoadedAddress
+
+    { -1010 gt -021 ? } /max deffd
+
+    [
+      loadedAt programHeaderOffset add
+        0 programHeaderCount range %38 mul add
+      { 48 add =>u64 } each
+    ] |max fold ==loadingAlignment
+
+    freeAddress loadingAlignment div 1 add loadingAlignment mul ==loadingAddress
+
+    loadedAt programHeaderOffset add
+      0 programHeaderCount range %38 mul add
+    { { add }_ /at deffst
+
+      0 at =>u32 ==type
+      4 at =>u32 ==flags
+      8 at =>u64 ==fileOffset
+      16 at =>u64 ==memoryAddress
+      # 24 is unused
+      32 at =>u64 ==fileSize
+      40 at =>u64 ==memorySize
+      48 at =>u64 ==alignment
+
+      type 1 eq {
+        # "Mapping..." dump
+
+        fileOffset 4096 div 4096 mul ==alignedFileOffset
+        fileOffset memorySize add alignedFileOffset sub 1 sub 4096 div 1 add 4096 mul ==alignedSize
+        loadingAddress memoryAddress add 4096 div 4096 mul ==alignedMemoryAddress
+
+        # "Mapping start: " dump alignedMemoryAddress dump
+        # "Mapping end: " dump alignedMemoryAddress alignedSize add dump
+        # "File mapping start: " dump alignedFileOffset dump
+
+        flags 2 band { # writable segment, allocate full memory size and clone contents
+          alignedMemoryAddress alignedSize
+            +PROTREAD +PROTWRITE bor
+            +MAPPRIVATE +MAPFIXED +MAPANONYMOUS bor bor 1 neg 0 +mmap -- # TODO: error handling
+
+          { ==count ==dst ==src
+            0 count range { ==i src i add peek dst i add poke } each
+          } /rawMemcopy deffd
+
+          loadedAt alignedFileOffset add alignedMemoryAddress fileSize rawMemcopy
+        } { # readonly segment, just mamp file
+          alignedMemoryAddress alignedSize
+            +PROTREAD +PROTEXEC bor
+            +MAPPRIVATE +MAPFIXED bor fd alignedFileOffset +mmap -- # TODO: error handling
+        } ? *
+
+        alignedMemoryAddress alignedSize add =freeAddress
+      } rep
+
+      type 2 eq {
+        # "Parsing relocations..." dump
+
+        loadedAt fileOffset add
+          0 fileSize 16 div range 16 mul add
+        { { add }_ /at deffst
+          0 at =>u64 ==tag
+          8 at =>u64 ==value
+
+          [
+            { tag  0 eq }' { } # end of table (redundantly limited by size)
+            { tag  1 eq }' { neededLibraries [ value ] cat =neededLibraries }
+            { tag  2 eq }' { value =pltSize }
+            { tag  3 eq }' { value =plt }
+            { tag  4 eq }' { value =symbolHashTable }
+            { tag  5 eq }' { value =stringTable }
+            { tag  6 eq }' { value =symbolTable }
+            { tag  7 eq }' { relaTables [ value ] cat =relaTables }
+            { tag  8 eq }' { relaTableSizes [ value ] cat =relaTableSizes }
+            { tag  9 eq }' { value =relaEntrySize }
+            { tag 10 eq }' { value =stringTableSize }
+            { tag 11 eq }' { value =symbolTableEntrySize }
+            { tag 12 eq }' { value =initFunction }
+            { tag 14 eq }' { value =libraryName }
+            { tag 20 eq }' { value =pltRelocationType }
+            { tag 23 eq }' { value =pltRelocationAddress }
+            { tag 25 eq }' { value =initFunctionArray }
+            { tag 27 eq }' { value =initFunctionArraySize }
+            { tag 30 eq }' { value =flags }
+            { tag 65536 gt }' { } # environment specific use
+
+            { 1 }' { "unknown tag" die }
+          ] conds
+        } each
+      } rep
+
+      type 7 eq {
+        # "Parsing thread local storage initalization template..." dump
+        loadingAddress memoryAddress add =tlsTemplateStart
+        fileSize =tlsTemplateFileSize
+        memorySize =tlsTemplateMemorySize
+      } rep
+    } each
+
+    { ==a
+      4096 str .alloc ==buf
+
+      0 ==i
+      { i a add peek _ i buf len lt and } {
+        i buf =[]
+        i 1 add =i
+      } loop --
+
+      i buf str .prefix
+    } /peekString deffst
+
+    # "Following dependencies..." dump
+
+    neededLibraries {
+      stringTable add loadedAt add peekString
+      # "Library: " dump _ dump
+      -- # TOOD actually follow something here
+    } each
+
+    # "Loading symbols..." dump
+
+    <
+      1 ==i
+
+      { i 24 mul symbolTable add loadedAt add ==symbolTableEntry
+        0 symbolTableEntry add =>u32 ==name
+        4 symbolTableEntry add =>u8 ==info
+        5 symbolTableEntry add =>u8 ==other
+        6 symbolTableEntry add =>u16 ==section
+        8 symbolTableEntry add =>u64 ==value
+        16 symbolTableEntry add =>u64 ==size
+
+        name stringTableSize lt
+      }' {
+        info value < loadingAddress add ==value ==info >
+          name stringTable add loadedAt add peekString saveSymbol
+        i 1 add =i
+      }' loop
+    > --
+
+    # "Executing RELA tables..." dump
+
+    0 ==lastOffset
+
+    0 relaTables len range { ==i
+      loadedAt i relaTables * add
+        0 i relaTableSizes * 24 div range 24 mul add
+      { { add }_ /at deffst
+        0 at =>u64 ==offset
+        8 at =>u32 ==type
+        12 at =>u32 ==symbolIndex
+        16 at =>u64 ==addend
+
+        # [ /offset /type /symbolIndex /addend ] { _ | -01 dump dump } each
+
+        loadingAddress offset add ==finalAddress
+        # "loadingAddress: " dump loadingAddress dump
+        # "offset: " dump offset dump
+        # "final address: " dump finalAddress dump
+
+        loadedAt _ symbolTable add symbolIndex 24 mul add =>u32
+                   add stringTable add peekString _ ==symbolName
+                                                    symbols -01 . .value ==symbolValue
+
+        offset lastOffset eq { "Consecutive RELA not implemented" die } rep
+        offset =lastOffset
+
+        addend ==A loadingAddress ==B finalAddress ==P symbolValue ==S threadLocalStorageEnd threadLocalStorageAddress sub ==T
+
+        { 0 ==i
+          256 math .base { finalAddress i add -10 poke i 1 add =i } each
+          i 8 range { finalAddress add 0 -01 poke } each
+        } /writeRela64 deffst
+
+        [
+          { type 1 eq }' { S A add writeRela64 }
+          { type 6 eq }' { S writeRela64 }
+          { type 8 eq }' { B A add writeRela64 }
+          { type 16 eq }' { } # FIXME: DTPMOD64 thread local storage ignored, let's hope stuff still works
+          { type 17 eq }' { } # FIXME: DTPOFF64 thread local storage ignored, let's hope stuff still works
+          { type 18 eq }' { T A add writeRela64 }
+          { 1 }' { type dump "unknown RELA type" die }
+        ] conds
+
+        # finalAddress 35184378017584 eq { "HERE ADDR" die } rep
+        # symbolName "stdout" streq { "HERE SYM" die } rep
+      } each
+    } each
+
+    # "Populating TLS area..." dump
+
+    threadLocalStorageEnd ==tlsAddress
+    # tlsTemplateStart dump
+    # tlsTemplateFileSize dump
+    # tlsTemplateMemorySize dump
+    tlsTemplateStart tlsTemplateFileSize tlsTemplateMemorySize addToTLSTemplate
+    # tlsAddress dump
+    # "--------------------------------" dump
+  } /loadFile deffd
+
+  # resolves a C function taking only pointer and integer arguments
+  # 0 -> number of arguments
+  # 1 -> name of symbol
+  # the resulting function will take as many arguments as specified and return a single integer
+  { ==args ==name
+    [ /rdi /rsi /rdx /rcx /r8 /r9 ] =*:availableRegisters
+
+    [
+      /rbx :popqReg
+
+      0 args range reverse { availableRegisters ==reg
+        reg :popqReg
+        63 reg :btrqImm8Reg
+        [ 8 reg reg :movqMemDisp8Reg ] len :jcRel8
+        8 reg reg :movqMemDisp8Reg
+      } each
+      symbols name . .value /rax :movqImmReg
+      /rax :callqReg
+      
+      /rax /rdx :movqRegReg
+      32 /rdx :shrqImm8Reg
+      
+      [
+        63 /rax :btsqImm8Reg
+        /rax :pushqReg
+        0 :jmpRel8
+      ] len :jnzRel8
+
+      63 /rax :btsqImm8Reg
+      /rax :pushqReg
+
+      [
+        /rax :pushqReg
+        ::internalAllocateInteger /rax :movqImmReg
+        /rax :callqReg
+        8 /rax :popqMemDisp8
+        /rax :pushqReg
+      ] len :jmpRel8
+
+      /rax :pushqReg
+      ::internalAllocateInteger /rax :movqImmReg
+      /rax :callqReg
+      8 /rax :popqMemDisp8
+      /rax :pushqReg
+
+      /rbx :pushqReg
+      :retn
+    ] [ ] ::createFunction
+  } /resolveIntegerFunction deffd
+> /so sys .defv
+
+# vim: syn=elymas

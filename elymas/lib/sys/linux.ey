@@ -11,7 +11,7 @@
   # 159 ==:ADJTIMEX
   # 183 ==:AFSSYSCALL
   # 37  ==:ALARM
-  # 158 ==:ARCHPRCTL
+  158 ==:ARCHPRCTL
   49  ==:BIND
   # 12  ==:BRK
   # 125 ==:CAPGET
@@ -63,7 +63,7 @@
   # 57  ==:FORK
   # 199 ==:FREMOVEXATTR
   # 190 ==:FSETXATTR
-  # 5   ==:FSTAT
+  5   ==:FSTAT
   # 138 ==:FSTATFS
   # 74  ==:FSYNC
   # 77  ==:FTRUNCATE
@@ -139,7 +139,7 @@
   # 259 ==:MKNODAT
   # 149 ==:MLOCK
   # 151 ==:MLOCKALL
-  # 9   ==:MMAP
+  9   ==:MMAP
   # 154 ==:MODIFYLDT
   # 165 ==:MOUNT
   # 279 ==:MOVEPAGES
@@ -158,7 +158,7 @@
   # 26  ==:MSYNC
   # 150 ==:MUNLOCK
   # 152 ==:MUNLOCKALL
-  # 11  ==:MUNMAP
+  11  ==:MUNMAP
   # 35  ==:NANOSLEEP
   # 262 ==:NEWFSTATAT
   # 180 ==:NFSSERVCTL
@@ -323,6 +323,8 @@
 
   { 0 0 0 0 0 ACCEPT } /accept defStdSyscall
 
+  { 4098 -01 0 0 0 0 ARCHPRCTL } /archSetFs defStdSyscall
+
   { _ len 0 0 0 BIND } /bind defStdSyscall
 
   { 0 0 0 0 0 CLOSE } /close defStdSyscall
@@ -390,7 +392,66 @@
     } /wait deffd
   > /epoll defvd
 
+  {
+    <
+      ->u64 ==dev
+      ->u64 ==ino
+      ->u32 ==nlink
+      ->u32 ==what0
+      ->u32 ==mode
+      ->u32 ==gid
+      ->u32 ==uid
+      ->u32 ==what1
+      ->u64 ==rdev
+      ->u64 ==size
+      ->u32 ==blksize
+      ->u32 ==what3
+      ->u64 ==blocks
+      ->u64 ==atime
+      ->u64 ==atimensec
+      ->u64 ==mtime
+      ->u64 ==mtimensec
+      ->u64 ==ctime
+      ->u64 ==ctimensec
+      ->u32 --
+      ->u32 --
+    >
+  } /parseStatStruct deffd
+
+  # 0 -> fd to stat
+  # 0 <- raw return value
+  # 1 <- (struct stat)-like scope
+  { # ==filename
+    # struct stat takes 144 bytes on a x64
+    128 str .alloc ==buf
+    buf 0 0 0 0 FSTAT sys .asm .syscall =errno
+    buf parseStatStruct -02
+  } /fstat deffd
+
   { 0 0 0 0 LISTEN } /listen defStdSyscall
+
+  1 ==:PROTREAD
+  2 ==:PROTWRITE
+  4 ==:PROTEXEC
+
+  1 ==:MAPSHARED
+  2 ==:MAPPRIVATE
+  16 ==:MAPFIXED
+  32 ==:MAPANONYMOUS
+  256 ==:MAPGROWSDOWN
+  8192 ==:MAPLOCKED
+  16384 ==:MAPNORESERVE
+  32768 ==:MAPPOPULATE
+  65536 ==:MAPNONBLOCK
+  262144 ==:MAPHUGETLB
+
+  # 0 -> offset (in file)
+  # 1 -> fd
+  # 2 -> flags
+  # 3 -> protection
+  # 4 -> length
+  # 5 -> address
+  { MMAP } /mmap defStdSyscall
 
   1 ==:AFUNIX
   1 ==:AFLOCAL
@@ -427,22 +488,26 @@
     # struct stat takes 144 bytes on a x64
     144 str .alloc ==buf
     buf 0 0 0 0 STAT sys .asm .syscall =errno
-    buf <
-      ->u64 ==dev
-      ->u64 ==ino
-      ->u64 ==mode
-      ->u64 ==nlink
-      ->u64 ==uid
-      ->u64 ==gid
-      ->u64 ==rdev
-      ->u64 ==size
-      ->u64 ==blksize
-      ->u64 ==blocks
-      ->u64 ==atime
-      ->u64 ==mtime
-      ->u64 ==ctime
-    > -02
+    buf parseStatStruct -02
   } /stat deffd
+
+  0 ==:ORDONLY
+  1 ==:OWRONLY
+  2 ==:ORDWR
+  256 ==:OCREAT
+  512 ==:OEXCL
+  1024 ==:ONOCTTY
+  8192 ==:OAPPEND
+  4096 ==:OTRUNC
+  16384 ==:ONONBLOCK
+  131072 ==:OASYNC
+  262144 ==:ODIRECT
+  1048576 ==:OLARGEFILE
+  2097152 ==:ODIRECTORY
+  4194304 ==:ONOFOLLOW
+  16777216 ==:ONOATIME
+  33554432 ==:OCLOEXEC
+  67174400 ==:OSYNC
 
   { 0 0 0 OPEN } /open defStdSyscall
 
