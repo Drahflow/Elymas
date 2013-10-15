@@ -5,7 +5,7 @@
 <
   43  ==:ACCEPT
   # 288 ==:ACCEPT64
-  # 21  ==:ACCESS
+  21  ==:ACCESS # TODO: not implemented here
   # 163 ==:ACCT
   # 248 ==:ADDKEY
   # 159 ==:ADJTIMEX
@@ -21,7 +21,7 @@
   # 92  ==:CHOWN
   # 161 ==:CHROOT
   # 229 ==:CLOCKGETRES
-  # 228 ==:CLOCKGETTIME
+  228 ==:CLOCKGETTIME # TODO: not implemented here
   # 230 ==:CLOCKNANOSLEEP
   # 227 ==:CLOCKSETTIME
   # 56  ==:CLONE
@@ -31,7 +31,7 @@
   # 174 ==:CREATEMODULE
   # 176 ==:DELETEMODULE
   # 32  ==:DUP
-  # 33  ==:DUP2
+  33  ==:DUP2
   # 292 ==:DUP3
   213 ==:EPOLLCREATE
   # 291 ==:EPOLLCREATE1
@@ -42,7 +42,7 @@
   # 215 ==:EPOLLWAITOLD
   # 284 ==:EVENTFD
   # 290 ==:EVENTFD2
-  # 59  ==:EXECVE
+  59  ==:EXECVE
   # 60  ==:EXIT
   # 231 ==:EXITGROUP
   # 269 ==:FACCESSAT
@@ -55,12 +55,12 @@
   # 268 ==:FCHMODAT
   # 93  ==:FCHOWN
   # 260 ==:FCHOWNAT
-  # 72  ==:FCNTL
+  72  ==:FCNTL # TODO: not implemented here
   # 75  ==:FDATASYNC
   # 193 ==:FGETXATTR
   # 196 ==:FLISTXATTR
   # 73  ==:FLOCK
-  # 57  ==:FORK
+  57  ==:FORK
   # 199 ==:FREMOVEXATTR
   # 190 ==:FSETXATTR
   5   ==:FSTAT
@@ -81,10 +81,10 @@
   # 104 ==:GETGID
   # 115 ==:GETGROUPS
   # 36  ==:GETITIMER
-  # 52  ==:GETPEERNAME
+  52  ==:GETPEERNAME # TODO: not implemented here
   # 121 ==:GETPGID
   # 111 ==:GETPGRP
-  # 39  ==:GETPID
+  39  ==:GETPID
   # 181 ==:GETPMSG
   # 110 ==:GETPPID
   # 140 ==:GETPRIORITY
@@ -93,7 +93,7 @@
   # 97  ==:GETRLIMIT
   # 98  ==:GETRUSAGE
   # 124 ==:GETSID
-  # 51  ==:GETSOCKNAME
+  51  ==:GETSOCKNAME # TODO: not implemented here
   # 55  ==:GETSOCKOPT
   # 186 ==:GETTID
   96  ==:GETTIMEOFDAY
@@ -116,7 +116,7 @@
   # 251 ==:IOPRIOSET
   # 246 ==:KEXECLOAD
   # 250 ==:KEYCTL
-  # 62  ==:KILL
+  62  ==:KILL
   # 94  ==:LCHOWN
   # 192 ==:LGETXATTR
   # 86  ==:LINK
@@ -168,9 +168,9 @@
   # 298 ==:PERFEVENTOPEN
   # 135 ==:PERSONALITY
   # 22  ==:PIPE
-  # 293 ==:PIPE2
+  293 ==:PIPE2
   # 155 ==:PIVOTROOT
-  # 7   ==:POLL
+  7   ==:POLL # TODO: not implemented here
   # 271 ==:PPOLL
   # 157 ==:PRCTL
   # 17  ==:PREAD64
@@ -189,7 +189,7 @@
   # 267 ==:READLINKAT
   # 19  ==:READV
   # 169 ==:REBOOT
-  # 45  ==:RECVFROM
+  45  ==:RECVFROM # TODO: not implemented here
   # 299 ==:RECVMMSG
   # 47  ==:RECVMSG
   # 216 ==:REMAPFILEPAGES
@@ -199,7 +199,7 @@
   # 249 ==:REQUESTKEY
   # 219 ==:RESTARTSYSCALL
   # 84  ==:RMDIR
-  # 13  ==:RTSIGACTION
+  13  ==:RTSIGACTION # TODO: not implemented here
   # 127 ==:RTSIGPENDING
   # 14  ==:RTSIGPROCMASK
   # 129 ==:RTSIGQUEUEINFO
@@ -253,7 +253,7 @@
   # 31  ==:SHMCTL
   # 67  ==:SHMDT
   # 29  ==:SHMGET
-  # 48  ==:SHUTDOWN
+  48  ==:SHUTDOWN # TODO: not implemented here
   # 131 ==:SIGALTSTACK
   # 282 ==:SIGNALFD
   # 289 ==:SIGNALFD4
@@ -289,7 +289,7 @@
   # 184 ==:TUXCALL
   # 95  ==:UMASK
   # 166 ==:UMOUNT2
-  # 63  ==:UNAME
+  63  ==:UNAME # TODO: not implemented here
   # 87  ==:UNLINK
   # 263 ==:UNLINKAT
   # 272 ==:UNSHARE
@@ -305,7 +305,7 @@
   61  ==:WAIT4
   # 247 ==:WAITID
   1   ==:WRITE
-  # 20  ==:WRITEV
+  20  ==:WRITEV # TODO: not implemented here
 
   0 ==errno
   
@@ -330,6 +330,14 @@
   { 0 0 0 0 0 CLOSE } /close defStdSyscall
 
   { _ len 0 0 0 CONNECT } /connect defStdSyscall
+
+  { 0 0 0 0 DUP2 } /dup2 defStdSyscall
+  
+  { 0 0 0 0 0 EXECVE } /exec defStdSyscall
+
+  { 0 0 0 0 0 0 FORK } /fork defStdSyscall
+
+  { 0 0 0 0 0 0 GETPID } /getpid defStdSyscall
 
   # 0 <- raw return value
   # 1 <- seconds since 1970
@@ -428,6 +436,8 @@
     buf parseStatStruct -02
   } /fstat deffd
 
+  { 0 0 0 0 KILL } /kill defStdSyscall
+
   { 0 0 0 0 LISTEN } /listen defStdSyscall
 
   1 ==:PROTREAD
@@ -510,6 +520,15 @@
   67174400 ==:OSYNC
 
   { 0 0 0 OPEN } /open defStdSyscall
+
+  # 0 <- raw return value
+  # 1 <- read end (possibly invalid)
+  # 2 <- write end (possibly invalid)
+  {
+    16 str .alloc ==buf
+    buf 0 0 0 0 0 PIPE2 sys .asm .syscall =errno
+    buf ->u32 -01 ->u32 -023
+  } /pipe deffd
 
   <
     2 ==:PTRACEPEEKDATA

@@ -1,0 +1,5 @@
+#!/usr/bin/env elymas
+
+"lib/sys/so.ey" include
+
+{ "/proc/self/fd/0" include 0 sys .exit }' "shared" sys .so .freeze

@@ -5,13 +5,27 @@
     { "^(\\d*)" regex -- ==n
       [ n { 48 sub } each ] reverse 10 math .unbase
     } /u deffd
+
+    # 0 -> string
+    # 0 <- leading hexadecimal digits converted to int (0, if none)
+    [
+      0 1 2 3 4 5 6 7 8 9
+      7 { 0 } rep
+      10 11 12 13 14 15
+      26 { 0 } rep
+      10 11 12 13 14 15
+    ] =*:hexDigitsReverse
+
+    { "^([0-9A-Fa-f]*)" regex -- ==n
+      [ n { 48 sub hexDigitsReverse } each ] reverse 16 math .unbase
+    } /hu deffd
   > /consume defvd
 
   <
-    # 0 -> positive integer
+    # 0 -> positive integer (or zero)
     # 0 <- decimal representation as string
     {
-      [ -01 10 math .base reverse "0123456789" each ] str .fromArray
+      _ { [ -01 10 math .base reverse "0123456789" each ] str .fromArray } { -- "0" } ? *
     } /u deffd
   > /produce defvd
 > /txt defvd

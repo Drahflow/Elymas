@@ -407,6 +407,22 @@
       :retn
     ]] /eyinternalAllocateInteger defv
 
+    # returns internalAllocateString into userspace
+    # 0 <- ::internalAllocateString as integer
+    [[
+      /rbx :popqReg
+
+      ::internalAllocateInteger /rax :movqImmReg
+      /rax :callqReg
+      /rax :pushqReg
+
+      ::internalAllocateString /rdx :movqImmReg
+      /rdx 8 /rax :movqRegMemDisp8
+
+      /rbx :pushqReg
+      :retn
+    ]] /eyinternalAllocateString defv
+
     # returns internalAllocateScope into userspace
     # 0 <- ::internalAllocateScope as integer
     [[
@@ -422,6 +438,7 @@
       /rbx :pushqReg
       :retn
     ]] /eyinternalAllocateScope defv
+
     # (template) program boot sequence after freeze
     [[
       /rsp :movqImmOOBReg %EE %EE %EE %EE %EE %EE %EE %EE # 10

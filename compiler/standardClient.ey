@@ -131,6 +131,9 @@
       } { ^n } {
         { 0 "\n" * eq }" terminal =a
         tail
+      } { ^[ } {
+        { 0 "[" * eq }" terminal =a
+        tail
       } { 1 } {
         "invalid character '" "' after \\ in regex" -120 cat cat die
       } ] conds

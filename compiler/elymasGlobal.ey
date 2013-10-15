@@ -1894,6 +1894,8 @@
       @eachString
 
       16 /rax /rcx :movqMemDisp8Reg
+      /rcx /rcx :testqRegReg
+      /end :jzLbl8
       /rcx 8 /r15 :movqRegMemDisp8
       24 /rax /rcx :leaqMemDisp8Reg
       /rcx /r15 :movqRegMem
@@ -2001,6 +2003,31 @@
       /rax :callqReg
       :ud2
     ]] /ey.| defv
+
+    # test whether a scope member exists
+    # 0 -> member name
+    # 1 -> scope
+    # 0 <- 1 if scope member exists, 0 otherwise
+    [[
+      8 /r15 :subqImm8Reg
+      /r15 :popqMem
+
+      /rsi :popqReg # fetch identifier
+      /rdi :popqReg # fetch scope
+      ::internalResolve /rax :movqImmReg
+      /rax :callqReg
+
+      /rax /rax :testqRegReg
+      /unresolved :jzLbl8
+      1 /rax :movqImmReg
+      @unresolved
+      63 /rax :btsqImm8Reg
+      /rax :pushqReg
+
+      /r15 :pushqMem
+      8 /r15 :addqImm8Reg
+      :retn
+    ]] /ey.? defv
 
     # enumerate scope keys
     # 0 -> scope

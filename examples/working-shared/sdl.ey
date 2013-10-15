@@ -1,0 +1,15 @@
+"lib/ffi.ey" include
+"lib/ffi/sdl.ey" include
+
+ffi .sdl ":" via
+
+:SDL_INIT_VIDEO :SDL_Init {
+  :SDL_GetError dump
+  "SDL_Init failed" die
+} rep
+
+"Ohai!" 0 0 800 600 0 :SDL_CreateWindow
+
+"done" die
+
+# vim: syn=elymas

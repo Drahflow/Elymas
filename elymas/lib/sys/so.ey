@@ -1,4 +1,4 @@
-# Access shared libraries (and link dynamically)
+# Freeze into ELF binary which requires libc (for dlsym and dlopen).
 
 <
   sys .linux "+" via
@@ -7,10 +7,12 @@
   sys .asm .|peek =*:peek
   sys .asm .|poke =*:poke
 
+  { -1010 gt -021 ? } /max deffd
+  { -1010 lt -021 ? } /min deffd
+
   # hex decoding
-  { ==strNumber
-    strNumber len 2 neq { "not a valid hex-string" die } rep
-    1 0 { strNumber * 48 sub [ 0 1 2 3 4 5 6 7 8 9  0 0 0 0 0 0 0  10 11 12 13 14 15 ] * } -20*10* 16 mul add
+  { # ==strNumber
+    0 -01 { 48 sub [ 0 1 2 3 4 5 6 7 8 9  0 0 0 0 0 0 0  10 11 12 13 14 15 ] * -01 16 mul -01 add } each
   } "%" defq
 
   <
@@ -38,7 +40,7 @@
       # 2 -> int to convert to bytes
       { ==w ==a ==i
         a _ w add range { 0 -01 poke }" each
-        i 256 math .base _ dom { -101*0 poke }" each --
+        i 256 math .base _ dom { -101*0 a add poke }" each --
       } /uw deffst
 
       defBitVariants
@@ -47,305 +49,123 @@
       .consume "=>" via
       .produce "<=" via
 
-  17592186044416 ==threadLocalStorageAddress # 0x100000000000
-  17592186044416 ==threadLocalStorageEnd
-  17592186044416 ==threadLocalStorageAllocEnd
+  { ==a
+    4096 str .alloc ==buf
 
-  threadLocalStorageAddress +archSetFs
+    0 ==i
+    { i a add peek _ i buf len lt and } {
+      i buf =[]
+      i 1 add =i
+    } loop --
 
-  { ==reservedSize ==dataSize ==dataBase
-    threadLocalStorageEnd reservedSize add threadLocalStorageAllocEnd sub ==necessaryAllocation
-    necessaryAllocation 0 gt {
-      necessaryAllocation 1 sub 4096 div 1 add 4096 mul =necessaryAllocation
-      threadLocalStorageAllocEnd necessaryAllocation
-        +PROTREAD +PROTWRITE +PROTEXEC bor bor +MAPPRIVATE +MAPFIXED +MAPANONYMOUS bor bor 1 neg 0 +mmap -- # TODO: error handling
-      threadLocalStorageAllocEnd necessaryAllocation add =threadLocalStorageAllocEnd
-    } rep
+    i buf str .prefix
+  } /peekString deffd
 
-    0 dataSize range { ==i
-      dataBase i add peek threadLocalStorageEnd i add poke
-    } each
-    dataSize reservedSize range { ==i
-      0 threadLocalStorageEnd i add poke
-    } each
-    0 8 range { ==i
-      %EE threadLocalStorageEnd i add poke # %fs:0x0 shall hold the TLS-pointer. FIXME: what to put here?
-    } each
+  { ::rawAddress 24 add } /rawContentAddress deffd
 
-    threadLocalStorageEnd reservedSize add =threadLocalStorageEnd # return old start and add reserved size
-  } /addToTLSTemplate deffd
+  8 str .alloc _ str .zero ==:dlopenAddress 
+  8 str .alloc _ str .zero ==:dlsymAddress 
 
-  35184372088832 ==freeAddress # 0x200000000000
+  8 str .alloc ==:r15backup
+  8 str .alloc ==:rspbackup
 
-  < { ==? }' > /symbols defvst /saveSymbol deffst
+  [ ] ==saveFromGC
 
-  # load a concrete shared library
-  # 0 -> filename of a shared library
-  {
-    "\0" cat +ORDONLY 0 +open ==fd # TODO: error handling
-    fd +fstat -- # TODO: error handling
-              .size 1 sub 4096 div 1 add 4096 mul ==size 
-    freeAddress size +PROTREAD +PROTWRITE +PROTEXEC bor bor +MAPPRIVATE +MAPFIXED bor fd 0 +mmap -- # TODO: error handling
-    freeAddress ==loadedAt
-    freeAddress size add =freeAddress
-
-    { ==err 1 -021 { -011 ==a peek eq and a 1 add } each -- not { err die } rep } /expectAt deffd
-    { loadedAt add } /at deffst
-
-    0 at [ %7F %45 %4C %46 ] "Not a valid ELF library (magic bytes missing)" expectAt
-    4 at [ %02 ] "Not a valid ELF library (not ELFCLASS64)" expectAt
-    5 at [ %01 ] "Not a valid ELF library (not little endian)" expectAt
-    6 at [ %01 ] "Not a valid ELF library (wrong version)" expectAt
-    7 at [ %00 %00 ] "Not a valid ELF library (non SYS-V ABI)" expectAt
-    16 at =>u16 3 neq { "Not a dynamic library" die } rep
-    18 at =>u16 62 neq { "Not valid for this architecture (AMD64 ABI expects EM_X86_64)" die } rep
-    20 at =>u32 1 neq { "Not a valid ELF library (wrong version, 2nd field)" die } rep
-    24 at =>u64 ==entryPoint # not that it would be useful
-    32 at =>u64 ==programHeaderOffset
-    40 at =>u64 ==sectionHeaderOffset
-    48 at =>u32 0 neq { "Unexpected processor specific flags" die } rep
-    52 at =>u16 %40 neq { "ELF header size wrong" die } rep
-    54 at =>u16 %38 neq { "ProgramHeader size wrong" die } rep
-    56 at =>u16 ==programHeaderCount
-    58 at =>u16 %40 neq { "SectionHeader size wrong" die } rep
-    60 at =>u16 ==sectionHeaderCount
-    62 at =>u16 ==sectionNameTableIndex
-
-    0 ==stringTable
-    0 ==stringTableSize
-    0 ==symbolTable
-    0 ==symbolTableEntrySize
-    0 ==initFunction
-    0 ==initFunctionArray
-    0 ==initFunctionArraySize
-    0 ==symbolHashTable
-    0 ==libraryName
-    0 ==plt
-    0 ==pltSize
-    0 ==pltRelocationType
-    0 ==pltRelocationAddress
-    [ ] ==neededLibraries
-    [ ] ==relaTables
-    [ ] ==relaTableSizes
-    0 ==relaEntrySize
-    0 ==flags
-    0 ==tlsTemplateStart
-    0 ==tlsTemplateFileSize
-    0 ==tlsTemplateMemorySize
-    0 ==tlsLoadedAddress
-
-    { -1010 gt -021 ? } /max deffd
-
+  { ==f ==sym
     [
-      loadedAt programHeaderOffset add
-        0 programHeaderCount range %38 mul add
-      { 48 add =>u64 } each
-    ] |max fold ==loadingAlignment
+      rspbackup rawContentAddress /rax :movqImmReg
+      /rsp /rax :movqRegMem
+      /r15 /rax :movqRegReg
+      r15backup rawContentAddress /r15 :movqImmReg
+      /r15 /r15 :movqMemReg
 
-    freeAddress loadingAlignment div 1 add loadingAlignment mul ==loadingAddress
+      8 /r15 :subqImm8Reg
+      /r15 :popqMem
+      8 /r15 :subqImm8Reg
+      /rax /r15 :movqRegMem
 
-    loadedAt programHeaderOffset add
-      0 programHeaderCount range %38 mul add
-    { { add }_ /at deffst
+      /r14 :pushqReg
+      /r13 :pushqReg
+      /r12 :pushqReg
+      /rbx :pushqReg
+      /rbp :pushqReg
 
-      0 at =>u32 ==type
-      4 at =>u32 ==flags
-      8 at =>u64 ==fileOffset
-      16 at =>u64 ==memoryAddress
-      # 24 is unused
-      32 at =>u64 ==fileSize
-      40 at =>u64 ==memorySize
-      48 at =>u64 ==alignment
+      [ /rdi /rsi /rdx /rcx /r8 /r9 ] { :pushqReg } each
 
-      type 1 eq {
-        # "Mapping..." dump
-
-        fileOffset 4096 div 4096 mul ==alignedFileOffset
-        fileOffset memorySize add alignedFileOffset sub 1 sub 4096 div 1 add 4096 mul ==alignedSize
-        loadingAddress memoryAddress add 4096 div 4096 mul ==alignedMemoryAddress
-
-        # "Mapping start: " dump alignedMemoryAddress dump
-        # "Mapping end: " dump alignedMemoryAddress alignedSize add dump
-        # "File mapping start: " dump alignedFileOffset dump
-
-        flags 2 band { # writable segment, allocate full memory size and clone contents
-          alignedMemoryAddress alignedSize
-            +PROTREAD +PROTWRITE bor
-            +MAPPRIVATE +MAPFIXED +MAPANONYMOUS bor bor 1 neg 0 +mmap -- # TODO: error handling
-
-          { ==count ==dst ==src
-            0 count range { ==i src i add peek dst i add poke } each
-          } /rawMemcopy deffd
-
-          loadedAt alignedFileOffset add alignedMemoryAddress fileSize rawMemcopy
-        } { # readonly segment, just mamp file
-          alignedMemoryAddress alignedSize
-            +PROTREAD +PROTEXEC bor
-            +MAPPRIVATE +MAPFIXED bor fd alignedFileOffset +mmap -- # TODO: error handling
-        } ? *
-
-        alignedMemoryAddress alignedSize add =freeAddress
-      } rep
-
-      type 2 eq {
-        # "Parsing relocations..." dump
-
-        loadedAt fileOffset add
-          0 fileSize 16 div range 16 mul add
-        { { add }_ /at deffst
-          0 at =>u64 ==tag
-          8 at =>u64 ==value
-
-          [
-            { tag  0 eq }' { } # end of table (redundantly limited by size)
-            { tag  1 eq }' { neededLibraries [ value ] cat =neededLibraries }
-            { tag  2 eq }' { value =pltSize }
-            { tag  3 eq }' { value =plt }
-            { tag  4 eq }' { value =symbolHashTable }
-            { tag  5 eq }' { value =stringTable }
-            { tag  6 eq }' { value =symbolTable }
-            { tag  7 eq }' { relaTables [ value ] cat =relaTables }
-            { tag  8 eq }' { relaTableSizes [ value ] cat =relaTableSizes }
-            { tag  9 eq }' { value =relaEntrySize }
-            { tag 10 eq }' { value =stringTableSize }
-            { tag 11 eq }' { value =symbolTableEntrySize }
-            { tag 12 eq }' { value =initFunction }
-            { tag 14 eq }' { value =libraryName }
-            { tag 20 eq }' { value =pltRelocationType }
-            { tag 23 eq }' { value =pltRelocationAddress }
-            { tag 25 eq }' { value =initFunctionArray }
-            { tag 27 eq }' { value =initFunctionArraySize }
-            { tag 30 eq }' { value =flags }
-            { tag 65536 gt }' { } # environment specific use
-
-            { 1 }' { "unknown tag" die }
-          ] conds
-        } each
-      } rep
-
-      type 7 eq {
-        # "Parsing thread local storage initalization template..." dump
-        loadingAddress memoryAddress add =tlsTemplateStart
-        fileSize =tlsTemplateFileSize
-        memorySize =tlsTemplateMemorySize
-      } rep
-    } each
-
-    { ==a
-      4096 str .alloc ==buf
-
-      0 ==i
-      { i a add peek _ i buf len lt and } {
-        i buf =[]
-        i 1 add =i
-      } loop --
-
-      i buf str .prefix
-    } /peekString deffst
-
-    # "Following dependencies..." dump
-
-    neededLibraries {
-      stringTable add loadedAt add peekString
-      # "Library: " dump _ dump
-      -- # TOOD actually follow something here
-    } each
-
-    # "Loading symbols..." dump
-
-    <
-      1 ==i
-
-      { i 24 mul symbolTable add loadedAt add ==symbolTableEntry
-        0 symbolTableEntry add =>u32 ==name
-        4 symbolTableEntry add =>u8 ==info
-        5 symbolTableEntry add =>u8 ==other
-        6 symbolTableEntry add =>u16 ==section
-        8 symbolTableEntry add =>u64 ==value
-        16 symbolTableEntry add =>u64 ==size
-
-        name stringTableSize lt
-      }' {
-        info value < loadingAddress add ==value ==info >
-          name stringTable add loadedAt add peekString saveSymbol
-        i 1 add =i
-      }' loop
-    > --
-
-    # "Executing RELA tables..." dump
-
-    0 ==lastOffset
-
-    0 relaTables len range { ==i
-      loadedAt i relaTables * add
-        0 i relaTableSizes * 24 div range 24 mul add
-      { { add }_ /at deffst
-        0 at =>u64 ==offset
-        8 at =>u32 ==type
-        12 at =>u32 ==symbolIndex
-        16 at =>u64 ==addend
-
-        # [ /offset /type /symbolIndex /addend ] { _ | -01 dump dump } each
-
-        loadingAddress offset add ==finalAddress
-        # "loadingAddress: " dump loadingAddress dump
-        # "offset: " dump offset dump
-        # "final address: " dump finalAddress dump
-
-        loadedAt _ symbolTable add symbolIndex 24 mul add =>u32
-                   add stringTable add peekString _ ==symbolName
-                                                    symbols -01 . .value ==symbolValue
-
-        offset lastOffset eq { "Consecutive RELA not implemented" die } rep
-        offset =lastOffset
-
-        addend ==A loadingAddress ==B finalAddress ==P symbolValue ==S threadLocalStorageEnd threadLocalStorageAddress sub ==T
-
-        { 0 ==i
-          256 math .base { finalAddress i add -10 poke i 1 add =i } each
-          i 8 range { finalAddress add 0 -01 poke } each
-        } /writeRela64 deffst
-
-        [
-          { type 1 eq }' { S A add writeRela64 }
-          { type 6 eq }' { S writeRela64 }
-          { type 8 eq }' { B A add writeRela64 }
-          { type 16 eq }' { } # FIXME: DTPMOD64 thread local storage ignored, let's hope stuff still works
-          { type 17 eq }' { } # FIXME: DTPOFF64 thread local storage ignored, let's hope stuff still works
-          { type 18 eq }' { T A add writeRela64 }
-          { 1 }' { type dump "unknown RELA type" die }
-        ] conds
-
-        # finalAddress 35184378017584 eq { "HERE ADDR" die } rep
-        # symbolName "stdout" streq { "HERE SYM" die } rep
+      [ /rdi /rsi /rdx /rcx /r8 /r9 ] { --
+        ::internalAllocateInteger /rax :movqImmReg
+        /rax :callqReg
+        /rax :pushqReg
       } each
-    } each
 
-    # "Populating TLS area..." dump
+      [ /rdi /rsi /rdx /rcx /r8 /r9 ] { --
+        /rdi :popqReg # integer on stack
+        5 8 mul /rsp /rax :movqMemDisp8Reg
+        /rax 8 /rdi :movqRegMemDisp8 # load value
+        /rdi 5 8 mul /rsp :movqRegMemDisp8 # replace register value by integer object
+      } each
 
-    threadLocalStorageEnd ==tlsAddress
-    # tlsTemplateStart dump
-    # tlsTemplateFileSize dump
-    # tlsTemplateMemorySize dump
-    tlsTemplateStart tlsTemplateFileSize tlsTemplateMemorySize addToTLSTemplate
-    # tlsAddress dump
-    # "--------------------------------" dump
-  } /loadFile deffd
+      f ::rawAddress /rax :movqImmReg
+      /rax :pushqReg
+      "*" | ::rawCodeAddress /rax :movqImmReg
+      /rax :callqReg
 
-  # resolves a C function
-  # 0 -> argument specification string
+      /rdx :popqReg
+
+      63 /rdx :btrqImm8Reg
+      [
+        8 /rdx /rdx :movqMemDisp8Reg
+      ] len :jcRel8
+
+      8 /rdx /rdx :movqMemDisp8Reg
+
+      /rbp :popqReg
+      /rbx :popqReg
+      /r12 :popqReg
+      /r13 :popqReg
+      /r14 :popqReg
+
+      /r15 /rax :movqMemReg
+      8 /r15 :addqImm8Reg
+      /r15 :pushqMem
+      8 /r15 :addqImm8Reg
+      /rax /r15 :movqRegReg
+
+      /rdx /rax :movqRegReg
+      :retn
+    ] [ f ] ::createFunction _ ::rawCodeAddress < ==value 0 ==info > sym saveSymbol
+                               [ -01 ] saveFromGC -01 cat =saveFromGC
+  } /defineFunction deffst
+
+  # wrap a C function
+  # 0 -> return value specification string
+  #      v: no return value
+  #      p: pointer return value
+  #      u8: uint8_t return value
+  #      u16: uint16_t return value
+  #      u32: uint32_t return value
+  #      u64: uint64_t return value
+  #      i8: int8_t return value
+  #      i16: int16_t return value
+  #      i32: int32_t return value
+  #      i64: int64_t return value
+  #      s: string return value (will be copied)
+  # 1 -> argument specification string
   #      "iis" == foo(int, int, char *)
-  #      i: integer argument (of any width), also used for general pointers
-  #      s: string argument (pointer to string content passed)
-  # 1 -> name of symbol
+  #      p: pointer argument
+  #      i: integer argument (of any width)
+  #      s: string argument (pointer to string content passed, string is zero-terminated)
+  #      b: buffer argument (pointer to string content passed, no zero-termination, but no copy)
+  # 2 -> address of function
   # the resulting function will take as many arguments as specified and return a single integer
-  { ==args ==name
+  { ==rets ==args ==func
     [ /rdi /rsi /rdx /rcx /r8 /r9 ] =*:availableIntegerRegisters
     0 ==nextIntegerRegister
 
     [
       args { ==t [
-        { t 0 "i" * eq }' {
+        { t 0 "i" * eq
+          t 0 "p" * eq or }' {
           nextIntegerRegister availableIntegerRegisters ==reg
           nextIntegerRegister 1 add =nextIntegerRegister
 
@@ -356,13 +176,57 @@
             8 reg reg :movqMemDisp8Reg
           ]
         }
-        { t 0 "s" * eq }' {
+        { t 0 "b" * eq }' {
           nextIntegerRegister availableIntegerRegisters ==reg
           nextIntegerRegister 1 add =nextIntegerRegister
 
           [
             reg :popqReg
             24 reg :addqImm8Reg
+          ]
+        }
+        { t 0 "s" * eq }' {
+          nextIntegerRegister availableIntegerRegisters ==reg
+          nextIntegerRegister 1 add =nextIntegerRegister
+
+          {
+            0 24 1 /rax reg :andbImmMemIndexScaleDisp8
+            24 reg :addqImm8Reg
+          } =*finalZeroSpaceAvailable
+
+          {
+            0 nextIntegerRegister 1 sub range { availableIntegerRegisters * :pushqReg } each
+
+            reg :pushqReg
+            1 /rax /rdi :leaqMemDisp8Reg
+            ::internalAllocateString /rax :movqImmReg
+            /rax :callqReg
+
+            24 /rax /rdi :leaqMemDisp8Reg
+
+            /rax :popqReg
+            24 /rax /rsi :leaqMemDisp8Reg
+            16 /rax /rcx :movqMemDisp8Reg
+            :reprcx :movsb
+            0 /rsi :andbImmMem
+            24 /rax reg :leaqMemDisp8Reg
+
+            0 nextIntegerRegister 1 sub range reverse { availableIntegerRegisters * :popqReg } each
+          } =*finalZeroSpaceNotAvailable
+
+          [
+            reg :popqReg
+            16 reg /rax :movqMemDisp8Reg
+            7 /al :testbImmReg
+            [
+              finalZeroSpaceNotAvailable
+              0 :jmpRel8
+            ] len :jnzRel8
+            finalZeroSpaceNotAvailable
+            [
+              finalZeroSpaceAvailable
+            ] len :jmpRel8
+            finalZeroSpaceAvailable
           ]
         }
         { 1 }' {
@@ -372,43 +236,579 @@
       ] conds } each
     ] ==argumentLoaders
     
-    [
-      /rbx :popqReg
-
-      argumentLoaders reverse { _ len dearray } each
-      symbols name . .value /rax :movqImmReg
-      /rax :callqReg
-      
+    {
       /rax /rdx :movqRegReg
       32 /rdx :shrqImm8Reg
       
       [
         63 /rax :btsqImm8Reg
-        /rax :pushqReg
         0 :jmpRel8
       ] len :jnzRel8
 
       63 /rax :btsqImm8Reg
-      /rax :pushqReg
 
       [
         /rax :pushqReg
         ::internalAllocateInteger /rax :movqImmReg
         /rax :callqReg
         8 /rax :popqMemDisp8
-        /rax :pushqReg
       ] len :jmpRel8
 
       /rax :pushqReg
       ::internalAllocateInteger /rax :movqImmReg
       /rax :callqReg
       8 /rax :popqMemDisp8
-      /rax :pushqReg
+    } /wrapInteger deffd
+
+    {
+      [
+        { rets "v" streq }' { }
+        { rets "s" streq }' {
+          /rax :pushqReg
+          /rcx /rcx :xorqRegReg
+          /rax /rdi :movqRegReg
+          /rax /rax :xorqRegReg
+          /rcx :decqReg
+          :repnz :scasb
+          /rcx :negqReg
+          2 /rcx :subqImm8Reg
+          /rcx /rdi :movqRegReg
+          ::internalAllocateString /rax :movqImmReg
+          /rax :callqReg
+          /rsi :popqReg
+          /rax :pushqReg
+          24 /rax /rdi :leaqMemDisp8Reg
+          :repnz :movsb
+        }
+        { rets "i64" streq }' {
+          wrapInteger
+          /rax :pushqReg
+        }
+        { rets "i32" streq }' {
+          /eax /rax :movsxlqRegReg # sign extend result
+          wrapInteger
+          /rax :pushqReg
+        }
+        { rets "i16" streq }' {
+          /ax /rax :movsxwqRegReg # sign extend result
+          wrapInteger
+          /rax :pushqReg
+        }
+        { rets "i8" streq }' {
+          /al /rax :movsxbqRegReg # sign extend result
+          wrapInteger
+          /rax :pushqReg
+        }
+        { rets "u64" streq }' {
+          wrapInteger
+          /rax :pushqReg
+        }
+        { rets "u32" streq }' {
+          /eax /eax :movlRegReg # zero extend result
+          63 /rax :btsqImm8Reg
+          /rax :pushqReg
+        }
+        { rets "u16" streq }' {
+          /ax /rax :movzxwqRegReg # zero extend result
+          63 /rax :btsqImm8Reg
+          /rax :pushqReg
+        }
+        { rets "u8" streq }' {
+          /al /rax :movzxbqRegReg # zero extend result
+          63 /rax :btsqImm8Reg
+          /rax :pushqReg
+        }
+        { rets "p" streq }' {
+          wrapInteger
+          /rax :pushqReg
+        }
+        { 1 }' {
+          rets dump
+          "unknown return type specification" die
+        }
+      ] conds
+    } =*returnWrapper
+
+    [
+      /rbx :popqReg
+
+      r15backup rawContentAddress /rax :movqImmReg
+      /r15 /rax :movqRegMem
+
+      argumentLoaders reverse { _ len dearray } each
+      func /rax :movqImmReg
+      /rax :callqReg
+
+      returnWrapper
 
       /rbx :pushqReg
       :retn
     ] [ ] ::createFunction
+  } /wrapFunction deffd
+
+  { "\0" cat } [
+    /rbx :popqReg
+
+    r15backup rawContentAddress /rax :movqImmReg
+    /r15 /rax :movqRegMem
+
+    /rdi :popqReg
+    24 /rdi :addqImm8Reg # load filename
+    257 /rsi :movqImmReg # RTLD_LAZY | RTLD_GLOBAL
+    dlopenAddress rawContentAddress /rax :movqImmReg
+    /rax /rax :movqMemReg
+    /rax :callqReg
+    
+    /rax :pushqReg
+    ::internalAllocateInteger /rax :movqImmReg
+    /rax :callqReg
+    8 /rax :popqMemDisp8
+    /rax :pushqReg
+
+    /rbx :pushqReg
+    :retn
+  ] [ ] ::createFunction ; /dlopen deffd
+
+  { -01 "\0" cat -01 } [
+    /rbx :popqReg
+
+    r15backup rawContentAddress /rax :movqImmReg
+    /r15 /rax :movqRegMem
+
+    /rdi :popqReg
+    63 /rdi :btrqImm8Reg
+    [ 8 /rdi /rdi :movqMemDisp8Reg ] len :jcRel8
+    8 /rdi /rdi :movqMemDisp8Reg # load library handle
+
+    /rsi :popqReg
+    24 /rsi :addqImm8Reg # load symbol name
+
+    dlsymAddress rawContentAddress /rax :movqImmReg
+    /rax /rax :movqMemReg
+    /rax :callqReg
+    
+    /rax :pushqReg
+    ::internalAllocateInteger /rax :movqImmReg
+    /rax :callqReg
+    8 /rax :popqMemDisp8
+    /rax :pushqReg
+
+    /rbx :pushqReg
+    :retn
+  ] [ ] ::createFunction ; /dlsym deffd
+
+  # [
+  #   /rbx :popqReg
+
+  #   r15backup rawContentAddress /rax :movqImmReg
+  #   /r15 /rax :movqRegMem
+
+  #   /rdi :popqReg
+  #   63 /rdi :btrqImm8Reg
+  #   # %100 /rsi :movqImmReg # RTLD_GLOBAL
+  #   dlopenAddress rawContentAddress /rax :movqImmReg
+  #   /rax /rax :movqMemReg
+  #   /rax :callqReg
+  #   
+  #   /rax :pushqReg
+  #   ::internalAllocateInteger /rax :movqImmReg
+  #   /rax :callqReg
+  #   8 /rax :popqMemDisp8
+  #   /rax :pushqReg
+
+  #   /rbx :pushqReg
+  #   :retn
+  # ] [ ] ::createFunction /malloc deffd
+
+  # 0 -> return specification string (see wrapFunction for details)
+  # 1 -> argument specification string (see wrapFunction for details)
+  # 2 -> name of function
+  # the resulting function will take as many arguments as specified and return a single integer
+  { ==rets ==args # ==name
+    0 dlsym args rets wrapFunction
   } /resolveFunction deffd
+
+  { ==filename # ==f (left on the stack a while and executed from sys .asm .programStart)
+    sys .asm .patchProgramStart ==frozenAllocationCount
+
+    {                                               8 { _ 256 mod -01 256 div } rep -- } /uint64 deffd
+    { _ 0 lt { 4294967296 add } rep 4294967295 band 4 { _ 256 mod -01 256 div } rep -- } /uint32 deffd
+    { _ 0 lt { 65536 add } rep 65535 band 2 { _ 256 mod -01 256 div } rep -- } /uint16 deffd
+    { _ 0 lt { 256 add } rep 255 band } /uint8 deffd
+
+    { ==align ==value
+      align value align mod sub align mod
+    } /alignUpto deff
+
+    sys .file ==out
+    filename out _ .creating _ .writeonly .open
+
+    [
+      <
+        ".null" ==?name
+        0 ==?nameOffset { =nameOffset } /setNameOffset deff
+        0 ==?dataOffset { =dataOffset } /setDataOffset deff
+        0 ==?type # reserved first section
+        0 ==?flags # none
+        0 ==?addr # not loaded
+        0 ==?link # no associated section
+        0 ==?entsize # no entries
+        [ ] ==?data
+        0 ==?dataSize
+      > <
+        ".strtab" ==?name
+        0 ==?nameOffset { =nameOffset } /setNameOffset deff
+        0 ==?dataOffset { =dataOffset } /setDataOffset deff
+        3 ==?type # string table
+        0 ==?flags # none
+        0 ==?addr # not loaded
+        0 ==?link # no associated section
+        0 ==?entsize # no entries
+        [ ] ==?data # to be filled later
+        0 ==?dataSize # to be filled later
+        { _ =data len =dataSize } /setData deff
+      > _ ==?stringTable <
+        ".dynamic" ==?name
+        0 ==?nameOffset { =nameOffset } /setNameOffset deff
+        0 ==?dataOffset { =dataOffset } /setDataOffset deff
+        6 ==?type # dynamic linking table
+        0 ==?flags # none
+        0 ==?addr # not loaded
+        0 ==?link # no associated section # TODO: that's a lie, the string table is associated
+        0 ==?entsize # no entries # TODO: also a lie
+        [ ] ==?data # to be filled later
+        0 ==?dataSize # to be filled later
+        { _ =data len =dataSize } /setData deff
+      > _ ==?dynamicTable <
+        ".dynsym" ==?name
+        0 ==?nameOffset { =nameOffset } /setNameOffset deff
+        0 ==?dataOffset { =dataOffset } /setDataOffset deff
+        11 ==?type # dynamic linking table
+        0 ==?flags # none
+        0 ==?addr # not loaded
+        1 ==?link # string table is associated
+        %18 ==?entsize
+        [ ] ==?data # to be filled later
+        0 ==?dataSize # to be filled later
+        { _ =data len =dataSize } /setData deff
+      > _ ==?symbolTable <
+        ".rela" ==?name
+        0 ==?nameOffset { =nameOffset } /setNameOffset deff
+        0 ==?dataOffset { =dataOffset } /setDataOffset deff
+        4 ==?type # relocation table
+        0 ==?flags # none
+        0 ==?addr # not loaded
+        3 ==?link # symbol table is associated (section index 3)
+        %18 ==?entsize
+        [ ] ==?data # to be filled later
+        0 ==?dataSize # to be filled later
+        { _ =data len =dataSize } /setData deff
+      > _ ==?relocationTable
+    ] ==metaSections
+
+    [
+      0 frozenAllocationCount range { ==i
+        <
+          ".[1;31m-[33m=[32m#[34m=[35m-[0m" ==?name
+          0 ==?nameOffset { =nameOffset } /setNameOffset deff
+          0 ==?dataOffset { =dataOffset } /setDataOffset deff
+          1 ==?type # program data
+          7 ==?flags # writable, allocated, executable
+          0 ==?addr # FIXME
+          0 ==?link # no associated section
+          0 ==?entsize # no entries
+          i sys .asm .globalAllocBase ==?dataBase
+          i sys .asm .globalAllocSize ==?dataSize
+        >
+      } each
+    ] ==allocSections
+
+    4096 ==:PAGESIZE
+
+    allocSections len 4 add ==programHeaderCount
+    metaSections len allocSections len add ==sectionHeaderCount
+
+    "/lib64/ld-linux-x86-64.so.2"     ==:INTERPRETERNAME 0 ==interpreterStringOffset
+    "libc.so.6"                       ==:LIBCNAME        0 ==libcStringOffset
+    "libdl.so.2"                      ==:LIBDLNAME       0 ==libdlStringOffset
+    "dlopen"                          ==:DLOPENNAME      0 ==dlopenStringOffset
+    "dlsym"                           ==:DLSYMNAME       0 ==dlsymStringOffset
+
+    < 1 ==stringOffset
+      { =*saveOffset ==string
+        string { } each %00
+        stringOffset _ saveOffset
+                       string len add 1 add =stringOffset
+      } /stringTableEntry deffst
+
+      [
+        %00 # initial zero byte of string table
+        ### section names
+
+        [ metaSections allocSections ] { { ==s
+          s .name s .|setNameOffset stringTableEntry
+        } each } each
+
+        INTERPRETERNAME { =interpreterStringOffset } stringTableEntry
+        LIBCNAME        { =libcStringOffset        } stringTableEntry
+        LIBDLNAME       { =libdlStringOffset       } stringTableEntry
+        DLOPENNAME      { =dlopenStringOffset      } stringTableEntry
+        DLSYMNAME       { =dlsymStringOffset       } stringTableEntry
+      ] stringTable .setData
+    > --
+
+    <
+      [
+        0 uint64 0 uint64 0 uint64 # symbol table index 0 is reserved
+
+        dlopenStringOffset uint32
+        %12 # globally visible function entry point
+        %00
+        0 uint16
+        0 uint64
+        0 uint64
+
+        dlsymStringOffset uint32
+        %12 # globally visible function entry point
+        %00
+        0 uint16
+        0 uint64
+        0 uint64
+      ] symbolTable .setData
+    > --
+
+    <
+      [
+        dlopenAddress rawContentAddress uint64
+        7 uint32 # R_X86_64_JUMP_SLOT
+        1 uint32
+        0 uint64
+        dlsymAddress rawContentAddress uint64
+        7 uint32 # R_X86_64_JUMP_SLOT
+        2 uint32
+        0 uint64
+      ] relocationTable .setData
+    > --
+
+    {
+      [
+      # TAG       VALUE
+         1 uint64 libcStringOffset uint64 # require libc (DT_NEEDED)
+         1 uint64 libdlStringOffset uint64 # require libdl (DT_NEEDED)
+         5 uint64 %700000000000 stringTable .dataOffset add uint64 # string table address (DT_STRTAB)
+         6 uint64 %700000000000 symbolTable .dataOffset add uint64 # symbol table address (DT_SYMTAB)
+         7 uint64 %700000000000 relocationTable .dataOffset add uint64 # relocation table address (DT_RELA)
+         8 uint64 relocationTable .dataSize uint64 # relocation table size (DT_RELASZ)
+         9 uint64 24 uint64 # relocation entry size (DT_RELAENT)
+        10 uint64 stringTable .dataSize uint64 # string table size (DT_STRSZ)
+        11 uint64 24 uint64 # symbol entry size (DT_SYMENT)
+        #   0x0000000000000015 (DEBUG)              0x0
+        #  0x0000000000000003 (PLTGOT)             0x604c48
+        #   0x0000000000000002 (PLTRELSZ)           888 (bytes)
+        #    0x0000000000000014 (PLTREL)             RELA
+        #     0x0000000000000017 (JMPREL)             0x400af8
+
+        24 uint64 0 uint64 # immediately apply all relocations (DT_BIND_NOW)
+        0 uint64 0 uint64 # end of table (DT_NULL)
+      ] dynamicTable .setData
+    } /fillDynamicTable deffst
+
+    fillDynamicTable # some data not available yet, but size already needed
+
+    <
+      # %40 ==? section header size, %38 == program header size
+      sectionHeaderCount %40 mul
+      programHeaderCount %38 mul add
+                         %40     add ==dataOffset
+      metaSections { ==s
+        dataOffset s .setDataOffset
+        dataOffset s .dataSize add =dataOffset
+      } each
+
+      dataOffset _ 4096 alignUpto add =dataOffset
+
+      allocSections { ==s
+        dataOffset s .setDataOffset
+        dataOffset s .dataSize add _ PAGESIZE alignUpto add =dataOffset
+      } each
+    > --
+
+    fillDynamicTable
+
+    [
+      ### elf header
+      # unsigned char e_ident[16]; /* ELF identification */
+      %7F 0 1 2 "ELF" -30*20*10*  # elf identifier
+      %02                         # elfclass64
+      %01                         # elf version
+      %01                         # little endian encoding
+      %00 %00                     # Sys-V ABI
+      %00 %00 %00 %00 %00 %00 %00 # padding
+      # Elf64_Half    e_type;      /* Object file type */
+      %02 %00                     # executable file
+      # Elf64_Half    e_machine;   /* Machine type */
+      %3E %00                     # whatever, /bin/ls has this
+      # Elf64_Word    e_version;   /* Object file version */
+      %01 %00 %00 %00             # always 1
+      # Elf64_Addr    e_entry;     /* Entry point address */
+      sys .asm .|programStart sys .asm .rawCodeAddress uint64
+      # Elf64_Off     e_phoff;     /* Program header offset */
+      %40 uint64
+      # Elf64_Off     e_shoff;     /* Section header offset */
+      programHeaderCount %38 mul
+                         %40     add uint64
+      # Elf64_Word    e_flags;     /* Processor-specific flags */
+      %00 %00 %00 %00 # taken from from /bin/ls
+      # Elf64_Half    e_ehsize;    /* ELF header size */
+      %40 %00
+      # Elf64_Half    e_phentsize; /* Size of program header entry */
+      %38 %00
+      # Elf64_Half    e_phnum;     /* Number of program header entries */
+      programHeaderCount uint16
+      # Elf64_Half    e_shentsize; /* Size of section header entry */
+      %40 %00
+      # Elf64_Half    e_shnum;     /* Number of section header entries */
+      sectionHeaderCount uint16
+      # Elf64_Half    e_shstrndx;  /* Section name string table index */
+      %01 %00 # section header name table index in section headers table
+
+      ### program header describing program header table *sigh*
+      6 uint32 # program header table (PT_PHDR)
+      7 uint32 # read | write | execute
+      # Elf64_Off        p_offset;        /* Offset in file */
+      %40 uint64
+      # Elf64_Addr       p_vaddr;         /* Virtual address in memory */
+      %700000000000 %40 add uint64
+      # Elf64_Addr       p_paddr;         /* Reserved */
+      %00 %00 %00 %00 %00 %00 %00 %00
+      # Elf64_Xword      p_filesz;        /* Size of segment in file */
+      programHeaderCount %38 mul uint64
+      # Elf64_Xword      p_memsz;         /* Size of segment in memory */
+      programHeaderCount %38 mul uint64
+      # Elf64_Xword      p_align;         /* Alignment of segment */
+      %08 %00 %00 %00 %00 %00 %00 %00 # alignment
+
+      ### program header requesting interpreter
+      3 uint32 # interpreter requested (PT_INTERP)
+      7 uint32 # read | write | execute
+      # Elf64_Off        p_offset;        /* Offset in file */
+      stringTable .dataOffset interpreterStringOffset add uint64
+      # Elf64_Addr       p_vaddr;         /* Virtual address in memory */
+      %700000000000 stringTable .dataOffset add interpreterStringOffset add uint64
+      # Elf64_Addr       p_paddr;         /* Reserved */
+      %00 %00 %00 %00 %00 %00 %00 %00
+      # Elf64_Xword      p_filesz;        /* Size of segment in file */
+      INTERPRETERNAME len 1 add uint64
+      # Elf64_Xword      p_memsz;         /* Size of segment in memory */
+      INTERPRETERNAME len 1 add uint64
+      # Elf64_Xword      p_align;         /* Alignment of segment */
+      %01 %00 %00 %00 %00 %00 %00 %00 # alignment
+
+      ### program header loading all meta sections
+      # Elf64_Word       p_type;          /* Type of segment */
+      1 uint32 # loadable segment
+      # Elf64_Word       p_flags;         /* Segment attributes */
+      7 uint32 # read | write | execute
+      # Elf64_Off        p_offset;        /* Offset in file */
+      0 uint64
+      # Elf64_Addr       p_vaddr;         /* Virtual address in memory */
+      %700000000000 uint64
+      # Elf64_Addr       p_paddr;         /* Reserved */
+      %00 %00 %00 %00 %00 %00 %00 %00
+      # Elf64_Xword      p_filesz;        /* Size of segment in file */
+      [ metaSections { _ .dataOffset -01 .dataSize add } each ] |max fold uint64
+      # Elf64_Xword      p_memsz;         /* Size of segment in memory */
+      [ metaSections { _ .dataOffset -01 .dataSize add } each ] |max fold uint64
+      # Elf64_Xword      p_align;         /* Alignment of segment */
+      %00 %10 %00 %00 %00 %00 %00 %00 # alignment
+
+      allocSections { ==s
+        ### program header
+        # Elf64_Word       p_type;          /* Type of segment */
+        %01 %00 %00 %00 # loadable segment
+        # Elf64_Word       p_flags;         /* Segment attributes */
+        %07 %00 %00 %00 # read | write | execute
+        # Elf64_Off        p_offset;        /* Offset in file */
+        s .dataOffset uint64
+        # Elf64_Addr       p_vaddr;         /* Virtual address in memory */
+        s .dataBase uint64
+        # Elf64_Addr       p_paddr;         /* Reserved */
+        %00 %00 %00 %00 %00 %00 %00 %00
+        # Elf64_Xword      p_filesz;        /* Size of segment in file */
+        s .dataSize uint64
+        # Elf64_Xword      p_memsz;         /* Size of segment in memory */
+        s .dataSize uint64
+        # Elf64_Xword      p_align;         /* Alignment of segment */
+        %00 %10 %00 %00 %00 %00 %00 %00 # alignment
+      } each
+
+      ### program header describing dynamic table
+      2 uint32 # dynamic table
+      7 uint32 # read | write | execute
+      # Elf64_Off        p_offset;        /* Offset in file */
+      dynamicTable .dataOffset uint64
+      # Elf64_Addr       p_vaddr;         /* Virtual address in memory */
+      %700000000000 dynamicTable .dataOffset add uint64
+      # Elf64_Addr       p_paddr;         /* Reserved */
+      %00 %00 %00 %00 %00 %00 %00 %00
+      # Elf64_Xword      p_filesz;        /* Size of segment in file */
+      dynamicTable .dataSize uint64
+      # Elf64_Xword      p_memsz;         /* Size of segment in memory */
+      dynamicTable .dataSize uint64
+      # Elf64_Xword      p_align;         /* Alignment of segment */
+      %00 %10 %00 %00 %00 %00 %00 %00 # alignment
+
+      [ metaSections allocSections ] { { ==s
+        ### section header
+        # Elf64_Word  sh_name;      /* Section name */
+        s .nameOffset uint32
+        # Elf64_Word  sh_type;      /* Section type */
+        s .type uint32
+        # Elf64_Xword sh_flags;     /* Section attributes */
+        s .flags uint64
+        # Elf64_Addr  sh_addr;      /* Virtual address in memory */
+        s .addr uint64
+        # Elf64_Off   sh_offset;    /* Offset in file */
+        s .dataOffset uint64
+        # Elf64_Xword sh_size;      /* Size of section */
+        s .dataSize uint64
+        # Elf64_Word  sh_link;      /* Link to other section */
+        s .link uint32
+        # Elf64_Word  sh_info;      /* Miscellaneous information */
+        0 uint32
+        # Elf64_Xword sh_addralign; /* Address alignment boundary */
+        1 uint64
+        # Elf64_Xword sh_entsize;   /* Size of entries, if section has table */
+        s .entsize uint64
+      } each } each
+    ] metaSections { .data cat } each ==fileData
+
+    fileData len str .alloc ==buffer
+    0 fileData len range { ==i i fileData * i buffer =[] } each
+
+    buffer out .writeall
+
+    1 ==:WRITE
+
+    buffer len ==fileOffset
+
+    allocSections { ==section
+      section .dataOffset fileOffset sub str .alloc out .writeall
+      section .dataOffset section .dataSize add =fileOffset
+
+      out .fd section .dataBase section .dataSize 0 0 0 WRITE sys .asm .syscall --
+      section .dataSize neq { "write failed" die } rep
+    } each
+
+    out .close
+
+    ==f
+
+    sys .asm .patchProgramStart frozenAllocationCount neq {
+      "freezing allocated new memory chunks, retrying..." dump
+      f filename sys .so .freeze
+    } rep
+  } /freeze deffd
 > /so sys .defv
 
 # vim: syn=elymas

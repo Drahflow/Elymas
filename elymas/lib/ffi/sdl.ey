@@ -1,0 +1,15 @@
+<
+  sys .so ":" via
+
+  "/usr/lib/x86_64-linux-gnu/libSDL2.so" :dlopen --
+
+  32 ==:SDL_INIT_VIDEO
+
+  { -0021 :resolveFunction -01 deffd }' "->" deffd
+
+  "i" "i32" ->SDL_Init
+  "" "s" ->SDL_GetError
+  "siiiii" "p" ->SDL_CreateWindow
+> /sdl ffi .defv
+
+# vim: syn=elymas

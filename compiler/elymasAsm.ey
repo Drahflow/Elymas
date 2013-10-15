@@ -770,12 +770,14 @@
   /je   _ %74 defJmpRel8 %84 defJmpRel32
   /jg   _ %7F defJmpRel8 %8F defJmpRel32
   /jge  _ %7D defJmpRel8 %8D defJmpRel32
+  /jl   _ %7C defJmpRel8 %8C defJmpRel32
   /jle  _ %7E defJmpRel8 %8E defJmpRel32
   /jnb  _ %73 defJmpRel8 %83 defJmpRel32
   /jnc  _ %73 defJmpRel8 %83 defJmpRel32
   /jne  _ %75 defJmpRel8 %85 defJmpRel32
   /jng  _ %7E defJmpRel8 %8E defJmpRel32
   /jnl  _ %7D defJmpRel8 %8D defJmpRel32
+  /jnge _ %7C defJmpRel8 %8C defJmpRel32
   /jnle _ %7F defJmpRel8 %8F defJmpRel32
   /jns  _ %79 defJmpRel8 %89 defJmpRel32
   /jno  _ %71 defJmpRel8 %81 defJmpRel32
@@ -928,6 +930,55 @@
     %A5
   } /movsq deff
 
+  { ==dst ==src
+    dst bit64assert
+    src bit8assert
+
+    1 dst /none src rex
+    %0F
+    %BE
+    dst src modrm11
+  } /movsxbqRegReg deff
+
+  { ==dst ==src
+    dst bit64assert
+    src bit16assert
+
+    1 dst /none src rex
+    %0F
+    %BF
+    dst src modrm11
+  } /movsxwqRegReg deff
+
+  { ==dst ==src
+    dst bit64assert
+    src bit32assert
+
+    1 dst /none src rex
+    %63
+    dst src modrm11
+  } /movsxlqRegReg deff
+
+  { ==dst ==src
+    dst bit64assert
+    src bit8assert
+
+    1 dst /none src rex
+    %0F
+    %B6
+    dst src modrm11
+  } /movzxbqRegReg deff
+
+  { ==dst ==src
+    dst bit64assert
+    src bit16assert
+
+    1 dst /none src rex
+    %0F
+    %B7
+    dst src modrm11
+  } /movzxwqRegReg deff
+
   { ==reg ==mem
     reg bit64assert
     mem bit64assert
@@ -936,7 +987,7 @@
     %0F
     %B6
     reg mem modrm00
-  } /movzxMem8Reg64 deff
+  } /movzxMem8Reg64 deff # TODO: this is a weird name, should be movzxbqMemReg
 
   { ==reg ==mem ==disp
     reg bit64assert
@@ -948,7 +999,7 @@
     %B6
     reg mem modrm01
     disp imm8
-  } /movzxMem8Disp8Reg64 deff
+  } /movzxMem8Disp8Reg64 deff # TODO: this is a weird name, should be movzxbqMemDisp8Reg
 
   { ==reg ==mem ==idx ==scale ==disp
     reg bit64assert
@@ -962,7 +1013,7 @@
     reg /sib modrm01
     scale idx mem sib
     disp imm8
-  } /movzxMem8IndexScaleDisp8Reg64 deff
+  } /movzxMem8IndexScaleDisp8Reg64 deff # TODO: this is a weird name, should be movzxbqMemIndexScaleDisp8Reg
 
   { ==reg
     reg bit64assert
@@ -1030,6 +1081,10 @@
   } /reprcx deff
 
   {
+    %F2
+  } /repnz deff
+
+  {
     %F3
   } /repz deff
 
@@ -1052,6 +1107,10 @@
     %D3
     /zero reg modrm11
   } /rolqClReg deff
+
+  {
+    %AE
+  } /scasb deff
 
   { ==reg
     reg regno %07 gt reg rexreqbyte or { 0 reg /none /none rex } rep
@@ -1140,7 +1199,7 @@
     scale idx mem sib
   } /testbRegMemIndexScale deff
 
-  { ==reg =i
+  { ==reg ==i
     reg bit8assert
     i 256 lt not { "Imm8 too large" die } rep
 
