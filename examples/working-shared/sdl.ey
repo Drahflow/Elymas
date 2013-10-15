@@ -3,13 +3,18 @@
 
 ffi .sdl ":" via
 
-:SDL_INIT_VIDEO :SDL_Init {
-  :SDL_GetError dump
-  "SDL_Init failed" die
+:INIT_VIDEO :Init {
+  :GetError dump
+  "Init failed" die
 } rep
 
-"Ohai!" 0 0 800 600 0 :SDL_CreateWindow
+"Ohai!" 0 0 800 600 0 :CreateWindow ==w
 
-"done" die
+w :GetWindowSurface ==s
+s 255 :Fill dump
+w :UpdateWindowSurface
+
+1 sys .out .read dump
+:Quit
 
 # vim: syn=elymas

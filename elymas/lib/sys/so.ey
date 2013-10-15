@@ -262,7 +262,7 @@
 
     {
       [
-        { rets "v" streq }' { }
+        { rets "" streq }' { }
         { rets "s" streq }' {
           /rax :pushqReg
           /rcx /rcx :xorqRegReg
