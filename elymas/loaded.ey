@@ -5,7 +5,6 @@
   "lib/txt.ey"
   "lib/math.ey"
   "lib/sys/linux.ey"
-  # "lib/sys/so.ey"
   "lib/net.ey"
   "lib/net/tcp.ey"
   "lib/net/udp.ey"

@@ -1,5 +1,18 @@
 #!/usr/bin/env elymas
 
-"lib/sys/so.ey" include
+[
+  "lib/bin.ey"
+  "lib/txt.ey"
+  "lib/math.ey"
+  "lib/sys/linux.ey"
+  "lib/sys/so.ey"
+  "lib/net.ey"
+  "lib/net/tcp.ey"
+  "lib/net/udp.ey"
+  "lib/net/dns.ey"
+  "lib/net/alg.ey"
+  "lib/net/alg/server.ey"
+  "lib/net/alg/http.ey"
+] { _ dump include }' each
 
 { "/proc/self/fd/0" include 0 sys .exit }' "shared" sys .so .freeze
