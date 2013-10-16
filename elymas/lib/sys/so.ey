@@ -45,9 +45,9 @@
 
       defBitVariants
     > /produce defvd
-  > _
-      .consume "=>" via
-      .produce "<=" via
+  > _ .consume "=>" via
+    _ .produce "<=" via
+      /mem defvd
 
   { ==a
     4096 str .alloc ==buf
@@ -195,7 +195,7 @@
           } =*finalZeroSpaceAvailable
 
           {
-            0 nextIntegerRegister 1 sub range { availableIntegerRegisters * :pushqReg } each
+            0 nextIntegerRegister 1 sub range { availableIntegerRegisters :pushqReg } each
 
             reg :pushqReg
             1 /rax /rdi :leaqMemDisp8Reg
@@ -211,7 +211,7 @@
             0 /rsi :andbImmMem
             24 /rax reg :leaqMemDisp8Reg
 
-            0 nextIntegerRegister 1 sub range reverse { availableIntegerRegisters * :popqReg } each
+            0 nextIntegerRegister 1 sub range reverse { availableIntegerRegisters :popqReg } each
           } =*finalZeroSpaceNotAvailable
 
           [
@@ -336,8 +336,14 @@
       /r15 /rax :movqRegMem
 
       argumentLoaders reverse { _ len dearray } each
+
+      /rsp /rbp :movqRegReg
+      %F0 /rsp :andqImm8Reg
+
       func /rax :movqImmReg
       /rax :callqReg
+
+      /rbp /rsp :movqRegReg
 
       returnWrapper
 
@@ -355,9 +361,15 @@
     /rdi :popqReg
     24 /rdi :addqImm8Reg # load filename
     257 /rsi :movqImmReg # RTLD_LAZY | RTLD_GLOBAL
+
+    /rsp /rbp :movqRegReg
+    %F0 /rsp :andqImm8Reg
+
     dlopenAddress rawContentAddress /rax :movqImmReg
     /rax /rax :movqMemReg
     /rax :callqReg
+
+    /rbp /rsp :movqRegReg
     
     /rax :pushqReg
     ::internalAllocateInteger /rax :movqImmReg
@@ -383,9 +395,14 @@
     /rsi :popqReg
     24 /rsi :addqImm8Reg # load symbol name
 
+    /rsp /rbp :movqRegReg
+    %F0 /rsp :andqImm8Reg
+
     dlsymAddress rawContentAddress /rax :movqImmReg
     /rax /rax :movqMemReg
     /rax :callqReg
+
+    /rbp /rsp :movqRegReg
     
     /rax :pushqReg
     ::internalAllocateInteger /rax :movqImmReg
@@ -424,8 +441,9 @@
   # 1 -> argument specification string (see wrapFunction for details)
   # 2 -> name of function
   # the resulting function will take as many arguments as specified and return a single integer
-  { ==rets ==args # ==name
-    0 dlsym args rets wrapFunction
+  { ==rets ==args ==name
+    name 0 dlsym _ not { "Could not resolve function: " name cat die } rep
+                   args rets wrapFunction
   } /resolveFunction deffd
 
   { ==filename # ==f (left on the stack a while and executed from sys .asm .programStart)
