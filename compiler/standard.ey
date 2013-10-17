@@ -65,4 +65,7 @@
   } loop
 } /conds deffd
 
+{ -1010 gt -021 ? } /max deffd
+{ -1010 lt -021 ? } /min deffd
+
 # vim: syn=elymas
