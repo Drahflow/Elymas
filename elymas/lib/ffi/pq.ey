@@ -1,0 +1,173 @@
+# PostgreSQL support
+
+<
+  sys .so ":" via
+
+  "/usr/lib/libpq.so" :dlopen --
+
+  { "PQ" -01 cat -021 -210 :resolveFunction }' "=>" deffd
+  { _ "PQ" -01 cat -1032 :resolveFunction -01 deffd }' "->" deffd
+  
+  # connection setup and teardown
+  "s" "p" ->connectdb
+  "p" "" ->finish
+
+  # connection parameter getters
+  "p" "s" ->db
+  "p" "s" ->user
+  "p" "s" ->host
+  "p" "s" ->port
+  "p" "s" ->options
+
+  0 ==:CONNECTION_OK
+  1 ==:CONNECTION_BAD
+  "p" "u32" ->status
+
+  0 ==:TRANS_IDLE
+  1 ==:TRANS_ACTIVE
+  2 ==:TRANS_INTRANS
+  3 ==:TRANS_INERROR
+  4 ==:TRANS_UNKNOWN
+  "p" "u32" ->transactionStatus
+
+  { -01 } "ps" "s" =>parameterStatus ; /parameterStatus deffd
+
+  "p" "s" ->errorMessage
+
+  "p" "u32" ->socket
+  "p" "u32" ->backendPID
+  
+  # 0 -> connection
+  # 1 -> statement SQL text
+  # 0 <- result
+  { -01 } "ps" "p" =>exec ; /exec deffd
+
+  # 0 -> connection
+  # 1 -> statement SQL text
+  # 2 -> paramCount
+  # 3 ... -> parameters (last one at 3)
+  # 0 <- result
+  <
+    "psiibiii" "p" =>execParams =*:internalExecParams
+    { ==con ==sql ==paramCount
+      paramCount 8 mul str .alloc ==paramValues
+      paramValues :rawContentAddress ==i
+
+      paramCount { _ sys .typed .type ==t
+        [
+          { t 0 eq }' { txt .u "\0" cat }'
+          { t 1 eq }' { "\0" cat }'
+          { 1 }' { "unsupported parameter type" die }
+        ] conds
+        :rawContentAddress i :mem .produce .u64
+        i 8 add =i
+      } rep
+
+        con
+        sql
+        paramCount
+        0 # all parameters implicitely typed
+        paramValues
+        0 # all parameters passed as text
+        0 # all parameters passed as text
+        0 # text results requested
+      internalExecParams
+    }
+  > -- /execParams deffd
+
+  # 0 -> connection
+  # 1 -> statement name
+  # 2 -> statement SQL text
+  # 0 <- result
+  { 0 -12300 } "pssii" "p" =>prepare ; /prepare deffd
+
+  0 ==:EMPTY_QUERY
+  1 ==:COMMAND_OK
+  2 ==:TUPLES_OK
+  3 ==:COPY_OUT
+  4 ==:COPY_IN
+  5 ==:BAD_RESPONSE
+  6 ==:NONFATAL_ERROR
+  7 ==:FATAL_ERROR
+  8 ==:COPY_BOTH
+  9 ==:SINGLE_TUPLE
+
+  "p" "u32" ->resultStatus
+  "i" "s" ->resStatus
+  "p" "s" ->resultErrorMessage
+
+  # 0 -> result
+  "p" "" ->clear
+
+  "p" "i32" ->ntuples
+  "p" "i32" ->nfields
+
+  { -01 } "pi" "s" =>fname ; /fname deffd
+  { -01 } "ps" "i32" =>fnumber ; /fnumber deffd
+
+  # 0 -> result
+  # 1 -> row number
+  # 2 -> column number
+  # 0 <- value
+  { -021 } "pii" "s" =>getvalue ; /getvalue deffd
+
+  # 0 -> result
+  # 1 -> row number
+  # 2 -> column number
+  # 0 <- 1 if the field is null
+  { -021 } "pii" "u32" =>getisnull ; /getisnull deffd
+
+  "p" "s" ->cmdStatus
+  "p" "s" ->cmdTuples
+  
+  # 0 -> connection
+  # 1 -> encoding
+  # 0 <- 0 on success
+  { -01 } "ps" "i32" =>setClientEncoding ; /setClientEncoding deffd
+
+  # object oriented interface
+  "s" "p" =>connectdb { ==con <
+    [
+      /finish /db /user /host /port /options /status /transactionStatus
+      /parameterStatus /errorMessage /socket /backendPID
+      /prepare
+      /setClientEncoding
+    ] {
+      { con } ffi .pq -2102 .| ; -01 deffst
+    }' each
+
+    |errorMessage /error deffst
+
+    [
+      /exec /execParams /prepare
+    ] {
+      { con } ffi .pq -2102 .| ; { ==res <
+        [
+          /resultStatus /resultErrorMessage
+          /clear /ntuples /nfields /fname /fnumber
+          /getvalue /getisnull /cmdStatus /cmdTuples
+        ] {
+          { res } ffi .pq -2102 .| ; -01 deffst
+        }' each
+
+        |resultErrorMessage /error deffst
+        |resultStatus /status deffst
+        |resultStatus |resStatus ; /strStatus deffst
+
+        {
+          0 nfields range ==fieldRange
+          [ fieldRange { fname } each ] =*fieldNames
+          [ 0 ntuples range { ==r
+            <
+              fieldRange { == }' { =*def ==c
+                r c getvalue c fieldNames def
+              }_ each
+            >
+          } each ]
+        } /all deffst
+      > } ; -01 deffst
+    }' each
+  > } ; /connect deffd
+> /pq ffi .defv
+
+# vim: syn=elymas
