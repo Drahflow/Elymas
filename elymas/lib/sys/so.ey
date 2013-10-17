@@ -7,9 +7,6 @@
   sys .asm .|peek =*:peek
   sys .asm .|poke =*:poke
 
-  { -1010 gt -021 ? } /max deffd
-  { -1010 lt -021 ? } /min deffd
-
   # hex decoding
   { # ==strNumber
     0 -01 { 48 sub [ 0 1 2 3 4 5 6 7 8 9  0 0 0 0 0 0 0  10 11 12 13 14 15 ] * -01 16 mul -01 add } each
@@ -159,81 +156,104 @@
   # 2 -> address of function
   # the resulting function will take as many arguments as specified and return a single integer
   { ==rets ==args ==func
-    [ /rdi /rsi /rdx /rcx /r8 /r9 ] =*:availableIntegerRegisters
+    [ /rdi /rsi /rdx /rcx /r8 /r9 ] _ =*:availableIntegerRegisters
+                                      len ==:INTREGISTERS
     0 ==nextIntegerRegister
-
+    
     [
-      args { ==t [
-        { t 0 "i" * eq
-          t 0 "p" * eq or }' {
-          nextIntegerRegister availableIntegerRegisters ==reg
+      0 args len range { _ ==arg args * ==t
+        { # returns the register where the value is available
+          /rax ==reg
+          nextIntegerRegister INTREGISTERS lt {
+            nextIntegerRegister availableIntegerRegisters =reg
+          } rep
+          args len 1 sub arg sub 8 mul /rsp reg :movqMemDisp8Reg
+          reg
+        } /useIntegerStorage deffst
+
+        { # increments storage index, possibly do final stores
+          nextIntegerRegister INTREGISTERS ge {
+            /rax args len 1 sub arg sub 8 mul /rbp :movqRegMemDisp8
+          } rep
           nextIntegerRegister 1 add =nextIntegerRegister
+        } /nextIntegerStorage deffst
 
-          [
-            reg :popqReg
-            63 reg :btrqImm8Reg
-            [ 8 reg reg :movqMemDisp8Reg ] len :jcRel8
-            8 reg reg :movqMemDisp8Reg
-          ]
-        }
-        { t 0 "b" * eq }' {
-          nextIntegerRegister availableIntegerRegisters ==reg
-          nextIntegerRegister 1 add =nextIntegerRegister
+        {
+          0 nextIntegerRegister 6 min range { availableIntegerRegisters :pushqReg } each
+        } /pushIntegerStorage deffst
 
-          [
-            reg :popqReg
-            24 reg :addqImm8Reg
-          ]
-        }
-        { t 0 "s" * eq }' {
-          nextIntegerRegister availableIntegerRegisters ==reg
-          nextIntegerRegister 1 add =nextIntegerRegister
+        {
+          0 nextIntegerRegister 6 min range reverse { availableIntegerRegisters :popqReg } each
+        } /popIntegerStorage deffst
 
-          {
-            0 24 1 /rax reg :andbImmMemIndexScaleDisp8
-            24 reg :addqImm8Reg
-          } =*finalZeroSpaceAvailable
-
-          {
-            0 nextIntegerRegister 1 sub range { availableIntegerRegisters :pushqReg } each
-
-            reg :pushqReg
-            1 /rax /rdi :leaqMemDisp8Reg
-            ::internalAllocateString /rax :movqImmReg
-            /rax :callqReg
-
-            24 /rax /rdi :leaqMemDisp8Reg
-
-            /rax :popqReg
-            24 /rax /rsi :leaqMemDisp8Reg
-            16 /rax /rcx :movqMemDisp8Reg
-            :reprcx :movsb
-            0 /rsi :andbImmMem
-            24 /rax reg :leaqMemDisp8Reg
-
-            0 nextIntegerRegister 1 sub range reverse { availableIntegerRegisters :popqReg } each
-          } =*finalZeroSpaceNotAvailable
-
-          [
-            reg :popqReg
-            16 reg /rax :movqMemDisp8Reg
-            7 /al :testbImmReg
+        [
+          { t 0 "i" * eq
+            t 0 "p" * eq or }' {
             [
+              useIntegerStorage ==reg
+              63 reg :btrqImm8Reg
+              [ 8 reg reg :movqMemDisp8Reg ] len :jcRel8
+              8 reg reg :movqMemDisp8Reg
+              nextIntegerStorage
+            ]
+          }
+          { t 0 "b" * eq }' {
+            [
+              useIntegerStorage ==reg
+              24 reg :addqImm8Reg
+              nextIntegerStorage
+            ]
+          }
+          { t 0 "s" * eq }' {
+            [
+              useIntegerStorage ==reg
+
+              {
+                0 24 1 /rax reg :andbImmMemIndexScaleDisp8
+                24 reg :addqImm8Reg
+              } =*finalZeroSpaceAvailable
+
+              {
+                pushIntegerStorage
+
+                reg :pushqReg
+                1 /rax /rdi :leaqMemDisp8Reg
+                ::internalAllocateString /rax :movqImmReg
+                /rax :callqReg
+
+                24 /rax /rdi :leaqMemDisp8Reg
+
+                /rax :popqReg
+                24 /rax /rsi :leaqMemDisp8Reg
+                16 /rax /rcx :movqMemDisp8Reg
+                :reprcx :movsb
+                0 /rsi :andbImmMem
+                24 /rax reg :leaqMemDisp8Reg
+
+                popIntegerStorage
+              } =*finalZeroSpaceNotAvailable
+
+              16 reg /rax :movqMemDisp8Reg
+              7 /al :testbImmReg
+              [
+                finalZeroSpaceNotAvailable
+                0 :jmpRel8
+              ] len :jnzRel8
               finalZeroSpaceNotAvailable
-              0 :jmpRel8
-            ] len :jnzRel8
-            finalZeroSpaceNotAvailable
-            [
+              [
+                finalZeroSpaceAvailable
+              ] len :jmpRel8
               finalZeroSpaceAvailable
-            ] len :jmpRel8
-            finalZeroSpaceAvailable
-          ]
-        }
-        { 1 }' {
-          t dump
-          "unknown argument semantics argument" die
-        }
-      ] conds } each
+
+              nextIntegerStorage
+            ]
+          }
+          { 1 }' {
+            t dump
+            "unknown argument semantics argument" die
+          }
+        ] conds
+      } each
     ] ==argumentLoaders
     
     {
@@ -335,7 +355,14 @@
       r15backup rawContentAddress /rax :movqImmReg
       /r15 /rax :movqRegMem
 
-      argumentLoaders reverse { _ len dearray } each
+      args len INTREGISTERS ge {
+        /rsp /rbp :movqRegReg
+        INTREGISTERS 8 mul /rbp :addqImm8Reg
+        %F0 /rbp :andqImm8Reg
+      } rep
+
+      argumentLoaders { _ len dearray } each
+      args len INTREGISTERS min 8 mul /rsp :addqImm8Reg
 
       /rsp /rbp :movqRegReg
       %F0 /rsp :andqImm8Reg
