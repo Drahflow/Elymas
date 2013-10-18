@@ -180,9 +180,11 @@
 
         {
           0 nextIntegerRegister 6 min range { availableIntegerRegisters :pushqReg } each
+          /rbp :pushqReg
         } /pushIntegerStorage deffst
 
         {
+          /rbp :popqReg
           0 nextIntegerRegister 6 min range reverse { availableIntegerRegisters :popqReg } each
         } /popIntegerStorage deffst
 
@@ -371,6 +373,10 @@
       /rax :callqReg
 
       /rbp /rsp :movqRegReg
+
+      args len INTREGISTERS gt {
+        args len INTREGISTERS sub 8 mul /rsp :addqImm8Reg
+      } rep
 
       returnWrapper
 
