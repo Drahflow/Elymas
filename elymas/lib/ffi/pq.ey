@@ -51,16 +51,16 @@
     "psiibiii" "p" =>execParams =*:internalExecParams
     { ==con ==sql ==paramCount
       paramCount 8 mul str .alloc ==paramValues
-      paramValues :rawContentAddress ==i
+      paramValues :rawContentAddress paramCount 8 mul add ==i
 
       paramCount { _ sys .typed .type ==t
+        i 8 sub =i
         [
-          { t 0 eq }' { txt .u "\0" cat }'
+          { t 0 eq }' { txt .produce .u "\0" cat }'
           { t 1 eq }' { "\0" cat }'
           { 1 }' { "unsupported parameter type" die }
         ] conds
         :rawContentAddress i :mem .produce .u64
-        i 8 add =i
       } rep
 
         con
