@@ -355,7 +355,7 @@
       %50 /cl :cmpbImmReg
       /normalFunction :jeLbl8
       %10 /cl :cmpbImmReg
-      /stringFunctionSJ :jeLbl8
+      /stringFunctionSJ :jeLbl8 # TODO replace by long jump
       %70 /cl :cmpbImmReg
       /unexecutable :jneLbl8
       /arrayFunction :jmpLbl32
@@ -1611,6 +1611,60 @@
       %C0 -101* /eydefvd defv
       %C1 -101* /eydeffd defv
       --
+
+    # retype a function
+    # 0 -> function output arguments as array
+    # 1 -> function input arguments as array
+    # 2 -> function object
+    # 0 <- function object with new types
+    [[
+      24 /r15 :subqImm8Reg
+      16 /r15 :popqMemDisp8 # return address
+      8 /r15 :popqMemDisp8 # output arguments
+      /r15 :popqMem # input arguments
+
+      /r15 /rdx :movqMemReg
+      /rdx /edi :movlMemReg
+      8 /r15 /rdx :movqMemDisp8Reg
+      /rdx /edi :addlMemReg # rdi now input + output array lengths + 16
+      8 /rdi :addqImm8Reg # rdi now length of function type object
+
+      ::internalAllocate /rax :movqImmReg
+      /rax :callqReg
+      %80 7 /rax :orbImmMemDisp8 # set type
+      8 /rax /rdi :leaqMemDisp8Reg
+      /rax /rbp :movqRegReg # store type object away for later use
+
+      /r15 /rdx :movqMemReg
+      /rdx /eax :movlMemReg
+      3 /rax :shrqImm8Reg
+      /rax :decqReg
+      /rax /rcx :movqRegReg
+      :stosq # store input argument count
+      8 /rdx /rsi :leaqMemDisp8Reg
+      :reprcx :movsq # store input argument types
+
+      8 /r15 /rdx :movqMemDisp8Reg
+      /rdx /eax :movlMemReg
+      3 /rax :shrqImm8Reg
+      /rax :decqReg
+      /rax /rcx :movqRegReg
+      :stosq # store output argument count
+      8 /rdx /rsi :leaqMemDisp8Reg
+      :reprcx :movsq # store output argument types
+
+      /rax :popqReg # original function object
+      8 /rax /rsi :movqMemDisp8Reg # scope pointer as before
+      24 /rax /rdi :movqMemDisp8Reg # code pointer as before
+      /rbp /rdx :movqRegReg # type pointer to new type object
+      ::internalAllocateFunction /rax :movqImmReg
+      /rax :callqReg
+      /rax :pushqReg
+
+      16 /r15 :pushqMemDisp8
+      24 /r15 :addqImm8Reg
+      :retn
+    ]] /ey' defv
 
     # concatenate two functions
     # 0 -> function g

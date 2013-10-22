@@ -25,53 +25,49 @@ bareword  -> lookup "bareword" in current scopes
 { -> push quote begin marker on stack, increase parser quote count
 } -> since the topmost quote marker, everything becomes one closure (deduce type), decrease parser quote count
 
-dup -> dups
-|dup -> push dup function pointer
-\dup -> dups
+add -> adds
+|add -> push add function pointer
+\add -> adds
 
-|f |g ; -> { f g }
+|f |g ; -> { f g }    (modulo subtle scoping differences)
 { ...1 } variable ; { ...2 } ; -> { ...1 variable } { ...2 } ; -> { ...1 variable ...2 }
 1 2 |add * -> 3
 
 |f * -> f
-|f *10 g -> f <copy the former _10> g
 
 StructuredData.field -> StructuredData "field" . -> dereference field in structured data, if passive push, if active do
 SD "field" .| -> dereference, push value
 SD "field" .\ -> dereference, call
 
-x "string" =    -> dereference, create (passive/active depends on type) field if not existent, set value to x
-x pointer =     -> dereference, set value to x
-x /pointervar = -> sets the pointer itself
-x |pointervar = -> sets the value the pointer points to
-x \pointervar = -> if the pointer points to a value which is a pointer, assign where that pointer points to
-
 v "name" deff -> define name as active name, assign v
 v "name" defv -> define name as passive name, assign v
+v =name -> set current value of name to v, leave modes intact
 
 < -> push new scope
 > -> pop scope, structured data object now on stack
 < 0 =a 0 =b > -> something which has a and b is on top of stack
 
-0 1 2 _0 -> 0 1 2 2
-0 1 2 _1 -> 0 1 2 1
-0 1 2 _2 -> 0 1 2 0
-0 1 2 -0 -> 2
-0 1 2 -1 -> 1
-0 1 2 -2 -> 0
+0 1 2 _    -> 0 1 2 2
+0 1 2 -0   -> 0 1 2
+0 1 2 -000 -> 0 1 2 2 2
+0 1 2 -020 -> 2 0 2
+0 1 2 -1   -> 0 1
+0 1 2 -2   -> 0
 
 exch = -01
-pop = -
-nop = _
-dup = _0
-_<digits> -> copy stack contents according to digits
--<digits> -> delete stack contents up to largest digit or count of "-" whichever is larger, recreate according to digits
+pop = --
+dup = _
+
+-<digits> -> delete stack contents up to largest digit, recreate according to digits
 
 1 [ 2 3 ] add -> [ 3 4 ]
 [ [ 1 ] [ 2 ] ] length -> 2     # scanning for applicable base type from top
 
 A->int B->int add    ->  B->A->int
 A->int A->int add    ->  A->int
+
+# argument order to ' is from stack-top to stack-lower
+[ 1 2 3 ] [ /foo /bar /quux ] { defv }' [ "" 1 ] [ ] ' *
 
 = Characters =
 
@@ -81,7 +77,7 @@ A->int A->int add    ->  A->int
 $: <open>
 %: <open>
 &: <open>
-': <open>
+': type assignment
 (: tuple begin
 ): tuple end
 *: apply function

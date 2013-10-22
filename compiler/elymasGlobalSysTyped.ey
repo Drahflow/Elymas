@@ -39,6 +39,47 @@
       :retn
     ]] /eyinputs defv
 
+    # return the array of output types of a function
+    # 0 -> the function object to analyze
+    # 0 <- the array of output types
+    [[
+      /rbx :popqReg
+
+      /rdx :popqReg
+      16 /rdx /rdx :movqMemDisp8Reg
+      /rdx /rdx :testqRegReg
+      /typed :jnzLbl8
+
+      # untyped functions, it does not officially produce any objects
+      /rdi /rdi :xorqRegReg
+      ::internalAllocateArray /rax :movqImmReg
+      /rax :callqReg
+      /rax :pushqReg
+      /rbx :pushqReg
+      :retn
+
+      @typed
+      8 /rdx /rax :movqMemDisp8Reg
+      16 8 /rax /rdx /rdx :leaqMemIndexScaleDisp8Reg
+      /rdx /rdi :movqMemReg
+      3 /rdi :shlqImm8Reg
+      8 /rdx /rsi :leaqMemDisp8Reg
+      /rsi :pushqReg
+      ::internalAllocateArray /rax :movqImmReg
+      /rax :callqReg
+
+      /rsi :popqReg
+      /rax :pushqReg
+
+      8 /rax /rdi :leaqMemDisp8Reg
+      /rax /ecx :movlMemReg
+      8 /rcx :subqImm8Reg
+      :reprcx :movsb
+
+      /rbx :pushqReg
+      :retn
+    ]] /eyoutputs defv
+
     # return the type of an object
     # 0 -> the object to analyze
     # 0 <- an integer from 0 - 15

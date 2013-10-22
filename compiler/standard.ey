@@ -17,9 +17,9 @@
 }" /via defq
 
 { -1110 ; ==f =*a len _
-  {
-    0 a
-    1 -102 range f each
+    {
+      0 a
+      1 -102 range f each
     }' { "fold on empty array" die }'
   ? *
 } /fold deffd

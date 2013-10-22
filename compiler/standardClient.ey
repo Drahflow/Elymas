@@ -502,8 +502,8 @@
     # Returns an array which lists the sequence of curried arguments
     # i.e. if f: A -> B -> C -> D -> E the result will be [ A B C D ]
     { ==object
-      { "unknown type in typeStack" die } ==unknown
-      { "invalid type in typeStack" die } ==invalid
+      { object dump "unknown type in typeStack" die } ==unknown
+      { object dump "invalid type in typeStack" die } ==invalid
       { [ object 0 1 neg ] } ==literal
 
       object sys .typed .type [
@@ -576,7 +576,7 @@
         { 2 laterType * 1 neg neq }
         { laterType 1 }
 
-        # General integers go-iterate iff they binary and results in non-zero
+        # General integers co-iterate iff their binary and results in non-zero
         { 0 earlierType * 0 laterType * band 0 neq }
         { earlierType 1 }
 

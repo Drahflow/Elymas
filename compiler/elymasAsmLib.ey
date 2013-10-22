@@ -614,12 +614,24 @@
       :retn
 
       @markFunctionType
-      /rdi :pushqReg
-      "function type marked FIXME\n" outputError
-      /rdi :popqReg
+      # /rdi :pushqReg
+      # "function type marked FIXME\n" outputError
+      # /rdi :popqReg
 
-      :ud2 # FIXME needs to be done
+      /rcx :pushqReg
+      /rsi :pushqReg
+      /rdi /ecx :movlMemReg
+      /rdi /rsi :movqRegReg
+      8 /rcx :subqImm8Reg
+      @markFunctionTypeLoop
+      /rsi /rcx /rdi :movqMemIndexReg
+      /markObject :callqLbl32
+      8 /rcx :subqImm8Reg
+      /markFunctionTypeLoop :jnzLbl8
+      /rsi :popqReg
+      /rcx :popqReg
       :retn
+
 
       # allocate next chunk of memory from the operating system
       @allocateFromSystem
