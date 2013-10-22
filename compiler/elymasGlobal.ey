@@ -479,8 +479,7 @@
       /rsi /rax :movqMemReg
       @unboxedAbstract
       /rbp /rax :cmovcqRegReg
-      56 /rax :shrqImm8Reg
-      %F0 /al :andbImmReg # al == type of abstract argument
+      60 /rax :shrqImm8Reg # al == type of abstract argument
 
       /rdi /rsi :movqMemReg # rsi == address of concrete argument
       63 /rsi :btrqImm8Reg
@@ -488,12 +487,11 @@
       /rsi /rsi :movqMemReg
       @unboxedConcrete
       /rbp /rsi :cmovcqRegReg
-      56 /rsi :shrqImm8Reg
-      %F0 /sil :andbImmReg # sil = type of concrete argument
+      60 /rsi :shrqImm8Reg # sil = type of concrete argument
 
       /al /sil :cmpbRegReg
       /typedNonCommon :jnzLbl8 # non-equal types
-      %E0 /al :testbImmReg
+      %0E /al :testbImmReg
       /typedNonCommon :jnzLbl8 # non-trivial types
 
       8 /rdi :addqImm8Reg

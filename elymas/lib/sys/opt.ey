@@ -265,9 +265,11 @@
         i 3 sub logic * ==thirdLast
 
         { ==e
-          0 e * STATICTYPED streq { 4 e * sys .typed .type 0 eq }' andif
-          0 e * PUSH        streq { 1 e * sys .typed .type 0 eq }' andif
-          or
+          [
+            0 e * STATICTYPED streq { 4 e * sys .typed .type 0 eq }' andif
+            0 e * PUSH        streq { 1 e * sys .typed .type 0 eq }' andif
+            0 e * STRINGSTAR  streq
+          ] any
         } /holdsInt deffd
 
         action CALL streq
