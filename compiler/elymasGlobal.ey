@@ -1869,6 +1869,19 @@
       # /r15 -> first part
       # 8 /r15 -> second part
 
+      # check loop parts for being functions
+      /r15 /rsi :movqMemReg
+      7 /rsi /cl :movbMemDisp8Reg
+      %F0 /cl :andbImmReg
+      %50 /cl :cmpbImmReg
+      /loop :jnzLbl8
+      8 /r15 /rdi :movqMemDisp8Reg
+      7 /rdi /cl :movbMemDisp8Reg
+      %F0 /cl :andbImmReg
+      %50 /cl :cmpbImmReg
+      /loop :jnzLbl8
+      /functionLoop :jmpLbl8
+
       @loop
       /r15 :pushqMem
       |ey* /rax :movqImmReg
@@ -1891,6 +1904,41 @@
       /r15 :pushqMem
       8 /r15 :addqImm8Reg
       :retn
+
+      @functionLoop
+      # check loop parts for being non-typed
+      16 /rsi /rax :movqMemDisp8Reg
+      16 /rdi /rax :orqMemDisp8Reg
+      /nonTypedLoop :jzLbl8
+      /loop :jmpLbl8 # TODO: maybe put a faster version here one day
+
+      @nonTypedLoop
+      # check loop parts for being non-capturing
+      8 /rsi /rax :movqMemDisp8Reg
+      8 /rdi /rax :orqMemDisp8Reg
+      /nonCapturingLoopEntry :jzLbl8
+      /loop :jmpLbl8 # TODO: here should follow a significantly faster version already
+
+      @nonCapturingLoopEntry
+      24 /rsi /rsi :movqMemDisp8Reg
+      24 /rdi /rdi :movqMemDisp8Reg
+      16 /rsi :addqImm8Reg
+      16 /rdi :addqImm8Reg
+      /rsi /r15 :movqRegMem
+      /rdi 8 /r15 :movqRegMemDisp8
+
+      @nonCapturingLoop
+      /r15 /rax :movqMemReg
+      /rax :callqReg
+
+      /rax :popqReg
+      /rax ::unboxInteger
+      /rax /rax :testqRegReg
+      /end :jzLbl8
+
+      8 /r15 /rax :movqMemDisp8Reg
+      /rax :callqReg
+      /nonCapturingLoop :jmpLbl8
     ]] /eyloop defv
 
     # a foreach loop

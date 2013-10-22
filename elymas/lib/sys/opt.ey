@@ -133,6 +133,7 @@
   /ARRAYSTAR ==:ARRAYSTAR
   /UNTYPEDSCOPEDSTAR ==:UNTYPEDSCOPEDSTAR
   /UNTYPEDUNSCOPEDSTAR ==:UNTYPEDUNSCOPEDSTAR
+  /STRINGSTAR ==:STRINGSTAR
 
   { =*f ==t
     t { f } { 0 } ? *
@@ -368,7 +369,9 @@
 
             type [
               { "failed to optimize 'execution' of integer typed object" die }
-              { } # TODO string case
+              {
+                [ STRINGSTAR ] i logic =[]
+              }
               { "failed to optimize 'execution' of scope typed object" die }
               { "failed to optimize 'execution' of name table" die }
               { "failed to optimize 'execution' of extension area" die }
@@ -402,10 +405,50 @@
       } each
     } /rewriteConstantStar deffst
 
+    { _ ==logic
+      3 logic len range { ==i i logic * ==entry 0 entry * ==action i 1 sub logic * ==last i 2 sub logic * ==secondLast i 3 sub logic * ==thirdLast
+        [
+          { action CALL streq
+            { 1 entry * "*" | ::rawCodeAddress eq }' andif
+            { 0 last * CALL streq }' andif
+            { 1 last * "?" | ::rawCodeAddress eq }' andif
+            { 0 secondLast * PUSH streq }' andif
+            { 0 thirdLast * PUSH streq }' andif
+            { 1 secondLast * ::rawObject sys .typed .type 5 eq }' andif
+            { 1 thirdLast * ::rawObject sys .typed .type 5 eq }' andif
+            { 1 secondLast * ::rawObject sys .typed .inputs len not }' andif # TODO: think about typed functions
+            { 1 thirdLast * ::rawObject sys .typed .inputs len not }' andif # TODO: think about typed functions
+          }' {
+            1 secondLast * ::rawObject sys .capturedScope _ { -01 -- } { } ? * ==hasScope
+            1 thirdLast * ::rawObject sys .capturedScope _ { -01 -- } { } ? * hasScope or =hasScope
+
+            hasScope {
+              [ UNTYPEDSCOPEDSTAR ] i logic =[]
+            } {
+              [ UNTYPEDUNSCOPEDSTAR ] i logic =[]
+            } ? *
+          }
+        ] conds
+      } each
+    } /rewriteConstantQuestionStar deffst
+
     { ==logic
       [ NOP ] ==last
       [ logic { ==entry 0 entry * ==action
         [
+          { action CALL streq { 1 entry * "?" | ::rawCodeAddress eq }' andif }' {
+            [ NATIVE [
+              /rcx :popqReg
+              /rdx :popqReg
+              /rax :popqReg
+              63 /rax :btrqImm8Reg
+              [ 8 /rax /rax :movqMemDisp8Reg ] len :jcRel8
+              8 /rax /rax :movqMemDisp8Reg
+              /rax /rax :testqRegReg
+              /rcx /rdx :cmovzqRegReg
+              /rdx :pushqReg
+            ] ] =entry
+          }
           { action CALL streq { 1 entry * "_" | ::rawCodeAddress eq }' andif }' {
             [ NATIVE [
               0 /rsp :pushqMemDisp8
@@ -454,7 +497,7 @@
         last
         entry =last
       } each last ]
-    } /rewriteStackOps deffst
+    } /rewriteSimpleFunctions deffst
 
     sys .asm "::" via
     sys .asm .|peek ==:peek
@@ -636,9 +679,10 @@
       rewriteConstantEquals
     } rep
     rewriteConstantDot
-    rewriteArithmetics
     rewriteConstantStar
-    rewriteStackOps
+    rewriteConstantQuestionStar
+    rewriteArithmetics
+    rewriteSimpleFunctions
     { =*entry 0 entry ==action
       [
         { action PUSH streq }' {
@@ -782,6 +826,22 @@
             /rdx /rdx :xorqRegReg
             /rcx :divqReg
             8 8 /rdx /rsi :pushqMemIndexScaleDisp8
+          ] emitOpcodes
+        }
+
+        { action STRINGSTAR streq }' {
+          [
+            /rsi :popqReg
+            /rax :popqReg
+            63 /rax :btrqImm8Reg
+            [ 8 /rax /rax :movqMemDisp8Reg ] len :jcRel8
+            8 /rax /rax :movqMemDisp8Reg
+            16 /rsi /rcx :movqMemDisp8Reg
+            /rdx /rdx :xorqRegReg
+            /rcx :divqReg
+            24 1 /rdx /rsi /rbx :movzxMem8IndexScaleDisp8Reg64
+            63 /rbx :btsqImm8Reg
+            /rbx :pushqReg
           ] emitOpcodes
         }
 
