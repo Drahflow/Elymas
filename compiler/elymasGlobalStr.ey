@@ -109,8 +109,6 @@
       /rax :pushqReg
 
       :cld
-      /rcx /rcx :testqRegReg
-
       24 1 /rsi /rdx /rsi :leaqMemIndexScaleDisp8Reg
       24 /rax /rdi :leaqMemDisp8Reg
       :reprcx :movsb
@@ -162,8 +160,6 @@
       /rax :pushqReg
 
       :cld
-      /rcx /rcx :testqRegReg
-
       24 1 /rsi /rdx /rsi :leaqMemIndexScaleDisp8Reg
       24 /rax /rdi :leaqMemDisp8Reg
       :reprcx :movsb
@@ -216,8 +212,6 @@
       /rax :pushqReg
 
       :cld
-      /rcx /rcx :testqRegReg
-
       24 1 /rsi /rdx /rsi :leaqMemIndexScaleDisp8Reg
       24 /rax /rdi :leaqMemDisp8Reg
       :reprcx :movsb

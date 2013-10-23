@@ -279,6 +279,49 @@
           { thirdLast holdsInt }' andif
         {
           [
+            { 1 last * |add ::rawAddress eq
+              { 0 secondLast * PUSH streq }' andif
+              { 1 secondLast * 128 lt }' andif
+            }' {
+              1 secondLast * ==value
+              [ NATIVE [
+                /rdx :popqReg
+                63 /rdx :btrqImm8Reg
+                [ 8 /rdx /rdx :movqMemDisp8Reg ] len :jcRel8
+                8 /rdx /rdx :movqMemDisp8Reg
+
+                value /rdx :addqImm8Reg
+
+                /rdx /rax :movqRegReg
+                32 /rax :shrqImm8Reg
+                
+                [
+                  63 /rdx :btsqImm8Reg
+                  /rdx :pushqReg
+                  0 :jmpRel8
+                ] len :jnzRel8
+
+                63 /rdx :btsqImm8Reg
+                /rdx :pushqReg
+
+                [
+                  /rdx :pushqReg
+                  ::internalAllocateInteger /rax :movqImmReg
+                  /rax :callqReg
+                  8 /rax :popqMemDisp8
+                  /rax :pushqReg
+                ] len :jmpRel8
+
+                /rdx :pushqReg
+                ::internalAllocateInteger /rax :movqImmReg
+                /rax :callqReg
+                8 /rax :popqMemDisp8
+                /rax :pushqReg
+              ] ] i logic =[]
+              [ NOP ] i 1 sub logic =[]
+              [ NOP ] i 2 sub logic =[]
+            }
+
             { 1 last * |add ::rawAddress eq }' {
               [ NATIVE [
                 /rcx :popqReg
