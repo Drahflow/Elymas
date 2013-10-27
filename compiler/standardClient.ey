@@ -448,12 +448,11 @@
           buffer 4096 read cat =buffer # FIXME interpreter API should also have .read defined as returning string
           buffer "" streq not
         } {
-          {
-            buffer "([^\\n]*)\\n" regex
-          } {
-            _ len 1 add buffer str .postfix =buffer
-              f
-          } loop
+          buffer "\n" str .split ==lines
+          0 lines len 1 sub range {
+            lines * f
+          } each
+          lines len 1 sub lines * =buffer
         } loop
       } /eachLine deff
   > > -- } /makefile deff

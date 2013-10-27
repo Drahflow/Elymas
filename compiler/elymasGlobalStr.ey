@@ -259,6 +259,111 @@
       :retn
     ]] /eyfromArray defv
 
+    # split a string on a given character
+    # 0 -> single letter separator string
+    # 1 -> string to split
+    # 0 <- array of string fragments
+    # Examples:
+    # "" ";" str .split -> [ "" ]
+    # "foo;bar" ";" str .split -> [ "foo" "bar" ]
+    # "foo;bar;quux;" ";" str .split -> [ "foo" "bar" "quux" "" ]
+    [[
+      /rbx :popqReg
+
+      /rax :popqReg
+      1 16 /rax :cmpqImm8MemDisp8
+      /notSingleCharacter :jnzLbl32
+      24 /rax /rax :movqMemDisp8Reg # al == the separator char
+
+      /rdx :popqReg
+      16 /rdx /rcx :movqMemDisp8Reg
+      24 /rdx /rdi :leaqMemDisp8Reg
+
+      /rcx /rcx :testqRegReg
+      /nonEmptyInitialString :jnzLbl8
+      /rdi :pushqReg
+      /rdi :incqReg
+      /rdi :pushqReg
+      1 /rbp :movqImmReg
+      /finalCharacterNotSeparator :jmpLbl8
+      @nonEmptyInitialString
+
+      /rbp /rbp :xorqRegReg
+      /rdi :pushqReg # push (effect of) virtual separator before string data
+
+      @searchFragmentLoop
+      :repnz :scasb
+      /rdi :pushqReg
+      /rbp :incqReg
+
+      /rcx /rcx :testqRegReg
+      /searchFragmentLoop :jnzLbl8
+
+      /al 1 neg /rdi :cmpbRegMemDisp8
+      /finalCharacterNotSeparator :jnzLbl8
+      /rdi :incqReg
+      /rdi :pushqReg
+      /rbp :incqReg
+      /finalCharacterSeparator :jmpLbl8
+
+      @finalCharacterNotSeparator
+      1 0 /rsp :addqImm8MemDisp8
+
+      @finalCharacterSeparator
+
+      # the stack now holds rbp many pointers to fragment starts (from bottom to top)
+      24 /r15 :subqImm8Reg
+      /rbp 8 /r15 :movqRegMemDisp8
+
+      /rbp /rdi :movqRegReg
+      3 /rdi :shlqImm8Reg
+      ::internalAllocateArray /rax :movqImmReg
+      /rax :callqReg
+      
+      8 /r15 /rbp :movqMemDisp8Reg # rbp == count of fragments
+      /rax 16 /r15 :movqRegMemDisp8 # 16 /r15 == result array object
+      8 /rbp /rax /rdi :leaqMemIndexScaleReg # rdi == last array cell
+      /rdi /r15 :movqRegMem
+      # 0 /r15 == target array cell
+      # 8 /r15 == remaining fragments to generate
+      # 16 /r15 == result array object
+
+      @generateFragmentLoop
+      0 /rsp /rdi :movqMemDisp8Reg
+      8 /rsp /rdi :subqMemDisp8Reg
+      /rdi :decqReg
+      ::internalAllocateString /rax :movqImmReg
+      /rax :callqReg
+      /r15 /rdi :movqMemReg
+      /rax /rdi :movqRegMem # new string object into array cell
+      8 /r15 :subqImm8Mem # move to array cell 8 bytes before
+
+      24 /rax /rdi :leaqMemDisp8Reg # new string object data section to rdi
+      8 /rsp /rsi :movqMemDisp8Reg # fragment data to rsi
+
+      0 /rsp /rcx :movqMemDisp8Reg
+      8 /rsp /rcx :subqMemDisp8Reg
+      /rcx :decqReg
+      :reprcx :movsb
+
+      8 /rsp :addqImm8Reg # drop fragment data
+
+      1 8 /r15 :subqImm8MemDisp8
+      /generateFragmentLoop :jnzLbl8
+
+      16 /r15 /rax :movqMemDisp8Reg
+      /rax 0 /rsp :movqRegMemDisp8 # replace last fragment data by array object
+
+      24 /r15 :addqImm8Reg
+
+      /rbx :pushqReg
+      :retn
+
+      @notSingleCharacter
+      "separator string not single character" ::outputError
+      :ud2
+    ]] /eysplit defv
+
     ## Bitfield style functions
 
     # reset a string to all-zero
