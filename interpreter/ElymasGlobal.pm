@@ -7,7 +7,7 @@ use Elymas;
 use ElymasSys;
 
 use Data::Dumper;
-use Devel::FindRef;
+# use Devel::FindRef;
 use Scalar::Util qw(weaken);
 
 $globalScope = {
