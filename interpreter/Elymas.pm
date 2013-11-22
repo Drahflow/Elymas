@@ -15,8 +15,8 @@ use Data::Dumper;
 # use Devel::Leak;
 # use Devel::Cycle;
 # use Devel::FindRef;
-our @allObjs;
-use PadWalker qw(closed_over set_closed_over peek_sub peek_my peek_our);
+# our @allObjs;
+# use PadWalker qw(closed_over set_closed_over peek_sub peek_my peek_our);
 
 use Scalar::Util qw(weaken);
 
