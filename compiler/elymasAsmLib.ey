@@ -615,7 +615,7 @@
 
       @markFunctionType
       # /rdi :pushqReg
-      # "function type marked FIXME\n" outputError
+      # "function type marked\n" outputError
       # /rdi :popqReg
 
       /rcx :pushqReg
