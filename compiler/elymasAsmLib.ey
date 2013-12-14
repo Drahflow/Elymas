@@ -95,9 +95,6 @@
 
     # current parser quote state
     [ %00 %00 %00 %00 %00 %00 %00 %00 ] ==currentQuoted
-
-    # global allocation list
-    [ :globalAllocations .base :imm64 ] ==globalAllocationList # FIXME what is this for? directly use :globalAllocations
   > { defv }' allocateOffsetStruct
 
   { ==register
@@ -673,8 +670,7 @@
       # rsi == size in bytes
 
       # record new block in global allocation list
-      globalAllocationList /rax :movqImmReg
-      /rax /rax :movqMemReg
+      :globalAllocations .base /rax :movqImmReg
       16 /rax :addqImm8Mem
       /rax /rax :addqMemReg
       16 /rax :subqImm8Reg

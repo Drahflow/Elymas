@@ -114,8 +114,7 @@
     [[
       /rbx :popqReg
 
-      ::globalAllocationList /rdx :movqImmReg
-      /rdx /rdx :movqMemReg
+      :globalAllocations .base /rdx :movqImmReg
       /rdx /rdx :movqMemReg
       4 /rdx :shrqImm8Reg
       /rdx :decqReg
@@ -141,8 +140,7 @@
 
       /rcx ::unboxInteger
 
-      ::globalAllocationList /rdx :movqImmReg
-      /rdx /rdx :movqMemReg
+      :globalAllocations .base /rdx :movqImmReg
       /rcx :incqReg
       4 /rcx :shlqImm8Reg
 
@@ -168,8 +166,7 @@
 
       /rcx ::unboxInteger
 
-      ::globalAllocationList /rdx :movqImmReg
-      /rdx /rdx :movqMemReg
+      :globalAllocations .base /rdx :movqImmReg
       /rcx :incqReg
       4 /rcx :shlqImm8Reg
 
