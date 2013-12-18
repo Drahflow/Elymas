@@ -823,6 +823,7 @@
   { 0 dumpIndented }
 > -- /dump deffd
 
+# TODO: why do we save section information, exactly?
 { ==filename # ==f (left on the stack a while and executed from sys .asm .programStart)
   sys .asm .patchProgramStart ==frozenAllocationCount
 
@@ -879,7 +880,7 @@
         0 ==?dataOffset { =dataOffset } /setDataOffset deff
         1 ==?type # program data
         7 ==?flags # writable, allocated, executable
-        0 ==?addr # FIXME
+        i sys .asm .globalAllocBase ==?addr # address where this section will be loaded
         0 ==?link # no associated section
         0 ==?entsize # no entries
         i sys .asm .globalAllocBase ==?dataBase
