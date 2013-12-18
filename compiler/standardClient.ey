@@ -122,34 +122,17 @@
       [ { ^d } {
         { _ 0 "0" * ge -01 0 "9" * le and }" terminal =a
         tail
-      } { ^\ } { # FIXME the following code looks like it could be compressed a bit
-        { 0 "\\" * eq }" terminal =a
-        tail
-      } { ^. } {
-        { 0 "." * eq }" terminal =a
-        tail
       } { ^n } {
         { 0 "\n" * eq }" terminal =a
         tail
-      } { ^[ } {
-        { 0 "[" * eq }" terminal =a
-        tail
-      } { ^? } {
-        { 0 "?" * eq }" terminal =a
-        tail
-      } { ^* } {
-        { 0 "*" * eq }" terminal =a
-        tail
-      } { ^+ } {
-        { 0 "+" * eq }" terminal =a
-        tail
-      } { ^$ } {
-        { 0 "$" * eq }" terminal =a
-        tail
-      } { ^^ } {
-        { 0 "^" * eq }" terminal =a
-        tail
-      } { 1 } {
+      }
+      [ "." "[" "?" "*" "+" "$" "^" "\\" ] { ==c
+        { _ head 0 c * eq } {
+          { 0 c * eq } terminal =a
+          tail
+        }
+      } each
+      { 1 } {
         "invalid character '" "' after \\ in regex" -120 cat cat die
       } ] conds
     } { 1 } {
