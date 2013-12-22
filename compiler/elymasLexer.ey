@@ -43,7 +43,7 @@
 
 { /input defv
   "" {
-    4096 input .readstr cat
+    4096 input .read cat
     _ "" streq not
   } {
     { _ "([^\\n]*)\\n(.*)" regex } { -102 -- TOKINT TOKSTR TOKID elymas .tokenize {

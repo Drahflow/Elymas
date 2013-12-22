@@ -428,7 +428,7 @@
       } /writeall deff
       { =*f "" ==buffer
         {
-          buffer 4096 read cat =buffer # FIXME interpreter API should also have .read defined as returning string
+          buffer 4096 read cat =buffer
           buffer "" streq not
         } {
           buffer "\n" str .split ==lines

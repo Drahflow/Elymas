@@ -71,56 +71,8 @@ sub createFile {
         my $ret = POSIX::read($$scope->{' fd'}->[0], $buf, $count);
         die "read failed: $!" unless defined $ret;
 
-        $buf = [map { [ord, 'int'] } split //, $buf];
-
-        push @$data, [$buf, ['array', '[]', [['range', 0, $#{$buf}]], ['int']]];
-      }, ['func', 'sys .file .read'], 'active'],
-    'readall' => [sub {
-        my ($data) = @_;
-
-        die "file not open" if $$scope->{' fd'}->[0] == -1;
-
-        my $count = popInt($data);
-
-        my $buf = [];
-        while($count) {
-          my $readbuf;
-          my $ret = POSIX::read($$scope->{' fd'}->[0], $readbuf, $count);
-          die "read failed: $!" unless defined $ret;
-
-          $buf = [@$buf, map { [ord, 'int'] } split //, $readbuf];
-          $count -= $ret;
-        }
-
-        push @$data, [$buf, ['array', '[]', [['range', 0, $#{$buf}]], ['int']]];
-      }, ['func', 'sys .file .read'], 'active'],
-    'readstr' => [sub {
-        # FIXME: give the file an encoding and respect it here, buffering half-characters if needed
-        my ($data) = @_;
-
-        die "file not open" if $$scope->{' fd'}->[0] == -1;
-
-        my $count = popInt($data);
-
-        my $buf;
-        my $ret = POSIX::read($$scope->{' fd'}->[0], $buf, $count);
-        die "read failed: $!" unless defined $ret;
-
         push @$data, [$buf, 'string'];
-      }, ['func', 'sys .file .readstr'], 'active'],
-    'write' => [sub {
-        my ($data) = @_;
-
-        die "file not open" if $$scope->{' fd'}->[0] == -1;
-
-        my $buf = popArray($data);
-        $buf = join '', map { chr($_->[0]) } @$buf;
-
-        my $ret = POSIX::write($$scope->{' fd'}->[0], $buf, length $buf);
-        die "write failed: $!" unless defined $ret;
-
-        push @$data, [$ret, 'int'];
-      }, ['func', 'sys .file .write'], 'active'],
+      }, ['func', 'sys .file .read'], 'active'],
     'writeall' => [sub {
         my ($data) = @_;
 
@@ -135,8 +87,7 @@ sub createFile {
           $buf = substr($buf, $ret);
         }
       }, ['func', 'sys .file .writeall'], 'active'],
-    'writestr' => [sub {
-        # FIXME: give the file an encoding and respect it here
+    'write' => [sub {
         my ($data) = @_;
 
         die "file not open" if $$scope->{' fd'}->[0] == -1;
