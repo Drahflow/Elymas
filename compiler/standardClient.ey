@@ -341,10 +341,15 @@
   } /execute deffst
 
   parse ==prog --
+  prog 0 -01 * 0 -01 * FIRST neq {
+    [
+      [ SPLIT 3 1 ]
+      [ TERM { -- 1 }" ]
+      [ JUMP 2 neg ]
+      prog _ len dearray
+    ] =prog
+  } rep
   [
-    [ SPLIT 3 1 ]
-    [ TERM { -- 1 }" ]
-    [ JUMP 2 neg ]
     prog _ len dearray
     [ MATCH ]
   ] =prog
