@@ -15,8 +15,7 @@
   # 0 -> ascii ip address
   # 0 <- ipv4 address as un32
   { [ -01 "^(\\d+)\\.(\\d+)\\.(\\d+)\\.(\\d+)$" regex not { "not an IPv4 address" die } rep ]
-    [ -01 txt .consume .|u each ] # FIXME employ typed functions and auto-map
-    reverse str .fromArray
+    txt .consume .u reverse str .fromArray
   } /parseIpv4 deffd
 
   # 0 -> hostname
