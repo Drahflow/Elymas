@@ -10,15 +10,15 @@
     }
   > -- /base10decode deff
 
-  { /f deff /re deff _ /s defv re { f } { s } ? * } /rxparse deff
+  { ==f =*re _ ==s re f { s } ? * } /rxparse deffd
 
   { ==TOKID ==TOKSTR ==TOKINT
     " " cat
     { < /handle deff /value defv > } /token deff
     [ -01 { _ "" streq not } {
-      0 /matched defv { /f deff matched { -- } { { 1 =matched f } rxparse } ? * } /parse deff
+      0 ==matched { =*f matched { -- } { { 1 =matched f } rxparse } ? * } /parse deffst
 
-      { "^ (.*)" regex } { } parse
+      { "^ +(.*)" regex } { } parse
       { "^#" regex } { "" } parse
       { "^(\\d+) +(.*)" regex } { TOKINT token -01 } parse
       { "^\"(.*)" regex } {
