@@ -27,6 +27,12 @@
     {
       _ { [ -01 10 math .base reverse "0123456789" each ] str .fromArray } { -- "0" } ? *
     } [ 0 ] [ "" ] ' /u deffd
+
+    # 0 -> positive integer (or zero)
+    # 0 <- hexadecimal representation as string
+    {
+      _ { [ -01 16 math .base reverse "0123456789ABCDEF" each ] str .fromArray } { -- "0" } ? *
+    } [ 0 ] [ "" ] ' /hu deffd
   > /produce defvd
 > /txt defvd
 

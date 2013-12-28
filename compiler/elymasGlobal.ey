@@ -9,8 +9,9 @@
   { [ } "[[" deff
   { ] :labelResolve ::stringResolve } "]]" deff
 
-  256 ==INITIALEXTENSIONSIZE
-  256 ==INITIALSCOPESIZE
+  1 ==INITIALEXTENSIONSIZE
+  2 ==INITIALSCOPESIZE
+  1 ==INITIALNAMETABLESIZE
 
   # elymas functions, stack based ABI
 
@@ -139,6 +140,8 @@
       # search for name in nametable
       /r14 /rbx :movqRegReg # rbx == start of scope in heap
       8 /rbx /rdx :movqMemDisp8Reg # rdx == start of nametable in heap
+      /rdx /rdx :testqRegReg
+      /createNameTable :jzLbl32
       8 /rbx /rsi :movqMemDisp8Reg # rsi == start of nametable in heap
       8 /rsi /rsi :addqMemDisp8Reg # rsi == end of nametable in heap (according to fill)
 
@@ -172,7 +175,7 @@
       /rsi :popqReg
       /rdx :popqReg
       /rax /rax :testqRegReg
-      /nameOffsetKnown :jnzLbl8
+      /nameOffsetKnown :jnzLbl32
       /nameSearch :jmpLbl8
 
       # if not exists, insert
@@ -193,7 +196,7 @@
       8 /rbx /rdx :movqMemDisp8Reg # rdx == start of nametable in heap
       16 8 /rdx :addqImm8MemDisp8 # increment fill
       /rsi /rdx :movqRegReg
-      /nameOffsetKnown :jmpLbl8
+      /nameOffsetKnown :jmpLbl32
 
       @enlargeNameTable
       # if name table is already full, double size
@@ -203,7 +206,7 @@
       /rdx /edi :movlMemReg # load current length
       /rdi /rdi :addqRegReg
 
-      ::internalAllocate /rax :movqImmReg
+      ::internalAllocateAndZero /rax :movqImmReg
       /rax :callqReg
       %30 7 /rax :orbImmMemDisp8 # set type
       /rdx :popqReg
@@ -215,15 +218,29 @@
       16 /rcx :subqImm8Reg
       3 /rcx :shrqImm8Reg
       :reprcx :movsq # copy content
+      /insertIntoNewNameTable :jmpLbl8
 
-      # rax == enlarged name table on heap
+      @createNameTable
+      /rdi :pushqReg
+
+      INITIALNAMETABLESIZE 16 mul 16 add /rdi :movqImmReg
+      ::internalAllocateAndZero /rax :movqImmReg
+      /rax :callqReg
+      %30 7 /rax :orbImmMemDisp8 # set type
+      16 8 /rax :orbImmMemDisp8 # set initial fill
+      16 /rax /rdi :leaqMemDisp8Reg # load first entry address
+
+      @insertIntoNewNameTable
+
+      # rax == enlarged or new name table on heap
+      # rdi == target address for name table entry
       
       /rax 8 /rbx :movqRegMemDisp8 # switch scope to new name table
 
       # insert into name table
       /rsi :popqReg
       /rsi /rdi :xchgqRegReg
-      /insertIntoNameTable :jmpLbl8
+      /insertIntoNameTable :jmpLbl32
       
       @nameOffsetKnown
       8 /rbx /rdx :subqMemDisp8Reg # substract name table address
@@ -249,8 +266,8 @@
       /extensionAreaExists :jnzLbl8
 
       /rdx :pushqReg
-      INITIALEXTENSIONSIZE /rdi :movqImmReg
-      ::internalAllocate /rax :movqImmReg
+      INITIALEXTENSIONSIZE 8 mul 8 add /rdi :movqImmReg
+      ::internalAllocateAndZero /rax :movqImmReg
       /rax :callqReg
       /rdx :popqReg
 
@@ -271,7 +288,7 @@
       /rdx :pushqReg
       /rdi /edi :movlMemReg
       /rdi /rdi :addqRegReg
-      ::internalAllocate /rax :movqImmReg
+      ::internalAllocateAndZero /rax :movqImmReg
       /rax :callqReg
       /rdx :popqReg
       /rdi :popqReg

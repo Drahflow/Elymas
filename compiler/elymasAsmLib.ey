@@ -418,9 +418,11 @@
       # rdi == cell index of first 16-byte cell of object
 
       # TODO optimize this by jumping right into markObject
+      /rdi /r10 :btsqRegMem # set mark bit
       4 /rdi :shlqImm8Reg
       /r8 /rdi :addqRegReg
-      /markObject :jmpLbl8
+      1 /rbp :orqImm8Reg # rbp == 1: here from stack exploration, function code references valid in trivial forward
+      /markObjectUnclean :jmpLbl8
 
       @markObjectDone
       :retn
@@ -429,6 +431,7 @@
       # guaranteed not to clobber rcx, rsi (because it is used in many loops)
       @markObject
       # rdi == address of a reachable object or some other random bits
+      /rbp /rbp :xorqRegReg # rbp == 0: not from stack exploration, function code references ignored if trivial forward
       /rdi /r8 :cmpqRegReg
       /markObjectDone :jaLbl32 # pointing below the heap
       15 /dil :testbImmReg
@@ -448,6 +451,7 @@
       /rdx /r10 :btsqRegMem # test mark bit
       /markObjectDone :jcLbl8 # was already marked
 
+      @markObjectUnclean
       /rax /rax :xorqRegReg
       7 /rdi /al :movbMemDisp8Reg
       %F0 /al :andbImmReg
@@ -568,6 +572,10 @@
       # "function code marked\n" outputError
       # /rdi :popqReg
 
+      /rbp /rbp :testqRegReg
+      /markFunctionCodeForward :jzLbl8 # FIXME reenable this one day
+
+      @markFunctionCodeFull
       /rcx :pushqReg
       /rsi :pushqReg
       /rdi /ecx :movlMemReg
@@ -588,6 +596,20 @@
       /rsi :popqReg
       /rcx :popqReg
       :retn
+
+      # function was reached from somewhere but the stack, check if trivial forward code
+      @markFunctionCodeForward
+      0 [ 0 /rax :movqImmReg ] * 16 /rdi :cmpbImmMemDisp8
+      /markFunctionCodeFull :jnzLbl8
+      1 [ 0 /rax :movqImmReg ] * 17 /rdi :cmpbImmMemDisp8
+      /markFunctionCodeFull :jnzLbl8
+      0 [ /rax :jmpqReg ] * 26 /rdi :cmpbImmMemDisp8
+      /markFunctionCodeFull :jnzLbl8
+      1 [ /rax :jmpqReg ] * 27 /rdi :cmpbImmMemDisp8
+      /markFunctionCodeFull :jnzLbl8
+      18 /rdi /rdi :movqMemDisp8Reg
+      16 /rdi :subqImm8Reg
+      /markObject :jmpLbl32
 
       @markArray
       # /rdi :pushqReg
@@ -694,6 +716,26 @@
   > { defv }' allocateOffsetStruct
 
   <
+    # allocate a chunk of memory and zero it
+    # rdi -> size of chunk in bytes
+    # rax <- address of allocated chunk
+    #        chunk will have GC length header initialized correctly
+    [[
+      internalAllocate /rax :movqImmReg
+      /rax :callqReg
+
+      /rax /ecx :movlMemReg
+      3 /rcx :shrqImm8Reg
+      1 /rcx :subqImm8Reg
+      8 /rax /rdi :leaqMemDisp8Reg
+      /rsi /rax :xchgqRegReg
+      /rax /rax :xorqRegReg
+      :reprcx :stosq
+      /rsi /rax :xchgqRegReg
+
+      :retn
+    ]] /internalAllocateAndZero defv
+
     # resolve element from scope
     # rdi -> address of scope on the heap
     # rsi -> address of element name on the heap
@@ -732,6 +774,9 @@
       # ENDCHECK
 
       8 /rdi /rbp :movqMemDisp8Reg # load name table
+      /rbp /rbp :testqRegReg
+      /end :jzLbl8 # no name table present - empty scope
+      
       16 /rbp /rdx :leaqMemDisp8Reg # rdx will iterate over entries
       8 /rbp /rbp :addqMemDisp8Reg # compute name table effective end
       /rsi /rax :movqRegReg
@@ -892,43 +937,15 @@
     # rax <- address of scope on the heap
     [
       /rsi :pushqReg
-      /rdi :pushqReg
-      
-      # allocate name table
-      4 /rdi :shlqImm8Reg
-      16 /rdi :addqImm8Reg
-      internalAllocate /rax :movqImmReg
-      /rax :callqReg
-
-      # set type
-      %30 7 /rax :orbImmMemDisp8
-
-      # set fill to header size
-      16 8 /rax :movqImm32MemDisp8
-
-      /rdi :popqReg
-      /rax :pushqReg # save name table on the stack
 
       3 /rdi :shlqImm8Reg
       32 /rdi :addqImm8Reg
-      internalAllocate /rax :movqImmReg
+      internalAllocateAndZero /rax :movqImmReg
       /rax :callqReg
 
       # set type and existence of all pointers
       %26 7 /rax :orbImmMemDisp8
-      8 /rax :popqMemDisp8 # reference name table
       16 /rax :popqMemDisp8 # set parent
-
-      # zero extension and remaining scope
-
-      /rax /ecx :movlMemReg
-      3 /rcx :shrqImm8Reg
-      3 /rcx :subqImm8Reg
-      24 /rax /rdi :leaqMemDisp8Reg
-      /rsi /rax :xchgqRegReg
-      /rax /rax :xorqRegReg
-      :reprcx :stosq
-      /rsi /rax :xchgqRegReg
 
       :retn
     ] /internalAllocateScope defv
@@ -1070,7 +1087,7 @@
     8 /r15 :subqImm8Reg
     /r14 /r15 :movqRegMem
     /r14 /rsi :movqRegReg
-    8 /rdi :movqImmReg
+    2 /rdi :movqImmReg # FIXME: this should use INITIALSCOPESIZE
     internalAllocateScope /rax :movqImmReg
     /rax :callqReg
     /rax /r14 :movqRegReg

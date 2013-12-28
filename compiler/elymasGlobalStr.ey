@@ -242,8 +242,12 @@
 
       /rcx :popqReg # number of characters to copy
       /rsi :popqReg
-      8 /rsi :addqImm8Reg # move rsi to first array entry
       /rax :pushqReg # store target string on stack
+
+      /rcx /rcx :testqRegReg
+      /emptyArray :jzLbl8
+
+      8 /rsi :addqImm8Reg # move rsi to first array entry
       24 /rax :addqImm8Reg # move rax to first string byte
 
       @copyByte
@@ -255,6 +259,7 @@
       /rax :incqReg
       /copyByte :loopLbl8
 
+      @emptyArray
       /rbx :pushqReg
       :retn
     ]] /eyfromArray defv

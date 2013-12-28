@@ -15,7 +15,7 @@
     8 /r15 :subqImm8Reg
     /r14 /r15 :movqRegMem
     /r14 /rsi :movqRegReg
-    8 /rdi :movqImmReg
+    0 /rdi :movqImmReg # this should match arbitrary INITIALSCOPESIZE, hence 0
     0 /rax :movqImmReg
     /rax :callqReg
     /rax /r14 :movqRegReg
@@ -694,7 +694,13 @@
     [ ] ==newOpcodes
     { newOpcodes -01 cat =newOpcodes }' /emitOpcodes deffst
     [ ] ==newReferences
-    { newReferences [ -102 ] cat =newReferences }' /emitReference deffst
+    { ==ref
+      [
+        { ref 105553116266496 lt } { } # HEAPBASE # FIXME: use a global constant
+        { ref 123145302310912 ge } { } # %700000000000
+        { 1 } { newReferences [ ref ] cat =newReferences }
+      ] conds
+    }' /emitReference deffst
 
     # [ :ud2 ] emitOpcodes # enable for further development
 
@@ -705,7 +711,7 @@
         8 /r15 :subqImm8Reg
         /r14 /r15 :movqRegMem
         /r14 /rsi :movqRegReg
-        8 /rdi :movqImmReg
+        2 /rdi :movqImmReg # FIXME: this should use INITIALSCOPESIZE
         ::internalAllocateScope /rax :movqImmReg
         /rax :callqReg
         /rax /r14 :movqRegReg

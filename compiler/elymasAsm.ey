@@ -1112,6 +1112,11 @@
     %AE
   } /scasb deff
 
+  {
+    1 /none /none /none rex
+    %AF
+  } /scasq deff
+
   { ==reg
     reg regno %07 gt reg rexreqbyte or { 0 reg /none /none rex } rep
     %0F

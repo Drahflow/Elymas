@@ -832,16 +832,15 @@
         # Elf64_Xword sh_entsize;   /* Size of entries, if section has table */
         s .entsize uint64
       } each } each
-    ] metaSections { .data cat } each ==fileData
+    ] ==fileHeaders
 
-    fileData len str .alloc ==buffer
-    0 fileData len range { ==i i fileData * i buffer =[] } each
-
-    buffer out .writeall
+    0 ==fileOffset
+    [ fileHeaders metaSections { .data } each ] { ==data
+      fileOffset data len add =fileOffset
+      data str .fromArray out .writeall
+    } each
 
     1 ==:WRITE
-
-    buffer len ==fileOffset
 
     allocSections { ==section
       section .dataOffset fileOffset sub str .alloc out .writeall
@@ -861,5 +860,7 @@
     } rep
   } /freeze deffd
 > /so sys .defv
+
+{ "disabled to free the memory" die } /freeze sys .deff
 
 # vim: syn=elymas

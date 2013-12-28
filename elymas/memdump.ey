@@ -1,0 +1,193 @@
+txt .consume .|hu "%" deffd
+
+%400000000000 ==:MARKBASE
+%500000000000 ==:BLOCKBASE
+%600000000000 ==:HEAPBASE
+%100000000000 ==:ELFBASE
+
+<
+  sys .asm .ops ":" via
+  sys .asm "::" via
+
+  [ # ==addr
+    8 /r15 :subqImm8Reg
+    /r15 :popqMem
+
+    /rax :popqReg
+    8 /rax /rax :movqMemDisp8Reg # this should be a boxed integer
+    /rax :pushqMem # load data to stack
+    ::internalAllocateInteger /rax :movqImmReg
+    /rax :callqReg
+    8 /rax :popqMemDisp8 # store data to integer object
+    /rax :pushqReg
+
+    /r15 :pushqMem
+    8 /r15 :addqImm8Reg
+    :retn
+  ] [ ] sys .asm .createFunction
+> -- /peek64 deffd
+
+sys .linux "+" via
+
+<
+  "shared" +ORDONLY 0 +open ==fd
+  fd +fstat -- # TODO: handle errors
+            .size ==s
+  ELFBASE s +PROTREAD +MAPPRIVATE fd 0 +mmap ELFBASE eq assert
+> --
+
+ELFBASE 32 add peek64 _ dump ==phdr
+ELFBASE 56 add peek64 65536 mod _ dump ==phdrCount
+
+[
+  phdrCount {
+    ELFBASE phdr add peek64 %100000000 mod 1 eq { # LOAD program header
+      <
+        ELFBASE phdr add 8 add peek64 ==fileStart
+        ELFBASE phdr add 16 add peek64 ==memoryStart
+        ELFBASE phdr add 32 add peek64 memoryStart add ==memoryEnd
+      >
+    } rep
+    phdr %38 add =phdr
+  } rep
+] _ ==memoryLayout
+
+{ =*f _ =*a len ==maxI 0 ==i
+  {
+    i maxI lt { i a f } { 0 } ? *
+  } { i 1 add =i } loop
+} /eachWhile deffd
+
+{ ==addr
+  memoryLayout { ==m
+    [
+      { addr m .memoryStart lt } { 1 }
+      { addr m .memoryEnd ge } { 1 }
+      { 1 } {
+        addr m .memoryStart sub m .fileStart add ELFBASE add peek64
+        0 # loop done
+      }
+    ] conds
+  } eachWhile
+} /peekElf64 deffst
+
+HEAPBASE peekElf64 %2E00000000000248 eq assert
+
+sys .asm .|programStart sys .asm .rawCodeAddress { add peekElf64 }_ =*peekProgramStart
+2 peekProgramStart _ dump ==initialRsp
+12 peekProgramStart _ dump ==initialR15
+32 peekProgramStart HEAPBASE add _ dump ==HEAPEND
+78 peekProgramStart _ dump ==initialR14
+
+<
+  HEAPEND HEAPBASE sub 16 div 8 div str .alloc _ str .zero ==objectSeen
+  {
+    HEAPBASE sub 16 div _ objectSeen str .bitTest -01
+                          objectSeen str .bitSet
+  }
+> -- /seen deffst
+
+
+1 neg ==indent
+{ ==addr ==header
+  indent { " " sys .out .writeall } rep
+  header sys .out .writeall
+  " " sys .out .writeall
+  addr txt .produce .hu sys .out .writeall
+  "\n" sys .out .writeall
+} /out deffst
+
+{ ==addr ==header ==type
+  indent { " " sys .out .writeall } rep
+  header sys .out .writeall
+  " " sys .out .writeall
+  addr txt .produce .hu sys .out .writeall
+  " " sys .out .writeall
+  type sys .out .writeall
+  "\n" sys .out .writeall
+} /out2 deffst
+
+{ ==addr
+  indent 1 add =indent
+  [
+    { addr HEAPBASE lt } { "--<low>---" addr out }
+    { addr HEAPEND ge } { "--<high>--" addr out }
+    { addr seen } { "--<seen>--" addr out }
+    { 1 } {
+      { "----------" addr out2 } ":" deffst
+      addr peekElf64 %1000000000000000 div
+      [
+        { :integer }
+        { :string
+          addr 16 add peekElf64 "len:" -01 out
+          addr 24 add peekElf64 256 math .base str .fromArray 0 out
+        }
+        { :scope
+          addr peekElf64 %00000000FFFFFFFF band _ "len:" -01 out 8 div 1 -01 range {
+            8 mul addr add peekElf64 dumpElf
+          } each
+        }
+        { :name_table
+          addr 8 add peekElf64 _ "fill:" -01 out 16 div 1 -01 range {
+            16 mul addr add peekElf64 dumpElf
+          } each
+        }
+        { :extension_area
+          addr peekElf64 %00000000FFFFFFFF band _ "len:" -01 out 8 div 1 -01 range {
+            8 mul addr add peekElf64 dumpElf
+          } each
+        }
+        { :function
+          addr 8 add peekElf64 dumpElf 
+          addr 16 add peekElf64 dumpElf 
+          addr 24 add peekElf64 dumpElf 
+        }
+        { :function_code
+          addr 16 add peekElf64 %FFFF band %B848 eq
+          addr 26 add peekElf64 %FFFF band %E0FF eq and
+          {
+            addr 18 add peekElf64 16 sub dumpElf
+          } {
+            addr 8 add peekElf64 _ "oplen:" -01 out ==oplen
+            addr peekElf64 %00000000FFFFFFFF band _ "len:" -01 out 8 div 2 oplen 8 div add -01 range {
+              8 mul addr add peekElf64 dumpElf
+            } each
+          } ? *
+        }
+        { :array
+          addr peekElf64 %00000000FFFFFFFF band _ "len:" -01 out 8 div 1 -01 range {
+            8 mul addr add peekElf64 dumpElf
+          } each
+        }
+        { :function_type
+          addr peekElf64 %00000000FFFFFFFF band _ "len:" -01 out 8 div 1 -01 range {
+            8 mul addr add peekElf64 dumpElf
+          } each
+        }
+        { :errornous_9 }
+        { :errornous_A }
+        { :errornous_B }
+        { :errornous_C }
+        { :errornous_D }
+        { :errornous_E }
+        { :errornous_F }
+      ] * *
+    }
+  ] conds
+  indent 1 sub =indent
+} /dumpElf deffst
+
+"=== From current scope ===\n" sys .out .writeall
+initialR14 dumpElf
+"=== From current data stack ===\n" sys .out .writeall
+{ initialRsp %FFFF band } {
+  initialRsp peekElf64 dumpElf
+  initialRsp 8 add =initialRsp
+} loop
+"=== From current call stack ===\n" sys .out .writeall
+{ initialR15 %FFFF band } {
+  initialR15 peekElf64 dumpElf
+  initialR15 8 add =initialRsp
+} loop
+
+# vim: syn=elymas
