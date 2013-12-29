@@ -555,7 +555,7 @@
         0 ==?dataSize # to be filled later
         { _ =data len =dataSize } /setData deff
       > _ ==?relocationTable
-    ] ==metaSections
+    ] ==?metaSections
 
     [
       0 frozenAllocationCount range { ==i
@@ -832,13 +832,16 @@
         # Elf64_Xword sh_entsize;   /* Size of entries, if section has table */
         s .entsize uint64
       } each } each
-    ] ==fileHeaders
+    ] ==?fileHeaders
 
     0 ==fileOffset
     [ fileHeaders metaSections { .data } each ] { ==data
       fileOffset data len add =fileOffset
       data str .fromArray out .writeall
     } each
+    
+    [ ] _ =fileHeaders
+          =metaSections
 
     1 ==:WRITE
 

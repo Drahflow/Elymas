@@ -122,10 +122,39 @@ sys .asm .|programStart sys .asm .rawCodeAddress { add peekElf64 }_ =*peekProgra
           addr 16 add peekElf64 "len:" -01 out
           addr 24 add peekElf64 256 math .base str .fromArray 0 out
         }
+        # more physical scope dumping, but harder to follow output
+        # { :scope
+        #   addr peekElf64 %00000000FFFFFFFF band _ "len:" -01 out 8 div 1 -01 range {
+        #     8 mul addr add peekElf64 dumpElf
+        #   } each
+        # }
         { :scope
-          addr peekElf64 %00000000FFFFFFFF band _ "len:" -01 out 8 div 1 -01 range {
-            8 mul addr add peekElf64 dumpElf
+          addr 8 add peekElf64 ==nameTable
+          nameTable { nameTable 8 add peekElf64 %00000000FFFFFFFF band 16 div 1 sub } { 0 } ? * ==nameTableFill
+
+          { ==i
+            i nameTableFill lt {
+              i 1 add 16 mul nameTable add peekElf64 ==name
+              name 24 add peekElf64 256 math .base str .fromArray 0 out
+            } rep
+          } /dumpLocalName deffst
+
+          addr peekElf64 %00000000FFFFFFFF band 8 div _ ==scopeLen 4 -01 range {
+            _ 4 sub dumpLocalName
+              8 mul addr add peekElf64 dumpElf
           } each
+
+          addr 24 add peekElf64 ==extensionArea
+          extensionArea {
+            "<in extension area>" 0 out
+            extensionArea peekElf64 %00000000FFFFFFFF band 8 div 1 -01 range {
+              _ 1 sub scopeLen add 4 sub dumpLocalName
+                8 mul extensionArea add peekElf64 dumpElf
+            } each
+          } { } ? *
+
+          "<parent>" 0 out
+          addr 16 add peekElf64 dumpElf
         }
         { :name_table
           addr 8 add peekElf64 _ "fill:" -01 out 16 div 1 -01 range {

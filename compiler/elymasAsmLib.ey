@@ -80,8 +80,8 @@
   { %00 %00 %00 %00 %00 %60 %00 %00 } /HEAPBASE deff
   { %00 %00 %00 %00 %00 %50 %00 %00 } /BLOCKBASE deff
   { %00 %00 %00 %00 %00 %40 %00 %00 } /MARKBASE deff
-  # 4096 16 mul 8 mul ==ALLOCCHUNKSIZE # minimum ALLOCCHUNKSIZE
-  4096 16 mul 8 mul 64 mul ==ALLOCCHUNKSIZE # FIXME: there is still some wonkyness with freezing
+  4096 16 mul 8 mul ==ALLOCCHUNKSIZE # minimum ALLOCCHUNKSIZE
+  # 4096 16 mul 8 mul 64 mul ==ALLOCCHUNKSIZE # FIXME: there is still some wonkyness with freezing
 
   <
     # current end of heap memory (grows upwards)

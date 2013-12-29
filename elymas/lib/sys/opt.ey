@@ -139,6 +139,16 @@
     t { f } { 0 } ? *
   } /andif deffd
 
+  { ==e
+    [
+      0 e * STATICTYPED streq { 4 e * sys .typed .type 0 eq }' andif
+      0 e * PUSH        streq { 1 e * sys .typed .type 0 eq }' andif
+      0 e * STRINGSTAR  streq
+    ] any
+  } /holdsInt deffd
+
+  { -1010 lt -012 ? } /max deffd
+
   { ==o ==executingScope
     0 ==containsScopeModifications # TODO: replace <, > by macros ( {, scope } * respectively) then remove this
 
@@ -263,14 +273,6 @@
         i 1 sub logic * ==last
         i 2 sub logic * ==secondLast
         i 3 sub logic * ==thirdLast
-
-        { ==e
-          [
-            0 e * STATICTYPED streq { 4 e * sys .typed .type 0 eq }' andif
-            0 e * PUSH        streq { 1 e * sys .typed .type 0 eq }' andif
-            0 e * STRINGSTAR  streq
-          ] any
-        } /holdsInt deffd
 
         action CALL streq
           { 1 entry * "*" | ::rawCodeAddress eq }' andif
@@ -506,8 +508,6 @@
           }
           { action CALL streq { 1 entry * "-" | ::rawCodeAddress eq }' andif { 0 last * PUSH streq }' andif }' {
             1 last * ::rawObject ==constant
-
-            { -1010 lt -012 ? } /max deffd
 
             0 ==largestNumber
             0 ==starUsed
