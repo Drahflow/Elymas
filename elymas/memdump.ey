@@ -30,7 +30,7 @@ txt .consume .|hu "%" deffd
 sys .linux "+" via
 
 <
-  "shared" +ORDONLY 0 +open ==fd
+  "shared\0" +ORDONLY 0 +open ==fd
   fd +fstat -- # TODO: handle errors
             .size ==s
   ELFBASE s +PROTREAD +MAPPRIVATE fd 0 +mmap ELFBASE eq assert
