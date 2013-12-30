@@ -572,7 +572,7 @@
           i sys .asm .globalAllocSize ==?dataSize
         >
       } each
-    ] ==allocSections
+    ] ==?allocSections
 
     4096 ==:PAGESIZE
 
@@ -840,10 +840,11 @@
       data str .fromArray out .writeall
     } each
     
+    1 ==:WRITE
+
     [ ] _ =fileHeaders
           =metaSections
-
-    1 ==:WRITE
+    < > =stringTable
 
     allocSections { ==section
       section .dataOffset fileOffset sub str .alloc out .writeall

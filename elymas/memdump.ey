@@ -71,7 +71,7 @@ ELFBASE 56 add peek64 65536 mod _ dump ==phdrCount
   } eachWhile
 } /peekElf64 deffst
 
-HEAPBASE peekElf64 %2E00000000000248 eq assert
+HEAPBASE peekElf64 %FFFFFFFFFFFF0000 band %2E00000000000000 eq assert
 
 sys .asm .|programStart sys .asm .rawCodeAddress { add peekElf64 }_ =*peekProgramStart
 2 peekProgramStart _ dump ==initialRsp

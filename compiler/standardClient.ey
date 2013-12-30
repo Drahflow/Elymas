@@ -23,6 +23,9 @@
     [ TERM p ]
   ] } /terminal deffd
 
+  { -- 1 }" terminal ==:TERMANY
+  { { eq }_ terminal } =*:TERMCHAR
+
   { ==?i ==?a [
     [ SAVE i 2 mul ]
     a _ len dearray
@@ -156,7 +159,7 @@
         }' ? *
         set terminal =a
       } { ^. } {
-        { -- 1 }" terminal =a
+        TERMANY =a
         tail
       } { ^^ } {
         [ [ FIRST ] ] =a
@@ -183,7 +186,7 @@
           "invalid character '" "' after \\ in regex" -120 cat cat die
         } ] conds
       } { 1 } {
-        _ head { eq }_ terminal =a
+        _ head TERMCHAR =a
         tail
       } ] conds
 
@@ -775,12 +778,10 @@
 
 # global extensions
 <
-  [ /0 /1 /2 /3 /4 /5 /6 /7 /8 /9 /A /B /C /D /E /F ] ==:base16singleDigits
-  [ base16singleDigits { ==first base16singleDigits { first -01 cat } each } each ] ==:base16digits
+  "0123456789ABCDEF" ==:base16digits
 
   {
-    [ -01 8 { _ 256 mod base16digits * -01 256 div } rep -- ]
-    reverse |cat fold
+    [ -01 16 { _ 16 mod base16digits * -01 16 div } rep -- ] reverse str .fromArray
   } /base16encode64 deffd
 
   { ==indent _ ==o
@@ -1025,9 +1026,15 @@
 
 # no long-term stack use here as the executed program uses it as well
 { scope
+  0 "0" * ==:zero
+  { 0 ==result
+    { zero sub result 10 mul add =result } each
+    result
+  } /base10decode deffd
+
   { ==currentScope ==input
     { .value currentScope sys .executeIdentifier =currentScope } /TOKID defvd
-    { .value elymas .base10decode } /TOKINT defvd
+    { .value base10decode } /TOKINT defvd
     { .value } /TOKSTR defvd
 
     {

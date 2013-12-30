@@ -2,8 +2,6 @@
 
 [
   "lib/bin.ey"
-  "lib/txt.ey"
-  "lib/math.ey"
   "lib/sys/linux.ey"
   "lib/sys/so.ey"
   "lib/net.ey"

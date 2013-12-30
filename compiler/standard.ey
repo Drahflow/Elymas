@@ -6,15 +6,15 @@
 |deffc "=*:" deffd
 
 { "}" | *
-  { /f deff /x defv
+  { =*f ==x
     { x f }
   } quoted { } { * } ? *
 } "}_" defq
 
-{
-  { -01 < ==o { o -01 . } > -12 }" quoted { }" { * }" ? *
+{ { -01 < ==o { o -01 . } > -12 } } {
+  quoted { }" { * }" ? *
   quoted { |deffst } { deffst }" ? *
-}" /via defq
+}" ; /via defq
 
 { -1110 ; ==f =*a len _
     {
