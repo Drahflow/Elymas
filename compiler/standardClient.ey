@@ -336,9 +336,9 @@
       matched {
         currentCapture ==i
         { i } { i 1 sub =i
-          string
-          i 2 mul       matchedThread threadGetCaptures * _ ==start -01 str .postfix
-          i 2 mul 1 add matchedThread threadGetCaptures * start sub -01 str .inplacePrefix
+          i 2 mul       matchedThread threadGetCaptures *
+          i 2 mul 1 add matchedThread threadGetCaptures *
+          string str .infix
         } loop
       } rep
       matched

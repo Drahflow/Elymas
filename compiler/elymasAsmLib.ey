@@ -19,10 +19,22 @@
     9 ==mmap
   > ==SYSCALL
 
+  0 ==constantAllocBegin
+  0 ==constantAllocEnd
+
   { =*def ==struct
-    struct values |cat fold :arrayToCode _ :globalAllocations .register
-                                           .base ==address
-    struct keys { address -101 def struct -01 . len address add =address } each
+    struct values |cat fold ==data
+    constantAllocEnd constantAllocBegin sub ==constantAllocFree
+    data len constantAllocFree gt {
+      data len 1 sub :PAGESIZE div 1 add :PAGESIZE mul :alloc ==area
+      area :globalAllocations .register
+      area .base _ constantAllocEnd neq { area .base =constantAllocBegin } rep
+                 area .size add =constantAllocEnd
+    } rep
+
+    sys .asm .|poke =*poke
+    constantAllocBegin _ ==i data { -101 poke 1 add } each =constantAllocBegin
+                         struct keys { i -101 def struct -01 . len i add =i } each
   } /allocateOffsetStruct deff
 
   { ==str
