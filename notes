@@ -66,8 +66,8 @@ dup = _
 A->int B->int add    ->  B->A->int
 A->int A->int add    ->  A->int
 
-# argument order to ' is from stack-top to stack-lower
-[ 1 2 3 ] [ /foo /bar /quux ] { defv }' [ "" 1 ] [ ] ' *
+# argument order to '' is from stack-top to stack-lower
+[ 1 2 3 ] [ /foo /bar /quux ] { defv }' [ "" 1 ] [ ] '' *
 
 = Characters =
 

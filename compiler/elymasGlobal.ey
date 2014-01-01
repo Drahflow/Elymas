@@ -1679,7 +1679,7 @@
       16 /r15 :pushqMemDisp8
       24 /r15 :addqImm8Reg
       :retn
-    ]] /ey' defv
+    ]] /ey'' defv
 
     # concatenate two functions
     # 0 -> function g
