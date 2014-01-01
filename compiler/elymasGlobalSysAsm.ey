@@ -314,7 +314,10 @@
         /rax :jmpqReg
       ] ::loadToRdi
 
-      # TODO old references still around (and possibly used by later code)
+      # old references still around (and possibly used by later code) the
+      # garbage collector will detect forward-only code and react accordingly,
+      # but will correctly follow all references when hitting the code from
+      # stack data (e.g. as return address)
 
       24 /r15 :pushqMemDisp8
       32 /r15 :addqImm8Reg
