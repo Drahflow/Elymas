@@ -6,4 +6,8 @@
   "lib/sys/opt.ey"
 ] { _ dump include }' each
 
-2 { { "/proc/self/fd/0" include 0 sys .exit }' "optimized" sys .freeze } rep # FIXME freeze wonkyness (the optimizer allocates during freeze)
+{
+  sys .argv len not { "Usage: optimized <input.ey>" die } rep
+  0 sys .argv * include
+  0 sys .exit
+}' "optimized" sys .freeze

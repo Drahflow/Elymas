@@ -1,3 +1,7 @@
 #!/usr/bin/env elymas
 
-{ "/proc/self/fd/0" include 0 sys .exit }' "interpreter" sys .freeze
+{
+  sys .argv len not { "Usage: interpreter <input.ey>" die } rep
+  0 sys .argv * include
+  0 sys .exit
+}' "interpreter" sys .freeze

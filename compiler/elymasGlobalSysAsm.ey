@@ -441,7 +441,7 @@
 
     # (template) program boot sequence after freeze
     [[
-      /rsp :movqImmOOBReg %EE %EE %EE %EE %EE %EE %EE %EE # 10
+      /r8 :movqImmOOBReg %EE %EE %EE %EE %EE %EE %EE %EE # 10
       /r15 :movqImmOOBReg %EE %EE %EE %EE %EE %EE %EE %EE # 20
       ::heapSize /rax :movqImmReg # 30
       /rbx :movqImmOOBReg %EE %EE %EE %EE %EE %EE %EE %EE # 40
@@ -456,14 +456,86 @@
       /rbx :movqImmOOBReg %EE %EE %EE %EE %EE %EE %EE %EE # 109
       /rbx /rax :movqRegMem # 112
 
+      /r8 /rsp :xchgqRegReg # swap to elymas stack to ensure correct GC behavior for what follows
+
       # empty encoding buffer to ensure the GC does not follow residue from freeze into unallocated memory
       :quoteEncodingBufferObjects /rdi :movqImmReg
       /rax /rax :xorqRegReg
       /rax /rdi :movqRegMem
 
+      # setup new sys .argv
+      /r8 /rdi :movqMemReg # get argc
+      8 /r8 :addqImm8Reg
+      /rdi :decqReg
+      /rdi :pushqReg
+      3 /rdi :shlqImm8Reg
+      ::internalAllocateArray /rax :movqImmReg
+      /rax :callqReg
+      # rax == new sys .argv array
+
+      /rax :pushqReg
+      /rax :pushqReg
+
+      /rax :movqImmOOBReg "argv" ::string
+      /rax :pushqReg
+
+      /rax :movqImmOOBReg "sys" ::string
+      /rax :pushqReg
+      /rax :movqImmOOBReg "eyprogramStart" "ey|" ::linkAbs64
+      /rax :callqReg
+
+      /rax :movqImmOOBReg "defv" ::string
+      /rax :pushqReg
+      /rax :movqImmOOBReg "eyprogramStart" "ey." ::linkAbs64
+      /rax :callqReg
+
+      /rax :popqReg
+      8 /rax /rbx :leaqMemDisp8Reg
+
+      /rcx :popqReg
+      8 /r8 :addqImm8Reg # throw away program name # TODO: save it somewhere
+
+      /rcx /rcx :testqRegReg
+      /argvAssemblyDone :jzLbl8
+      @argvAssembly
+
+      /r8 /rdi :movqMemReg # load next argv element
+      8 /r8 :addqImm8Reg
+      /rcx :pushqReg
+
+      /copyCString :callqLbl32
+      /rax /rbx :movqRegMem
+      8 /rbx :addqImm8Reg
+
+      /rcx :popqReg
+      /argvAssembly :loopLbl8
+      @argvAssemblyDone
+
+      # call frozen function
       |ey* /rax :movqImmReg
       /rax :callqReg
       :ud2
+
+      @copyCString
+# rdi -> pointer to beginning of string
+# rax <- pointer to new elymas string
+      /rax /rax :xorqRegReg
+      /rcx /rcx :xorqRegReg
+      /rcx :decqReg
+      /rdi /rsi :movqRegReg
+      /rdi :pushqReg
+      :repnz :scasb
+
+      /rcx :negqReg
+      2 /rcx :subqImm8Reg
+      /rcx /rdi :movqRegReg
+      ::internalAllocateString /rax :movqImmReg
+      /rax :callqReg
+      /rsi :popqReg
+      16 /rax /rcx :movqMemDisp8Reg
+      24 /rax /rdi :leaqMemDisp8Reg
+      :reprcx :movsb
+      :retn
     ]] /eyprogramStart defv
   > _ ==globalFunctions { defv }' ::allocateOffsetStruct
 
@@ -509,6 +581,8 @@
       :retn
     ]] /eypatchProgramStart defv
   > _ ==globalFunctions2 { defv }' ::allocateOffsetStruct
+
+  { | }' ::linkResolve
 
   "asm" enterSubScope
 

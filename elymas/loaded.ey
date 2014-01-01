@@ -12,4 +12,8 @@
   "lib/net/alg/http.ey"
 ] { _ dump include }' each
 
-{ "/proc/self/fd/0" include 0 sys .exit }' "loaded" sys .freeze
+{
+  sys .argv len not { "Usage: loaded <input.ey>" die } rep
+  0 sys .argv * include
+  0 sys .exit
+}' "loaded" sys .freeze

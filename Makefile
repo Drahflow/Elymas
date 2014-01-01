@@ -1,6 +1,6 @@
-all: elymas/loaded
+all: elymas/loaded elymas/shared
 
-elymas/loaded: elymas/interpreter $(shell find elymas/ -name '*.ey' )
+elymas/loaded elymas/shared: elymas/interpreter $(shell find elymas/ -name '*.ey' )
 	cd elymas && $(MAKE)
 
 elymas/interpreter: elymas/interpreter.ey compiler/*.ey interpreter/Metal.so interpreter/ACME

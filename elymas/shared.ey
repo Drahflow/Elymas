@@ -13,4 +13,8 @@
   "lib/net/alg/http.ey"
 ] { _ dump include }' each
 
-{ "/proc/self/fd/0" include 0 sys .exit }' "shared" sys .so .freeze
+{
+  sys .argv len not { "Usage: shared <input.ey>" die } rep
+  0 sys .argv * include
+  0 sys .exit
+}' "shared" sys .so .freeze
