@@ -815,6 +815,10 @@ memoryAddressingVariants keys { ==variant memoryAddressingVariants variant . =*p
   } /leaq variant /Reg cat defOp
 } each
 
+{
+  %AC
+} /lodsb deff
+
 { ==mem ==i
   mem bit64assert
   i 256 lt not { "Imm8 too large" die } rep
