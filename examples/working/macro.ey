@@ -40,7 +40,7 @@
       indent [ "\"" -102 "\"\n" ] |out each
     } {
       indent _ sym _ out
-                     "{" streq { 0 =cont |lol } { -- } ? *
+                     "{" eq { 0 =cont |lol } { -- } ? *
       "\n" out
     } {
       blk |walk each

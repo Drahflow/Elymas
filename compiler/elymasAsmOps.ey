@@ -52,7 +52,7 @@
 } /rex deff
 
 { ==mem ==reg
-  mem [ /spl /sp /esp /rsp /bpl /bp /ebp /rbp ] streq any {
+  mem [ /spl /sp /esp /rsp /bpl /bp /ebp /rbp ] eq any {
     "modrm00 not possible on rsp / rbp and their partial registers" die
   } rep
 
@@ -62,7 +62,7 @@
 } /modrm00 deff
 
 { ==mem ==reg
-  mem [ /spl /sp /esp /rsp ] streq any {
+  mem [ /spl /sp /esp /rsp ] eq any {
     # actually encode sib with rsp index register (to get it ignored)
                     %40
     /sib regno      %07 band add
@@ -80,7 +80,7 @@
 } /modrm01 deff
 
 { ==mem ==reg
-  mem [ /spl /sp /esp /rsp ] streq any {
+  mem [ /spl /sp /esp /rsp ] eq any {
     # actually encode sib with rsp index register (to get it ignored)
                     %80
     /sib regno      %07 band add
@@ -104,8 +104,8 @@
 } /modrm11 deff
 
 { ==base ==idx ==scale
-  idx [ /spl /sp /esp /rsp ] streq any { "sib cannot encode rsp as index" die } rep
-  base [ /bpl /bp /ebp /rbp ] streq any { "sib cannot encode rbp as base" die } rep
+  idx [ /spl /sp /esp /rsp ] eq any { "sib cannot encode rsp as index" die } rep
+  base [ /bpl /bp /ebp /rbp ] eq any { "sib cannot encode rbp as base" die } rep
   scale _ 0 gt not { "invalid scale chosen for sib" die } rep
           8 le not { "invalid scale chosen for sib" die } rep
 
@@ -1206,6 +1206,17 @@ memoryAddressingVariants keys { ==variant memoryAddressingVariants variant . =*p
   /zero reg modrm11
   i imm8
 } /testbImmReg deff
+
+memoryAddressingVariants keys { ==variant memoryAddressingVariants variant . =*parse
+  { parse ==mem ==i
+    i 256 lt not { "Imm8 too large" die } rep
+
+    mem .base regno %07 gt mem .idx regno %07 gt or { 0 /none mem .idx mem .base rex } rep
+    %F6
+    /zero mem .encode
+    i imm8
+  } /testbImm variant defOp
+} each
 
 { ==dst ==src
   dst bit64assert

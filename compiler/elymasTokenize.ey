@@ -4,7 +4,7 @@
   { ==TOKID ==TOKSTR ==TOKINT
     " " cat
     { < /handle deff /value defv > } /token deff
-    [ -01 { _ "" streq not } {
+    [ -01 { _ "" eq not } {
       0 ==matched { =*f matched { -- } { { 1 =matched f } rxparse } ? * } /parse deffst
 
       { "^ +(.*)" regex } { } parse

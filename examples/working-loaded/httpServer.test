@@ -3,10 +3,10 @@ net .alg .httpServer "+" via
   { ":" via
     :url dump
     [
-      { :url "/" streq } {
+      { :url "/" eq } {
         "<html><body>Hallo Welt!<a href=\"/test\">Test</a></body></html>"
         "text/html" :ok
-      } { :url "/test" streq } {
+      } { :url "/test" eq } {
         "<html><body>Test!</body></html>"
         "text/html" :ok
       }

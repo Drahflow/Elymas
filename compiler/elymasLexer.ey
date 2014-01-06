@@ -9,7 +9,7 @@
 
     { 0 ==result
       { "(.)(.*)" regex } {
-        { streq }_ digits -01 index result 10 mul add =result
+        { eq }_ digits -01 index result 10 mul add =result
       } loop
       result
     }
@@ -55,7 +55,7 @@
 { /input defv
   "" {
     4096 input .read cat
-    _ "" streq not
+    _ "" eq not
   } {
     { _ "([^\\n]*)\\n(.*)" regex } { -102 -- TOKINT TOKSTR TOKID elymas .tokenize {
       _ .handle

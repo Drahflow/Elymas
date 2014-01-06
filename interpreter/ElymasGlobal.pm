@@ -793,7 +793,6 @@ installGlobal2IntFunction('bnor', '~((0+$a) | (0+$b))');
 installGlobal2IntFunction('bxor', '(0+$a) ^ (0+$b)');
 installGlobal2IntFunction('bnxor', '~((0+$a) ^ (0+$b))');
 
-installGlobal2IntFunction('eq', '($a == $b)? 1: 0');
 installGlobal2IntFunction('neq', '($a != $b)? 1: 0');
 installGlobal2IntFunction('lt', '($a < $b)? 1: 0');
 installGlobal2IntFunction('le', '($a <= $b)? 1: 0');
@@ -807,8 +806,18 @@ installGlobal1IntFunction('not', sub { return not $_[0] });
 installGlobal1IntFunction('bnot', sub { return ~(0 + $_[0]) });
 installGlobal1IntFunction('abs', sub { return abs $_[0] });
 
-# FIXME: this API is ugly
-installGlobal2StrFunction('streq', sub { return [($_[0] eq $_[1])? 1: 0, 'int'] });
+$globalScope->{'eq'} = [sub {
+  my ($data) = @_;
+
+  my $b = pop @$data;
+  if($data->[-1]->[1] eq 'string' or $b->[1] eq 'string') {
+    # auto conversion to string is not supported
+    # (but asserting against it here would just waste time in the end)
+    $data->[-1] = [($data->[-1]->[0] eq $b->[0])? 1: 0, 'int'];
+  } else {
+    $data->[-1] = [($data->[-1]->[0] == $b->[0])? 1: 0, 'int'];
+  }
+}, ['func', 'eq', ['scalar', 'scalar'], ['int']], 'active']; # TODO: why does this work correctly?
 
 # J comparison (http://www.jsoftware.com/docs/help701/dictionary/vocabul.htm)
 # = Self-Classify • Equal              -> <TODO redundant> / eq
@@ -890,7 +899,7 @@ installGlobal2StrFunction('streq', sub { return [($_[0] eq $_[1])? 1: 0, 'int'] 
 # }. Behead • Drop                     -> <TODO: implement without new primitives> / <TODO: implement without new primitives>
 # }: Curtail •                         -> <TODO: implement without new primitives>
 #  
-# " Rank (m"n u"n m"v u"v)             -> <FIXME: think about (function) type casts>
+# " Rank (m"n u"n m"v u"v)             -> ''
 # ". Do • Numbers                      -> <nope> / <FIXME: create (sscanf-style) parser>
 # ": Default Format • Format           -> <FIXME: create (printf-style) printer>
 # ` Tie (Gerund)                       -> <implement as arrays of functions>

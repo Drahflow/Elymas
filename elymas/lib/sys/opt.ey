@@ -155,9 +155,9 @@
 
   { ==e
     [
-      0 e * STATICTYPED streq { 4 e * sys .typed .type 0 eq }' andif
-      0 e * PUSH        streq { 1 e * sys .typed .type 0 eq }' andif
-      0 e * STRINGSTAR  streq
+      0 e * STATICTYPED eq { 4 e * sys .typed .type 0 eq }' andif
+      0 e * PUSH        eq { 1 e * sys .typed .type 0 eq }' andif
+      0 e * STRINGSTAR  eq
     ] any
   } /holdsInt deffd
 
@@ -167,11 +167,11 @@
     { _ ==logic
       logic { ==entry 0 entry * ==action
         [
-          { action CALL streq { 1 entry * "<" | ::rawCodeAddress eq }' andif }' {
+          { action CALL eq { 1 entry * "<" | ::rawCodeAddress eq }' andif }' {
             1 =containsScopeModifications
           }
 
-          { action CALL streq { 1 entry * ">" | ::rawCodeAddress eq }' andif }' {
+          { action CALL eq { 1 entry * ">" | ::rawCodeAddress eq }' andif }' {
             1 =containsScopeModifications
           }
         ] conds
@@ -182,7 +182,7 @@
       [ NOP ] ==last
       [ logic { ==entry 0 entry * ==action
         [
-          { action CALL streq { 1 entry * "|" | ::rawCodeAddress eq }' andif { 0 last * PUSH streq }' andif }' {
+          { action CALL eq { 1 entry * "|" | ::rawCodeAddress eq }' andif { 0 last * PUSH eq }' andif }' {
             1 last * ::rawObject ==constant
 
             constant executingScope sys .resolveInfo {
@@ -211,7 +211,7 @@
       [ NOP ] ==last
       [ logic { ==entry 0 entry * ==action
         [
-          { action CALL streq { 1 entry * "=" | ::rawCodeAddress eq }' andif { 0 last * PUSH streq }' andif }' {
+          { action CALL eq { 1 entry * "=" | ::rawCodeAddress eq }' andif { 0 last * PUSH eq }' andif }' {
             1 last * ::rawObject ==constant
 
             constant executingScope sys .resolveInfo {
@@ -239,10 +239,10 @@
     { _ ==logic
       2 logic len range { ==i i logic * ==entry 0 entry * ==action i 1 sub logic * ==last i 2 sub logic * ==secondLast
         [
-          { action CALL streq
+          { action CALL eq
             { 1 entry * "." | ::rawCodeAddress eq }' andif
-            { 0 last * PUSH streq }' andif
-            { 0 secondLast * STATICTYPED streq }' andif
+            { 0 last * PUSH eq }' andif
+            { 0 secondLast * STATICTYPED eq }' andif
           }' {
             1 last * ::rawObject ==constant
             4 secondLast * ==relevantScope
@@ -286,15 +286,15 @@
         i 2 sub logic * ==secondLast
         i 3 sub logic * ==thirdLast
 
-        action CALL streq
+        action CALL eq
           { 1 entry * "*" | ::rawCodeAddress eq }' andif
-          { 0 last * PUSH streq }' andif
+          { 0 last * PUSH eq }' andif
           { secondLast holdsInt }' andif
           { thirdLast holdsInt }' andif
         {
           [
             { 1 last * |add ::rawAddress eq
-              { 0 secondLast * PUSH streq }' andif
+              { 0 secondLast * PUSH eq }' andif
               { 1 secondLast * 128 lt }' andif
             }' {
               1 secondLast * ==value
@@ -419,9 +419,9 @@
     { _ ==logic
       1 logic len range { ==i i logic * ==entry 0 entry * ==action i 1 sub logic * ==last
         [
-          { action CALL streq
+          { action CALL eq
             { 1 entry * "*" | ::rawCodeAddress eq }' andif
-            { 0 last * STATICTYPED streq }' andif
+            { 0 last * STATICTYPED eq }' andif
           }' {
             4 last * ==executedObject
             executedObject sys .typed .type ==type
@@ -467,12 +467,12 @@
     { _ ==logic
       3 logic len range { ==i i logic * ==entry 0 entry * ==action i 1 sub logic * ==last i 2 sub logic * ==secondLast i 3 sub logic * ==thirdLast
         [
-          { action CALL streq
+          { action CALL eq
             { 1 entry * "*" | ::rawCodeAddress eq }' andif
-            { 0 last * CALL streq }' andif
+            { 0 last * CALL eq }' andif
             { 1 last * "?" | ::rawCodeAddress eq }' andif
-            { 0 secondLast * PUSH streq }' andif
-            { 0 thirdLast * PUSH streq }' andif
+            { 0 secondLast * PUSH eq }' andif
+            { 0 thirdLast * PUSH eq }' andif
             { 1 secondLast * ::rawObject sys .typed .type 5 eq }' andif
             { 1 thirdLast * ::rawObject sys .typed .type 5 eq }' andif
             { 1 secondLast * ::rawObject sys .typed .inputs len not }' andif # TODO: think about typed functions
@@ -495,7 +495,7 @@
       [ NOP ] ==last
       [ logic { ==entry 0 entry * ==action
         [
-          { action CALL streq { 1 entry * "?" | ::rawCodeAddress eq }' andif }' {
+          { action CALL eq { 1 entry * "?" | ::rawCodeAddress eq }' andif }' {
             [ NATIVE [
               /rcx :popqReg
               /rdx :popqReg
@@ -508,17 +508,17 @@
               /rdx :pushqReg
             ] ] =entry
           }
-          { action CALL streq { 1 entry * "_" | ::rawCodeAddress eq }' andif }' {
+          { action CALL eq { 1 entry * "_" | ::rawCodeAddress eq }' andif }' {
             [ NATIVE [
               0 /rsp :pushqMemDisp8
             ] ] =entry
           }
-          { action CALL streq { 1 entry * "--" | ::rawCodeAddress eq }' andif }' {
+          { action CALL eq { 1 entry * "--" | ::rawCodeAddress eq }' andif }' {
             [ NATIVE [
               8 /rsp :addqImm8Reg
             ] ] =entry
           }
-          { action CALL streq { 1 entry * "-" | ::rawCodeAddress eq }' andif { 0 last * PUSH streq }' andif }' {
+          { action CALL eq { 1 entry * "-" | ::rawCodeAddress eq }' andif { 0 last * PUSH eq }' andif }' {
             1 last * ::rawObject ==constant
 
             0 ==largestNumber
@@ -749,7 +749,7 @@
     rewriteSimpleFunctions
     { =*entry 0 entry ==action
       [
-        { action PUSH streq }' {
+        { action PUSH eq }' {
           [
             1 entry /rax :movqImmReg
             /rax :pushqReg
@@ -758,7 +758,7 @@
           1 entry emitReference
         }
 
-        { action CALL streq }' {
+        { action CALL eq }' {
           [
             1 entry /rax :movqImmReg
             /rax :callqReg
@@ -767,7 +767,7 @@
           1 entry 16 sub emitReference
         }
 
-        { action CALLSCOPED streq }' {
+        { action CALLSCOPED eq }' {
           [
             8 /r15 :subqImm8Reg
             /r14 /r15 :movqRegMem
@@ -784,7 +784,7 @@
           2 entry emitReference
         }
 
-        { action [ STATIC STATICTYPED ] streq any }' {
+        { action [ STATIC STATICTYPED ] eq any }' {
           [
             2 entry {
               16 /r14 /rax :movqMemDisp8Reg
@@ -811,7 +811,7 @@
           ] emitOpcodes
         }
 
-        { action STATICWRITE streq }' {
+        { action STATICWRITE eq }' {
           [
             2 entry {
               16 /r14 /rax :movqMemDisp8Reg
@@ -838,7 +838,7 @@
           ] emitOpcodes
         }
 
-        { action STATICDOT streq }' {
+        { action STATICDOT eq }' {
           [
             /rax :popqReg
             2 entry { 16 /rax /rax :movqMemDisp8Reg } rep
@@ -854,7 +854,7 @@
           ] emitOpcodes
         }
 
-        { action UNTYPEDSCOPEDSTAR streq }' {
+        { action UNTYPEDSCOPEDSTAR eq }' {
           [
             /rax :popqReg
             8 /r15 :subqImm8Reg
@@ -868,7 +868,7 @@
           ] emitOpcodes
         }
 
-        { action UNTYPEDUNSCOPEDSTAR streq }' {
+        { action UNTYPEDUNSCOPEDSTAR eq }' {
           [
             /rax :popqReg
             24 /rax /rax :movqMemDisp8Reg
@@ -877,7 +877,7 @@
           ] emitOpcodes
         }
 
-        { action ARRAYSTAR streq }' {
+        { action ARRAYSTAR eq }' {
           [
             /rsi :popqReg
             /rax :popqReg
@@ -893,7 +893,7 @@
           ] emitOpcodes
         }
 
-        { action STRINGSTAR streq }' {
+        { action STRINGSTAR eq }' {
           [
             /rsi :popqReg
             /rax :popqReg
@@ -909,11 +909,11 @@
           ] emitOpcodes
         }
 
-        { action NATIVE streq }' {
+        { action NATIVE eq }' {
           1 entry emitOpcodes
         }
 
-        { action NOP streq }' {
+        { action NOP eq }' {
         }
 
         { 1 }' {

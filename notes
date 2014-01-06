@@ -60,15 +60,6 @@ dup = _
 
 -<digits> -> delete stack contents up to largest digit, recreate according to digits
 
-1 [ 2 3 ] add -> [ 3 4 ]
-[ [ 1 ] [ 2 ] ] length -> 2     # scanning for applicable base type from top
-
-A->int B->int add    ->  B->A->int
-A->int A->int add    ->  A->int
-
-# argument order to '' is from stack-top to stack-lower
-[ 1 2 3 ] [ /foo /bar /quux ] { defv }' [ "" 1 ] [ ] '' *
-
 = Characters =
 
 !: co-routines and threads
@@ -327,17 +318,40 @@ Main problem: How do we find out if the names mean what we believe they do?
 
 = Musings about Types =
 
-[ /foo /bar ] [ 2 3 ] { "Key %s -> %d" format sys .out .writeall } [ "" "" ] [ ] typed *
-[ /a /b /c ] _ { cat } *                        # -> [ /aa /bb /cc ]
-[ /a /b /c ] _ { cat } [ "" "" ] [ "" ] typed * # -> [ /aa /bb /cc ]
-[ /a /b /c ] _ [ 0 ] [ "" ] typed cat           # -> [ [ /aa /ba /ca ] [ /ab /bb /cb ] [ /ac /bc /cc ] ]
+1 [ 2 3 ] add -> [ 3 4 ]
+[ [ 1 ] [ 2 ] ] len -> 2     # scanning for applicable base type from top
+
+A->int B->int add    ->  B->A->int
+A->int A->int add    ->  A->int
+
+# argument order to '' is from stack-top to stack-lower
+[ 1 2 3 ] [ /foo /bar /quux ] { defv }' [ "" 1 ] [ ] '' *
+
+[ /foo /bar ] [ 2 3 ] { "Key %s -> %d" format sys .out .writeall } [ "" "" ] [ ] '' *
+[ /a /b /c ] _ { cat } *                        # -> [ /a /b /c /a /b /c ]
+[ /a /b /c ] _ { cat } [ 1 1 ] [ "" ] '' *    # -> [ /aa /bb /cc ]
+[ /a /b /c ] _ [ 0 ] [ "" ] '' cat              # -> [ [ /aa /ba /ca ] [ /ab /bb /cb ] [ /ac /bc /cc ] ]
 [ /a /b /c ] _ |cat cross
 
 Types are represented by concrete values of that type.
+Scalars (i.e. integers, strings, floats) are all represented by integers.
 
 Co-iterability is decided by type-match and
-* integers: co-iterated type is bitwise and, if zero, no co-iteration
-* strings: co-iterated type is longest common substring, if epsilon, no co-iteration
+* integers: co-iteration only for equal non-zero integers
+
+Question: Is it better to handle scalars uniformly or handle strings (or floats) as a separate type?
+Question: How to deal with functions like eq, which can take all scalars?
+
+== Variant: Scalar-Type (implemented) ==
+
+eq [ sys .typed .SCALAR _ ] [ Int ] ''
+{ 1 eq } { "foo" eq } and # [ sys .typed .SCALAR ] [ Int ] # -- -- 0
+{ 1 eq } '1 { "foo" eq } '2 and # [ sys .typed .SCALAR _ ] [ Int ] # 1 eq -01 "foo" eq and
+
+== Variant: Type-Variables ==
+
+eq [ sys .typed .var _ ] [ Int ] ''
+{ 1 eq } { "foo" eq } and # [ $X $Y ] [ Int ] # 1 eq -01 "foo" eq and
 
 = Musings about function composition operator =
 

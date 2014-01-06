@@ -284,8 +284,8 @@
 
     {
       [
-        { rets "" streq }' { }
-        { rets "s" streq }' {
+        { rets "" eq }' { }
+        { rets "s" eq }' {
           /rax :pushqReg
           /rcx /rcx :xorqRegReg
           /rax /rdi :movqRegReg
@@ -302,45 +302,45 @@
           24 /rax /rdi :leaqMemDisp8Reg
           :repnz :movsb
         }
-        { rets "i64" streq }' {
+        { rets "i64" eq }' {
           wrapInteger
           /rax :pushqReg
         }
-        { rets "i32" streq }' {
+        { rets "i32" eq }' {
           /eax /rax :movsxlqRegReg # sign extend result
           wrapInteger
           /rax :pushqReg
         }
-        { rets "i16" streq }' {
+        { rets "i16" eq }' {
           /ax /rax :movsxwqRegReg # sign extend result
           wrapInteger
           /rax :pushqReg
         }
-        { rets "i8" streq }' {
+        { rets "i8" eq }' {
           /al /rax :movsxbqRegReg # sign extend result
           wrapInteger
           /rax :pushqReg
         }
-        { rets "u64" streq }' {
+        { rets "u64" eq }' {
           wrapInteger
           /rax :pushqReg
         }
-        { rets "u32" streq }' {
+        { rets "u32" eq }' {
           /eax /eax :movlRegReg # zero extend result
           63 /rax :btsqImm8Reg
           /rax :pushqReg
         }
-        { rets "u16" streq }' {
+        { rets "u16" eq }' {
           /ax /rax :movzxwqRegReg # zero extend result
           63 /rax :btsqImm8Reg
           /rax :pushqReg
         }
-        { rets "u8" streq }' {
+        { rets "u8" eq }' {
           /al /rax :movzxbqRegReg # zero extend result
           63 /rax :btsqImm8Reg
           /rax :pushqReg
         }
-        { rets "p" streq }' {
+        { rets "p" eq }' {
           wrapInteger
           /rax :pushqReg
         }

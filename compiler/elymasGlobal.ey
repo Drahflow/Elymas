@@ -506,10 +506,10 @@
       /rbp /rsi :cmovcqRegReg
       60 /rsi :shrqImm8Reg # sil = type of concrete argument
 
-      /al /sil :cmpbRegReg
-      /typedNonCommon :jnzLbl8 # non-equal types
+      %0E /sil :testbImmReg
+      /typedNonCommon :jnzLbl8 # non-scalar concrete type
       %0E /al :testbImmReg
-      /typedNonCommon :jnzLbl8 # non-trivial types
+      /typedNonCommon :jnzLbl8 # non-scalar abstract type
 
       8 /rdi :addqImm8Reg
       8 /rbx :addqImm8Reg
@@ -2543,24 +2543,83 @@
       %01 %00 %00 %00 %00 %00 %00 %80 # unboxed 1
     ] /t11t1 defv
 
-    [
-      %20 %00 %00 %00 %00 %00 %00 %10
-      %00 %00 %00 %00 %00 %00 %00 %00
-      %01 %00 %00 %00 %00 %00 %00 %00
-      %61 %00 %00 %00 %00 %00 %00 %00
-    ] /ta defv
+    # [
+    #   %20 %00 %00 %00 %00 %00 %00 %10
+    #   %00 %00 %00 %00 %00 %00 %00 %00
+    #   %01 %00 %00 %00 %00 %00 %00 %00
+    #   %61 %00 %00 %00 %00 %00 %00 %00
+    # ] /ta defv
 
-    [
-      %30 %00 %00 %00 %00 %00 %00 %80
-      %02 %00 %00 %00 %00 %00 %00 %00
-      /taat1 /ta ::linkAbs64
-      /taat1 /ta ::linkAbs64
-      %01 %00 %00 %00 %00 %00 %00 %00
-      %01 %00 %00 %00 %00 %00 %00 %80 # unboxed 1
-    ] /taat1 defv
+    # [
+    #   %30 %00 %00 %00 %00 %00 %00 %80
+    #   %02 %00 %00 %00 %00 %00 %00 %00
+    #   /taat1 /ta ::linkAbs64
+    #   /taat1 /ta ::linkAbs64
+    #   %01 %00 %00 %00 %00 %00 %00 %00
+    #   %01 %00 %00 %00 %00 %00 %00 %80 # unboxed 1
+    # ] /taat1 defv
   > _ =globalTypes { defv }' ::allocateOffsetStruct
 
   <
+    # equality on ints and strings
+    [[
+      /rbx :popqReg
+
+      /rdx :popqReg
+      /rdi :popqReg
+      63 /rdx :btqImm8Reg
+      /intCase :jcLbl8
+      63 /rdi :btqImm8Reg
+      /intCase :jcLbl8
+      %F0 7 /rdx :testbImmMemDisp8
+      /intCase :jzLbl8
+      %F0 7 /rdi :testbImmMemDisp8
+      /intCase :jzLbl8
+
+      16 /rdx /rsi :movqMemDisp8Reg
+      16 /rdi /rcx :movqMemDisp8Reg
+
+      /rsi /rcx :cmpqRegReg
+      /nonEqualStr :jneLbl8
+
+      24 /rdx /rsi :leaqMemDisp8Reg
+      24 /rdi /rdi :leaqMemDisp8Reg
+
+      :repz :cmpsb
+      /nonEqualStr :jneLbl8
+
+      /rdx /rdx :xorqRegReg
+      /rdx :incqReg
+      /done :jmpLbl8
+
+      @nonEqualStr
+      /rdx /rdx :xorqRegReg
+
+      @done
+      63 /rdx :btsqImm8Reg
+      /rdx :pushqReg
+
+      /rbx :pushqReg
+      :retn
+
+      @intCase
+
+      /rdi ::unboxInteger
+      /rdx ::unboxInteger
+
+      /rax /rax :xorqRegReg
+      /rdi /rdx :cmpqRegReg
+      /nonEqual :jnzLbl8
+      /rax :incqReg
+      @nonEqual
+
+      63 /rax :btsqImm8Reg
+      /rax :pushqReg
+      
+      /rbx :pushqReg
+      :retn
+    ]] /eyeq defv
+
     # arithmetic functions on ints
     [ /rcx /rdx :addqRegReg ] makeArith /eyadd defv
     [ /rcx /rdx :subqRegReg ] makeArith /eysub defv
@@ -2568,13 +2627,6 @@
     [ /rcx /rdx :orqRegReg ] makeArith /eybor defv
     [ /rcx /rdx :xorqRegReg ] makeArith /eybxor defv
 
-    [
-      /rdi /rdi :xorqRegReg
-      1 /rsi :movqImmReg
-      /rdx /rcx :cmpqRegReg 
-      /rsi /rdx :movqRegReg
-      /rdi /rdx :cmovnzqRegReg
-    ] makeArith /eyeq defv
     [
       /rdi /rdi :xorqRegReg
       1 /rsi :movqImmReg
@@ -2659,41 +2711,6 @@
       @done
     ]] makeArith /eyor defv
   > _ =globalT11t1Functions { defv }' ::allocateOffsetStruct
-
-  <
-    [[
-      /rbx :popqReg
-
-      /rdx :popqReg
-      /rdi :popqReg
-
-      16 /rdx /rsi :movqMemDisp8Reg
-      16 /rdi /rcx :movqMemDisp8Reg
-
-      /rsi /rcx :cmpqRegReg
-      /nonEqual :jneLbl8
-
-      24 /rdx /rsi :leaqMemDisp8Reg
-      24 /rdi /rdi :leaqMemDisp8Reg
-
-      :repz :cmpsb
-      /nonEqual :jneLbl8
-
-      /rdx /rdx :xorqRegReg
-      /rdx :incqReg
-      /done :jmpLbl8
-
-      @nonEqual
-      /rdx /rdx :xorqRegReg
-
-      @done
-      63 /rdx :btsqImm8Reg
-      /rdx :pushqReg
-
-      /rbx :pushqReg
-      :retn
-    ]] /eystreq defv
-  > _ =globalTaat1Functions { defv }' ::allocateOffsetStruct
 
   <
     # 0 -> integer
@@ -2832,7 +2849,6 @@
     globalMacros keys len add
     globalT11t1Functions keys len add
     globalT1t1Functions keys len add
-    globalTaat1Functions keys len add
     /rdi :movqImmReg
     /rsi /rsi :xorqRegReg
     ::internalAllocateScope /rax :movqImmReg
@@ -2846,7 +2862,6 @@
     globalMacros keys eydefq { | }' createScopeEntries
     globalT11t1Functions keys eydeffd t11t1 { | }' createTypedScopeEntries
     globalT1t1Functions keys eydeffd t1t1 { | }' createTypedScopeEntries
-    globalTaat1Functions keys eydeffd taat1 { | }' createTypedScopeEntries
   ] :execute
 
   { ==name

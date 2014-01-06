@@ -443,7 +443,7 @@
       { =*f "" ==buffer
         {
           buffer 4096 read cat =buffer
-          buffer "" streq not
+          buffer "" eq not
         } {
           buffer "\n" str .split ==lines
           0 lines len 1 sub range {
@@ -572,8 +572,8 @@
         { 2 laterType * 1 neg neq }
         { laterType 1 }
 
-        # General integers co-iterate iff their binary and results in non-zero
-        { 0 earlierType * 0 laterType * band 0 neq }
+        # General integers co-iterate iff equal
+        { 0 earlierType * 0 laterType * eq }
         { earlierType 1 }
 
         { 1 }
