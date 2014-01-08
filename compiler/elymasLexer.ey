@@ -50,14 +50,16 @@
       /rax :callqReg
     ] cat :execute
   } /TOKID
-> -- 3 |defv rep
+
+  { "floats not supported during initial compilation stage" die } /TOKFLOAT
+> -- 4 |defv rep
 
 { /input defv
   "" {
     4096 input .read cat
     _ "" eq not
   } {
-    { _ "([^\\n]*)\\n(.*)" regex } { -102 -- TOKINT TOKSTR TOKID elymas .tokenize {
+    { _ "([^\\n]*)\\n(.*)" regex } { -102 -- TOKFLOAT TOKINT TOKSTR TOKID elymas .tokenize {
       _ .handle
       # assemblerLibrary .stackDump
       # assemblerLibrary .globalScopeDump

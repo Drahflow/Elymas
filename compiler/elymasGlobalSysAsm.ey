@@ -391,6 +391,27 @@
       :retn
     ]] /eycreateFunction defv
 
+    # converts integer to float
+    # 0 -> integer value
+    # 0 <- same value as float
+    [[
+      /rbx :popqReg
+
+      ::internalAllocateFloat /rax :movqImmReg
+      /rax :callqReg
+
+      /rdx :popqReg
+      /rdx ::unboxInteger
+      /rax :pushqReg # save float object
+
+      /rdx 8 /rax :movqRegMemDisp8 # save integer value to memory
+      8 /rax :fildqMemDisp8 # load integer value from memory
+      8 /rax :fstp64MemDisp8 # save float value to memory
+
+      /rbx :pushqReg
+      :retn
+    ]] /eyintToFloat defv
+
     # returns internalAllocateInteger into userspace
     # 0 <- ::internalAllocateInteger as integer
     [[

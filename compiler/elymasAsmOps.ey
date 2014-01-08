@@ -581,6 +581,26 @@ memoryAddressingVariants keys { ==variant memoryAddressingVariants variant . =*p
   %0F
   %42
   dst src modrm11
+} /cmovbqRegReg deff
+
+{ ==dst ==src
+  src bit64assert
+  dst bit64assert
+
+  1 dst /none src rex
+  %0F
+  %46
+  dst src modrm11
+} /cmovbeqRegReg deff
+
+{ ==dst ==src
+  src bit64assert
+  dst bit64assert
+
+  1 dst /none src rex
+  %0F
+  %42
+  dst src modrm11
 } /cmovcqRegReg deff
 
 { ==dst ==src
@@ -711,6 +731,63 @@ memoryAddressingVariants keys { ==variant memoryAddressingVariants variant . =*p
   /six reg modrm11
 } /divqReg deff
 
+{
+  %DE
+  %C1
+} /faddp deff
+
+{
+  %DF
+  %F1
+} /fcomip deff
+
+{
+  %DE
+  %F9
+} /fdivp deff
+
+memoryAddressingVariants keys { ==variant memoryAddressingVariants variant . =*parse
+  { parse ==mem
+    mem .base regno %07 gt mem .idx regno %07 gt or
+      { 0 /none mem .idx mem .base rex } rep
+    %DF
+    /five mem .encode
+  } /fildq variant defOp
+} each
+
+memoryAddressingVariants keys { ==variant memoryAddressingVariants variant . =*parse
+  { parse ==mem
+    mem .base regno %07 gt mem .idx regno %07 gt or
+      { 0 /none mem .idx mem .base rex } rep
+    %DD
+    /zero mem .encode
+  } /fld64 variant defOp
+} each
+
+{
+  %DE
+  %C9
+} /fmulp deff
+
+memoryAddressingVariants keys { ==variant memoryAddressingVariants variant . =*parse
+  { parse ==mem
+    mem .base regno %07 gt mem .idx regno %07 gt or
+      { 0 /none mem .idx mem .base rex } rep
+    %DD
+    /three mem .encode
+  } /fstp64 variant defOp
+} each
+
+{
+  %DD
+  %D8
+} /fstp deff
+
+{
+  %DE
+  %E9
+} /fsubp deff
+
 { ==reg
   reg bit8assert
 
@@ -818,6 +895,17 @@ memoryAddressingVariants keys { ==variant memoryAddressingVariants variant . =*p
 {
   %AC
 } /lodsb deff
+
+{ ==reg ==i
+  reg bit8assert
+  i 256 lt not { "Imm8 too large" die } rep
+
+  reg regno %07 gt reg rexreqbyte or { 0 /none /none reg rex } rep
+
+  %C6
+  /zero reg modrm11
+  i imm8
+} /movbImmReg deff
 
 { ==mem ==i
   mem bit64assert

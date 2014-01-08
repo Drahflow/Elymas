@@ -193,6 +193,12 @@ Overhead: 1/32.
 * Exact length
 * data (UTF-8)
 
+=== Float ===
+* Length in bytes (including header, always 16)
+  bit 63-60: 0 0 1 0
+  bit 59: reserved for GC
+* double precision value
+
 === Extension Area ===
 * Length in bytes (including header)
   bit 63-60: 0 1 0 0

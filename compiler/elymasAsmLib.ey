@@ -471,7 +471,9 @@
       /markInteger :jzLbl32
       /rax :decqReg
       /markString :jzLbl32
-      3 /rax :subqImm8Reg
+      /rax :decqReg
+      /markFloat :jzLbl32
+      2 /rax :subqImm8Reg
       /markExtensionArea :jzLbl32
       /rax :decqReg
       /markFunction :jzLbl32
@@ -499,6 +501,10 @@
       # internalDumpErrorString /rax :movqImmReg
       # /rax :callqReg
       # " string marked\n" outputError
+      :retn
+
+      @markFloat
+      # "float marked\n" outputError
       :retn
 
       @markExtensionArea
@@ -1040,6 +1046,17 @@
   > { defv }' allocateOffsetStruct
 
   <
+    # allocate float
+    # rax <- address of float object on heap
+    [
+      internalAllocateInteger /rax :movqImmReg
+      /rax :callqReg
+
+      # set type
+      %20 7 /rax :orbImmMemDisp8
+      :retn
+    ] /internalAllocateFloat defv
+
     # allocate a new code block from the encoding buffers
     # rdi -> end of allocated code (address after last used opcode in quoteEncodingBufferCode)
     # rbp -> end of allocated object pointers (address after last used address in quoteEncodingBufferObjects)
