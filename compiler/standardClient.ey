@@ -505,8 +505,8 @@
       object sys .typed .type [
         literal # integer
         literal # string
-        literal # scope
-        invalid # name table
+        unknown
+        unknown
         invalid # extension area
         { object sys .typed .inputs ==in
           in len 1 neq { "multi-input function in typeStack" die } rep
@@ -518,8 +518,8 @@
         invalid # function code
         { [ 1 0 object len 1 sub ] 0 object * typeStackInternal } # array
         invalid # function type
-        unknown
-        unknown
+        literal # scope
+        invalid # name table
         unknown
         unknown
         unknown
@@ -792,8 +792,8 @@
     sys .typed .type [
       { o base16encode64 sys .err .writeall } # integer
       { "\"" o "\"" cat cat sys .err .writeall } # string
-      { "<scope: " o sys .asm .rawAddress base16encode64 cat ">" cat sys .err .writeall }
-      invalid # name table
+      unknown
+      unknown
       invalid # extension area
       { "<function: " o sys .asm .rawAddress base16encode64 cat ">" cat sys .err .writeall }
       { "<function code: " o sys .asm .rawAddress base16encode64 cat ">" cat sys .err .writeall }
@@ -803,8 +803,8 @@
         "" indent { "  " cat } rep "]" cat sys .err .writeall
       } # array
       invalid # function type
-      unknown
-      unknown
+      { "<scope: " o sys .asm .rawAddress base16encode64 cat ">" cat sys .err .writeall }
+      invalid # name table
       unknown
       unknown
       unknown

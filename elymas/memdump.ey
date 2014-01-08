@@ -71,7 +71,7 @@ ELFBASE 56 add peek64 65536 mod _ dump ==phdrCount
   } eachWhile
 } /peekElf64 deffst
 
-HEAPBASE peekElf64 %FFFFFFFFFFFF0000 band %2E00000000000000 eq assert
+HEAPBASE peekElf64 %FFFFFFFFFFFF0000 band %9E00000000000000 eq assert
 
 sys .asm .|programStart sys .asm .rawCodeAddress { add peekElf64 }_ =*peekProgramStart
 2 peekProgramStart _ dump ==initialRsp
@@ -122,6 +122,40 @@ sys .asm .|programStart sys .asm .rawCodeAddress { add peekElf64 }_ =*peekProgra
           addr 16 add peekElf64 "len:" -01 out
           addr 24 add peekElf64 256 math .base str .fromArray 0 out
         }
+        { :errornous_2 }
+        { :errornous_3 }
+        { :extension_area
+          addr peekElf64 %00000000FFFFFFFF band _ "len:" -01 out 8 div 1 -01 range {
+            8 mul addr add peekElf64 dumpElf
+          } each
+        }
+        { :function
+          addr 8 add peekElf64 dumpElf 
+          addr 16 add peekElf64 dumpElf 
+          addr 24 add peekElf64 dumpElf 
+        }
+        { :function_code
+          addr 16 add peekElf64 %FFFF band %B848 eq
+          addr 26 add peekElf64 %FFFF band %E0FF eq and
+          {
+            addr 18 add peekElf64 16 sub dumpElf
+          } {
+            addr 8 add peekElf64 _ "oplen:" -01 out ==oplen
+            addr peekElf64 %00000000FFFFFFFF band _ "len:" -01 out 8 div 2 oplen 8 div add -01 range {
+              8 mul addr add peekElf64 dumpElf
+            } each
+          } ? *
+        }
+        { :array
+          addr peekElf64 %00000000FFFFFFFF band _ "len:" -01 out 8 div 1 -01 range {
+            8 mul addr add peekElf64 dumpElf
+          } each
+        }
+        { :function_type
+          addr peekElf64 %00000000FFFFFFFF band _ "len:" -01 out 8 div 1 -01 range {
+            8 mul addr add peekElf64 dumpElf
+          } each
+        }
         # more physical scope dumping, but harder to follow output
         # { :scope
         #   addr peekElf64 %00000000FFFFFFFF band _ "len:" -01 out 8 div 1 -01 range {
@@ -161,40 +195,6 @@ sys .asm .|programStart sys .asm .rawCodeAddress { add peekElf64 }_ =*peekProgra
             16 mul addr add peekElf64 dumpElf
           } each
         }
-        { :extension_area
-          addr peekElf64 %00000000FFFFFFFF band _ "len:" -01 out 8 div 1 -01 range {
-            8 mul addr add peekElf64 dumpElf
-          } each
-        }
-        { :function
-          addr 8 add peekElf64 dumpElf 
-          addr 16 add peekElf64 dumpElf 
-          addr 24 add peekElf64 dumpElf 
-        }
-        { :function_code
-          addr 16 add peekElf64 %FFFF band %B848 eq
-          addr 26 add peekElf64 %FFFF band %E0FF eq and
-          {
-            addr 18 add peekElf64 16 sub dumpElf
-          } {
-            addr 8 add peekElf64 _ "oplen:" -01 out ==oplen
-            addr peekElf64 %00000000FFFFFFFF band _ "len:" -01 out 8 div 2 oplen 8 div add -01 range {
-              8 mul addr add peekElf64 dumpElf
-            } each
-          } ? *
-        }
-        { :array
-          addr peekElf64 %00000000FFFFFFFF band _ "len:" -01 out 8 div 1 -01 range {
-            8 mul addr add peekElf64 dumpElf
-          } each
-        }
-        { :function_type
-          addr peekElf64 %00000000FFFFFFFF band _ "len:" -01 out 8 div 1 -01 range {
-            8 mul addr add peekElf64 dumpElf
-          } each
-        }
-        { :errornous_9 }
-        { :errornous_A }
         { :errornous_B }
         { :errornous_C }
         { :errornous_D }

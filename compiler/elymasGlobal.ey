@@ -208,7 +208,7 @@
 
       ::internalAllocateAndZero /rax :movqImmReg
       /rax :callqReg
-      %30 7 /rax :orbImmMemDisp8 # set type
+      %A0 7 /rax :orbImmMemDisp8 # set type
       /rdx :popqReg
       8 /rdx /rcx :movqMemDisp8Reg
       /rcx 8 /rax :movqRegMemDisp8 # copy fill
@@ -226,7 +226,7 @@
       INITIALNAMETABLESIZE 16 mul 16 add /rdi :movqImmReg
       ::internalAllocateAndZero /rax :movqImmReg
       /rax :callqReg
-      %30 7 /rax :orbImmMemDisp8 # set type
+      %A0 7 /rax :orbImmMemDisp8 # set type
       16 8 /rax :orbImmMemDisp8 # set initial fill
       16 /rax /rdi :leaqMemDisp8Reg # load first entry address
 

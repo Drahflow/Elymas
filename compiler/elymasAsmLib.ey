@@ -471,11 +471,7 @@
       /markInteger :jzLbl32
       /rax :decqReg
       /markString :jzLbl32
-      /rax :decqReg
-      /markScope :jzLbl32
-      /rax :decqReg
-      /markNameTable :jzLbl32
-      /rax :decqReg
+      3 /rax :subqImm8Reg
       /markExtensionArea :jzLbl32
       /rax :decqReg
       /markFunction :jzLbl32
@@ -485,6 +481,10 @@
       /markArray :jzLbl32
       /rax :decqReg
       /markFunctionType :jzLbl32
+      /rax :decqReg
+      /markScope :jzLbl32
+      /rax :decqReg
+      /markNameTable :jzLbl32
 
       @markInvalidType
       /rax /rbx :movqRegReg # for easier inspection
@@ -499,46 +499,6 @@
       # internalDumpErrorString /rax :movqImmReg
       # /rax :callqReg
       # " string marked\n" outputError
-      :retn
-
-      @markScope
-      # /rdi :pushqReg
-      # "scope marked\n" outputError
-      # /rdi :popqReg
-
-      /rcx :pushqReg
-      /rsi :pushqReg
-      /rdi /ecx :movlMemReg
-      /rdi /rsi :movqRegReg
-      8 /rcx :subqImm8Reg
-      @markScopeLoop
-      /rsi /rcx /rdi :movqMemIndexReg
-      /markObject :callqLbl32
-      8 /rcx :subqImm8Reg
-      /markScopeLoop :jnzLbl8
-      /rsi :popqReg
-      /rcx :popqReg
-      :retn
-
-      @markNameTable
-      # /rdi :pushqReg
-      # "name table marked\n" outputError
-      # /rdi :popqReg
-
-      /rcx :pushqReg
-      /rsi :pushqReg
-      8 /rdi /ecx :movlMemDisp8Reg
-      /rdi /rsi :movqRegReg
-      16 /rcx :subqImm8Reg
-      /markNameTableEmpty :jzLbl8
-      @markNameTableLoop
-      /rsi /rcx /rdi :movqMemIndexReg
-      /markObject :callqLbl32
-      16 /rcx :subqImm8Reg
-      /markNameTableLoop :jnzLbl8
-      @markNameTableEmpty
-      /rsi :popqReg
-      /rcx :popqReg
       :retn
 
       @markExtensionArea
@@ -663,6 +623,46 @@
       /rcx :popqReg
       :retn
 
+      @markScope
+      # /rdi :pushqReg
+      # "scope marked\n" outputError
+      # /rdi :popqReg
+
+      /rcx :pushqReg
+      /rsi :pushqReg
+      /rdi /ecx :movlMemReg
+      /rdi /rsi :movqRegReg
+      8 /rcx :subqImm8Reg
+      @markScopeLoop
+      /rsi /rcx /rdi :movqMemIndexReg
+      /markObject :callqLbl32
+      8 /rcx :subqImm8Reg
+      /markScopeLoop :jnzLbl8
+      /rsi :popqReg
+      /rcx :popqReg
+      :retn
+
+      @markNameTable
+      # /rdi :pushqReg
+      # "name table marked\n" outputError
+      # /rdi :popqReg
+
+      /rcx :pushqReg
+      /rsi :pushqReg
+      8 /rdi /ecx :movlMemDisp8Reg
+      /rdi /rsi :movqRegReg
+      16 /rcx :subqImm8Reg
+      /markNameTableEmpty :jzLbl8
+      @markNameTableLoop
+      /rsi /rcx /rdi :movqMemIndexReg
+      /markObject :callqLbl32
+      16 /rcx :subqImm8Reg
+      /markNameTableLoop :jnzLbl8
+      @markNameTableEmpty
+      /rsi :popqReg
+      /rcx :popqReg
+      :retn
+
 
       # allocate next chunk of memory from the operating system
       @allocateFromSystem
@@ -776,7 +776,7 @@
       # CHECK this is just sanity checking
       7 /rdi /al :movbMemDisp8Reg
       %F0 /al :andbImmReg
-      %20 /al :cmpbImmReg
+      %90 /al :cmpbImmReg
       /isScope :jeLbl8
 
       "object resolving in is not a scope" outputError
@@ -956,7 +956,7 @@
       /rax :callqReg
 
       # set type and existence of all pointers
-      %26 7 /rax :orbImmMemDisp8
+      %96 7 /rax :orbImmMemDisp8
       16 /rax :popqMemDisp8 # set parent
 
       :retn
