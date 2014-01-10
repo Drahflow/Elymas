@@ -2451,6 +2451,8 @@
         /immediateFound :jzLbl8
         %10 /al :cmpbImmReg
         /immediateFound :jzLbl8
+        %20 /al :cmpbImmReg
+        /immediateFound :jzLbl8
         %50 /al :cmpbImmReg
         /functionFound :jzLbl8
         %70 /al :cmpbImmReg
