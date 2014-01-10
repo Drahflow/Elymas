@@ -13,23 +13,26 @@
 < [ /al /cl /dl /bl /spl /ah /bpl /ch /sil /dh /dil /bh /r8b /r9b /r10b /r11b /r12b /r13b /r14b /r15b ] { 1 -01 defv }' each > ==:bit8table
 { bit8table -01 . -- } /bit8assert deff
 
+< [ /xmm0 /xmm1 /xmm2 /xmm3 /xmm4 /xmm5 /xmm6 /xmm7 /xmm8 /xmm9 /xmm10 /xmm11 /xmm12 /xmm13 /xmm14 /xmm15 ] { 1 -01 defv }' each > ==:xmmTable
+{ xmmTable -01 . -- } /xmmAssert deff
+
 <
-  [ /zero /al /ax /eax /rax /none ] { 0 -01 defv }' each
-  [ /one /cl /cx /ecx /rcx ] { 1 -01 defv }' each
-  [ /two /dl /dx /edx /rdx ] { 2 -01 defv }' each
-  [ /three /bl /bx /ebx /rbx ] { 3 -01 defv }' each
-  [ /four /sib /spl /ah /sp /esp /rsp ] { 4 -01 defv }' each
-  [ /five /bpl /bp /ebp /rbp ] { 5 -01 defv }' each
-  [ /six /sil /si /esi /rsi ] { 6 -01 defv }' each
-  [ /seven /dil /di /edi /rdi ] { 7 -01 defv }' each
-  [ /r8b /r8w /r8d /r8 ] { 8 -01 defv }' each
-  [ /r9b /r9w /r9d /r9 ] { 9 -01 defv }' each
-  [ /r10b /r10w /r10d /r10 ] { 10 -01 defv }' each
-  [ /r11b /r11w /r11d /r11 ] { 11 -01 defv }' each
-  [ /r12b /r12w /r12d /r12 ] { 12 -01 defv }' each
-  [ /r13b /r13w /r13d /r13 ] { 13 -01 defv }' each
-  [ /r14b /r14w /r14d /r14 ] { 14 -01 defv }' each
-  [ /r15b /r15w /r15d /r15 ] { 15 -01 defv }' each
+  [ /zero /al /ax /eax /rax /none /xmm0 ] { 0 -01 defv }' each
+  [ /one /cl /cx /ecx /rcx /xmm1 ] { 1 -01 defv }' each
+  [ /two /dl /dx /edx /rdx /xmm2 ] { 2 -01 defv }' each
+  [ /three /bl /bx /ebx /rbx /xmm3 ] { 3 -01 defv }' each
+  [ /four /sib /spl /ah /sp /esp /rsp /xmm4 ] { 4 -01 defv }' each
+  [ /five /bpl /bp /ebp /rbp /xmm5 ] { 5 -01 defv }' each
+  [ /six /sil /si /esi /rsi /xmm6 ] { 6 -01 defv }' each
+  [ /seven /dil /di /edi /rdi /xmm7 ] { 7 -01 defv }' each
+  [ /r8b /r8w /r8d /r8 /xmm8 ] { 8 -01 defv }' each
+  [ /r9b /r9w /r9d /r9 /xmm9 ] { 9 -01 defv }' each
+  [ /r10b /r10w /r10d /r10 /xmm10 ] { 10 -01 defv }' each
+  [ /r11b /r11w /r11d /r11 /xmm11 ] { 11 -01 defv }' each
+  [ /r12b /r12w /r12d /r12 /xmm12 ] { 12 -01 defv }' each
+  [ /r13b /r13w /r13d /r13 /xmm13 ] { 13 -01 defv }' each
+  [ /r14b /r14w /r14d /r14 /xmm14 ] { 14 -01 defv }' each
+  [ /r15b /r15w /r15d /r15 /xmm15 ] { 15 -01 defv }' each
 > ==:regnoTable
 
 { regnoTable -01 . } /regno deff
@@ -350,7 +353,7 @@
 } /defAsmAddq deff
 
 { ==modrmOpcode ==mnemonic
-  { ==reg =i
+  { ==reg ==i
     reg bit8assert
     i 256 lt not { "Imm8 too large" die } rep
 
@@ -707,6 +710,17 @@ memoryAddressingVariants keys { ==variant memoryAddressingVariants variant . =*p
 /cmp %39 defAsmAddq
 /cmp /seven defAsmAddImm
 
+{ ==dst ==src
+  src bit64assert
+  dst xmmAssert
+
+  1 src /none dst rex
+  %F2
+  %0F
+  %2A
+  src dst modrm11
+} /cvtsi2sdqRegXmm deff
+
 { ==mem
   mem bit64assert
 
@@ -992,6 +1006,52 @@ memoryAddressingVariants keys { ==variant memoryAddressingVariants variant . =*p
 /mov %88 defAsmAddb
 /mov %89 defAsmAddl
 /mov %89 defAsmAddq
+
+{ ==dst ==src
+  src bit64assert
+  dst xmmAssert
+
+  %66
+  1 dst /none src rex
+  %0F
+  %6E
+  dst src modrm11
+} /movqRegXmm deff
+
+memoryAddressingVariants keys { ==variant memoryAddressingVariants variant . =*parse
+  { ==dst parse ==mem
+    dst xmmAssert
+    
+    %66
+    1 dst mem .idx mem .base rex
+    %0F
+    %6E
+    dst mem .encode
+  } /movq variant "Xmm" cat defOp
+} each
+
+{ ==dst ==src
+  src xmmAssert
+  dst bit64assert
+
+  %66
+  1 src /none dst rex
+  %0F
+  %7E
+  src dst modrm11
+} /movqXmmReg deff
+
+memoryAddressingVariants keys { ==variant memoryAddressingVariants variant . =*parse
+  { parse ==mem ==src
+    src xmmAssert
+    
+    %66
+    1 src mem .idx mem .base rex
+    %0F
+    %7E
+    src mem .encode
+  } /movqXmm variant defOp
+} each
 
 {
   %A4

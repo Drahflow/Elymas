@@ -4,8 +4,12 @@
   sys .linux "+" via
   sys .asm "::" via
   sys .asm .ops ":" via
+  sys .asm .ops .|label "@" deff
   sys .asm .|peek =*:peek
   sys .asm .|poke =*:poke
+
+  { [ } "[[" deff
+  { ] :labelResolve } "]]" deff
 
   # hex decoding
   { # ==strNumber
@@ -147,10 +151,14 @@
   #      i32: int32_t return value
   #      i64: int64_t return value
   #      s: string return value (will be copied)
+  #      f: float return value
+  #      d: double return value
   # 1 -> argument specification string
   #      "iis" == foo(int, int, char *)
   #      p: pointer argument
   #      i: integer argument (of any width)
+  #      f: float argument
+  #      d: double argument
   #      s: string argument (pointer to string content passed, string is zero-terminated)
   #      b: buffer argument (pointer to string content passed, no zero-termination, but no copy)
   # 2 -> address of function
@@ -158,7 +166,10 @@
   { ==rets ==args ==func
     [ /rdi /rsi /rdx /rcx /r8 /r9 ] _ =*:availableIntegerRegisters
                                       len ==:INTREGISTERS
+    [ /xmm0 /xmm1 /xmm2 /xmm3 /xmm4 /xmm5 /xmm6 /xmm7 ] _ =*:availableFloatRegisters
+                                                          len ==:FLOATREGISTERS
     0 ==nextIntegerRegister
+    0 ==nextFloatRegister
     
     [
       0 args len range { _ ==arg args * ==t
@@ -188,6 +199,21 @@
           0 nextIntegerRegister 6 min range reverse { availableIntegerRegisters :popqReg } each
         } /popIntegerStorage deffst
 
+        { # returns the register where the value is available
+          /not_enough_registers ==reg
+          nextFloatRegister FLOATREGISTERS lt {
+            nextFloatRegister availableFloatRegisters =reg
+          } rep
+          reg
+        } /useFloatStorage deffst
+
+        {
+          nextFloatRegister FLOATREGISTERS ge {
+            "FIXME: insufficient float registers available - parameters must go on stack" die
+          } rep
+          nextFloatRegister 1 add =nextFloatRegister
+        } /nextFloatStorage deffst
+
         [
           { t 0 "i" * eq
             t 0 "p" * eq or }' {
@@ -198,6 +224,31 @@
               8 reg reg :movqMemDisp8Reg
               nextIntegerStorage
             ]
+          }
+          { t 0 "d" * eq }' {
+            [[
+              useFloatStorage ==reg
+              args len 1 sub arg sub 8 mul /rsp /rax :movqMemDisp8Reg
+              63 /rax :btrqImm8Reg
+              /unboxedIntegerLoad :jcLbl8
+              7 /rax /cl :movbMemDisp8Reg
+              %F0 /cl :andbImmReg
+              /integerLoad :jzLbl8
+              %20 /cl :cmpbImmReg
+              /floatLoad :jzLbl8
+              :ud2
+
+              @floatLoad
+              8 /rax reg :movqMemDisp8Xmm
+              /loadDone :jmpLbl8
+
+              @integerLoad
+              8 /rax /rax :movqMemDisp8Reg
+              @unboxedIntegerLoad
+              /rax reg :cvtsi2sdqRegXmm
+              @loadDone
+              nextFloatStorage
+            ]]
           }
           { t 0 "b" * eq }' {
             [
@@ -259,6 +310,14 @@
     ] ==argumentLoaders
     
     {
+      ::internalAllocateFloat /rax :movqImmReg
+      /rax :callqReg
+
+      /xmm0 8 /rax :movqXmmMemDisp8
+      /rax :pushqReg
+    } /wrapFloat deffd
+
+    {
       /rax /rdx :movqRegReg
       32 /rdx :shrqImm8Reg
       
@@ -280,6 +339,7 @@
       ::internalAllocateInteger /rax :movqImmReg
       /rax :callqReg
       8 /rax :popqMemDisp8
+      /rax :pushqReg
     } /wrapInteger deffd
 
     {
@@ -304,26 +364,21 @@
         }
         { rets "i64" eq }' {
           wrapInteger
-          /rax :pushqReg
         }
         { rets "i32" eq }' {
           /eax /rax :movsxlqRegReg # sign extend result
           wrapInteger
-          /rax :pushqReg
         }
         { rets "i16" eq }' {
           /ax /rax :movsxwqRegReg # sign extend result
           wrapInteger
-          /rax :pushqReg
         }
         { rets "i8" eq }' {
           /al /rax :movsxbqRegReg # sign extend result
           wrapInteger
-          /rax :pushqReg
         }
         { rets "u64" eq }' {
           wrapInteger
-          /rax :pushqReg
         }
         { rets "u32" eq }' {
           /eax /eax :movlRegReg # zero extend result
@@ -342,7 +397,9 @@
         }
         { rets "p" eq }' {
           wrapInteger
-          /rax :pushqReg
+        }
+        { rets "d" eq }' {
+          wrapFloat
         }
         { 1 }' {
           rets dump
@@ -357,7 +414,7 @@
       r15backup rawContentAddress /rax :movqImmReg
       /r15 /rax :movqRegMem
 
-      args len INTREGISTERS ge {
+      args len INTREGISTERS ge { # FIXME: this logic is broken for non-integer args
         /rsp /rbp :movqRegReg
         INTREGISTERS 8 mul /rbp :addqImm8Reg
         %F0 /rbp :andqImm8Reg

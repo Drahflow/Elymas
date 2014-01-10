@@ -797,39 +797,45 @@
     sys .typed .type [
       { o base16encode64 sys .err .writeall } # integer
       { "\"" o "\"" cat cat sys .err .writeall } # string
-      { o ==f 0 ==e "+" ==s
+      { o ==f 0 ==e "+" ==s 0 ==i
         f 0 FLOAT lt { 0 FLOAT f sub =f "-" =s } rep
-        { f 1 FLOAT lt } { f 10 FLOAT mul =f e 1 sub =e } loop
-        { f 10 FLOAT ge } { f 10 FLOAT div =f e 1 add =e } loop
+        { f 1 FLOAT lt i 500 lt and } { f 10 FLOAT mul =f e 1 sub =e i 1 add =i } loop
+        { f 10 FLOAT ge i 500 lt and } { f 10 FLOAT div =f e 1 add =e i 1 add =i } loop
 
-        {
-          0 ==d
-          1 10 range { ==i f i FLOAT gt { i =d } rep } each
-          f d sub =f
-          f 10 FLOAT mul =f
-          d base10digits *
-        } /extractDigit deffst
+        i 500 eq {
+          s
+          f 1 FLOAT lt "0.0e0" "inf" ?
+          cat sys .err .writeall
+        } {
+          {
+            0 ==d
+            1 10 range { ==i f i FLOAT gt { i =d } rep } each
+            f d sub =f
+            f 10 FLOAT mul =f
+            d base10digits *
+          } /extractDigit deffst
 
-        [
-          0 s *
-          extractDigit
-          0 "." *
-          10 |extractDigit rep
-          0 "e" *
-          e 0 lt {
-            0 e sub =e
-            0 "-" *
-          } rep
-          e 0 eq {
-            0 "0" *
-          } rep
           [
-            { e } {
-              e 10 mod base10digits *
-              e 10 div =e
-            } loop
-          ] reverse _ len dearray
-        ] str .fromArray sys .err .writeall
+            0 s *
+            extractDigit
+            0 "." *
+            10 |extractDigit rep
+            0 "e" *
+            e 0 lt {
+              0 e sub =e
+              0 "-" *
+            } rep
+            e 0 eq {
+              0 "0" *
+            } rep
+            [
+              { e } {
+                e 10 mod base10digits *
+                e 10 div =e
+              } loop
+            ] reverse _ len dearray
+          ] str .fromArray sys .err .writeall
+        } ? *
       } # float
       unknown
       invalid # extension area

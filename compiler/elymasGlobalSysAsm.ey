@@ -444,6 +444,22 @@
       :retn
     ]] /eyinternalAllocateString defv
 
+    # returns internalAllocateFloat into userspace
+    # 0 <- ::internalAllocateFloat as integer
+    [[
+      /rbx :popqReg
+
+      ::internalAllocateInteger /rax :movqImmReg
+      /rax :callqReg
+      /rax :pushqReg
+
+      ::internalAllocateFloat /rdx :movqImmReg
+      /rdx 8 /rax :movqRegMemDisp8
+
+      /rbx :pushqReg
+      :retn
+    ]] /eyinternalAllocateFloat defv
+
     # returns internalAllocateScope into userspace
     # 0 <- ::internalAllocateScope as integer
     [[
