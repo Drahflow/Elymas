@@ -141,8 +141,9 @@
       empty ==?a
 
       [ { ^( } {
-        tail parse currentCapture capture =a
+        currentCapture ==thisCapture
         currentCapture 1 add =currentCapture
+        tail parse thisCapture capture =a
         ^) not { ") expected" die } rep
         tail
       } { ^[ } {
@@ -1085,7 +1086,7 @@
     { .value base10decode } /TOKINT defvd
     { .value "^(\\d+)(\\.(\\d*))?([eE](-)?(\\d+))?$" regex
       not { "Not in fact a float" die } rep
-      ==m1 ==m2 -- ==eS ==e --
+      ==m1 -- ==m2 -- ==eS ==e
 
       0 FLOAT ==m1f
       m1 { zero sub m1f 10 FLOAT mul add =m1f } each

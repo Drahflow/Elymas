@@ -10,7 +10,7 @@
       { "^ +(.*)" regex } { } parse
       { "^#" regex } { "" } parse
       { "^(\\d+) +(.*)" regex } { TOKINT token -01 } parse
-      { "^(\\d[0-9.]*([eE]-?\\d+)?) +(.*)" regex } { -01 TOKFLOAT token -02 } parse
+      { "^(\\d[0-9.]*([eE]-?\\d+)?) +(.*)" regex } { TOKFLOAT token -02 } parse
       { "^\"(.*)" regex } {
         "" /str defv
         { _ "^\"(.*)" regex { -01 -- 0 } { 1 } ? * } {
