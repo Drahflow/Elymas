@@ -250,6 +250,32 @@
               nextFloatStorage
             ]]
           }
+          { t 0 "f" * eq }' {
+            [[
+              useFloatStorage ==reg
+              args len 1 sub arg sub 8 mul /rsp /rax :movqMemDisp8Reg
+              63 /rax :btrqImm8Reg
+              /unboxedIntegerLoad :jcLbl8
+              7 /rax /cl :movbMemDisp8Reg
+              %F0 /cl :andbImmReg
+              /integerLoad :jzLbl8
+              %20 /cl :cmpbImmReg
+              /floatLoad :jzLbl8
+              :ud2
+
+              @floatLoad
+              8 /rax reg :movqMemDisp8Xmm
+              /loadDone :jmpLbl8
+
+              @integerLoad
+              8 /rax /rax :movqMemDisp8Reg
+              @unboxedIntegerLoad
+              /rax reg :cvtsi2sdqRegXmm
+              @loadDone
+              reg reg :cvtsd2ssXmmXmm
+              nextFloatStorage
+            ]]
+          }
           { t 0 "b" * eq }' {
             [
               useIntegerStorage ==reg
@@ -399,6 +425,10 @@
           wrapInteger
         }
         { rets "d" eq }' {
+          wrapFloat
+        }
+        { rets "f" eq }' {
+          /xmm0 /xmm0 :cvtss2sdXmmXmm
           wrapFloat
         }
         { 1 }' {
