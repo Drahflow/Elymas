@@ -715,10 +715,10 @@ memoryAddressingVariants keys { ==variant memoryAddressingVariants variant . =*p
   dst xmmAssert
 
   %F2
-  1 src /none dst rex
+  1 dst /none src rex
   %0F
   %2A
-  src dst modrm11
+  dst src modrm11
 } /cvtsi2sdqRegXmm deff
 
 { ==dst ==src
