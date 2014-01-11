@@ -714,12 +714,34 @@ memoryAddressingVariants keys { ==variant memoryAddressingVariants variant . =*p
   src bit64assert
   dst xmmAssert
 
-  1 src /none dst rex
   %F2
+  1 src /none dst rex
   %0F
   %2A
   src dst modrm11
 } /cvtsi2sdqRegXmm deff
+
+{ ==dst ==src
+  src xmmAssert
+  dst xmmAssert
+
+  %F2
+  1 dst /none src rex
+  %0F
+  %5A
+  dst src modrm11
+} /cvtsd2ssXmmXmm deff
+
+{ ==dst ==src
+  src xmmAssert
+  dst xmmAssert
+
+  %F3
+  1 dst /none src rex
+  %0F
+  %5A
+  dst src modrm11
+} /cvtss2sdXmmXmm deff
 
 { ==mem
   mem bit64assert
