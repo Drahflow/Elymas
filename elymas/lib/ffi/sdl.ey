@@ -12,12 +12,56 @@
   "" "" ->Quit
   "" "s" ->GetError
 
+  1 ==:WINDOW_FULLSCREEN
+  2 ==:WINDOW_OPENGL
+  4 ==:WINDOW_SHOWN
+  8 ==:WINDOW_HIDDEN
+  16 ==:WINDOW_BORDERLESS
+  32 ==:WINDOW_RESIZABLE
+  64 ==:WINDOW_MINIMIZED
+  128 ==:WINDOW_MAXIMIZED
+  256 ==:WINDOW_INPUT_GRABBED
+  512 ==:WINDOW_INPUT_FOCUS
+  1024 ==:WINDOW_MOUSE_FOCUS
+  2048 ==:WINDOW_FOREIGN
+  4095 ==:WINDOW_FULLSCREEN_DESKTOP
+
   "siiiii" "p" ->CreateWindow
   "p" "" ->DestroyWindow
   "p" "i32" ->UpdateWindowSurface
   "p" "p" ->GetWindowSurface
   "pbi" "i32" ->FillRect
   { 0 -201 } /SDL_FillRect "pii" "i32" :resolveFunction ; /Fill deffd
+
+
+   0 ==:GL_RED_SIZE
+   1 ==:GL_GREEN_SIZE
+   2 ==:GL_BLUE_SIZE
+   3 ==:GL_ALPHA_SIZE
+   4 ==:GL_BUFFER_SIZE
+   5 ==:GL_DOUBLEBUFFER
+   6 ==:GL_DEPTH_SIZE
+   7 ==:GL_STENCIL_SIZE
+   8 ==:GL_ACCUM_RED_SIZE
+   9 ==:GL_ACCUM_GREEN_SIZE
+  10 ==:GL_ACCUM_BLUE_SIZE
+  11 ==:GL_ACCUM_ALPHA_SIZE
+  12 ==:GL_STEREO
+  13 ==:GL_MULTISAMPLEBUFFERS
+  14 ==:GL_MULTISAMPLESAMPLES
+  15 ==:GL_ACCELERATED_VISUAL
+  16 ==:GL_RETAINED_BACKING
+  17 ==:GL_CONTEXT_MAJOR_VERSION
+  18 ==:GL_CONTEXT_MINOR_VERSION
+  19 ==:GL_CONTEXT_EGL
+  20 ==:GL_CONTEXT_FLAGS
+  21 ==:GL_CONTEXT_PROFILE_MASK
+  22 ==:GL_SHARE_WITH_CURRENT_CONTEXT
+
+  "ii" "i32" ->GL_SetAttribute
+  "p" "p" ->GL_CreateContext
+  "p" "" ->GL_SwapWindow
+  "p" "" ->GL_DeleteContext
 
   SetMainReady
 > /sdl ffi .defv

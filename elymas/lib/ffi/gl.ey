@@ -1,0 +1,35 @@
+<
+  sys .so ":" via
+  txt .consume .|hu "%" deffd
+
+  "/usr/lib/x86_64-linux-gnu/libGL.so.1" :dlopen --
+
+  { _ "gl" -01 cat -1032 :resolveFunction -01 deffd }' "->" deffd
+
+  %00001 ==:CURRENT_BIT
+  %00002 ==:POINT_BIT
+  %00004 ==:LINE_BIT
+  %00008 ==:POLYGON_BIT
+  %00010 ==:POLYGON_STIPPLE_BIT
+  %00020 ==:PIXEL_MODE_BIT
+  %00040 ==:LIGHTING_BIT
+  %00080 ==:FOG_BIT
+  %00100 ==:DEPTH_BUFFER_BIT
+  %00200 ==:ACCUM_BUFFER_BIT
+  %00400 ==:STENCIL_BUFFER_BIT
+  %00800 ==:VIEWPORT_BIT
+  %01000 ==:TRANSFORM_BIT
+  %02000 ==:ENABLE_BIT
+  %04000 ==:COLOR_BUFFER_BIT
+  %08000 ==:HINT_BIT
+  %10000 ==:EVAL_BIT
+  %20000 ==:LIST_BIT
+  %40000 ==:TEXTURE_BIT
+  %80000 ==:SCISSOR_BIT
+  %FFFFF ==:ALL_ATTRIB_BITS
+
+  "ffff" "" ->ClearColor
+  "i" "" ->Clear
+> /gl ffi .defv
+
+# vim: syn=elymas
