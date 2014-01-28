@@ -162,7 +162,7 @@
   #      s: string argument (pointer to string content passed, string is zero-terminated)
   #      b: buffer argument (pointer to string content passed, no zero-termination, but no copy)
   # 2 -> address of function
-  # the resulting function will take as many arguments as specified and return a single integer
+  # the resulting function will take as many arguments as specified and return a single value
   { ==rets ==args ==func
     [ /rdi /rsi /rdx /rcx /r8 /r9 ] _ =*:availableIntegerRegisters
                                       len ==:INTREGISTERS
@@ -288,6 +288,9 @@
               useIntegerStorage ==reg
 
               {
+                8 /r15 :subqImm8Reg
+                reg /r15 :movqRegMem # keep the GC away
+
                 0 24 1 /rax reg :andbImmMemIndexScaleDisp8
                 24 reg :addqImm8Reg
               } =*finalZeroSpaceAvailable
@@ -300,14 +303,18 @@
                 ::internalAllocateString /rax :movqImmReg
                 /rax :callqReg
 
-                24 /rax /rdi :leaqMemDisp8Reg
+                8 /r15 :subqImm8Reg
+                /rax /r15 :movqRegMem # keep the GC away
 
+                24 /rax /rdi :leaqMemDisp8Reg
                 /rax :popqReg
+                /rdi :pushqReg
+
                 24 /rax /rsi :leaqMemDisp8Reg
                 16 /rax /rcx :movqMemDisp8Reg
                 :reprcx :movsb
-                0 /rsi :andbImmMem
-                24 /rax reg :leaqMemDisp8Reg
+                0 /rdi :andbImmMem
+                reg :popqReg
 
                 popIntegerStorage
               } =*finalZeroSpaceNotAvailable
@@ -466,6 +473,9 @@
       } rep
 
       returnWrapper
+
+      r15backup rawContentAddress /rax :movqImmReg
+      /rax /r15 :movqMemReg
 
       /rbx :pushqReg
       :retn

@@ -52,6 +52,7 @@
     { ==con ==sql ==paramCount
       paramCount 8 mul str .alloc ==paramValues
       paramValues :rawContentAddress paramCount 8 mul add ==i
+      [ ] ==saveFromGC
 
       paramCount { _ sys .typed .type ==t
         i 8 sub =i
@@ -60,6 +61,8 @@
           { t 1 eq }' { "\0" cat }'
           { 1 }' { "unsupported parameter type" die }
         ] conds
+        _ [ -01 ] saveFromGC cat =saveFromGC
+
         :rawContentAddress i :mem .produce .u64
       } rep
 
