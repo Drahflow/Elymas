@@ -2311,6 +2311,9 @@
 
       /rax :popqReg
       8 /rax /rax :movqMemDisp8Reg
+      # rax == nametable
+      /rax /rax :testqRegReg
+      /emptyScope :jzLbl8
 
       16 /rax /rsi :leaqMemDisp8Reg
       /rsi :pushqReg
@@ -2332,6 +2335,16 @@
       /loop :loopLbl8
       @empty
 
+      /rax :pushqReg
+
+      /r15 :pushqMem
+      8 /r15 :addqImm8Reg
+      :retn
+
+      @emptyScope
+      /rdi /rdi :xorqRegReg
+      ::internalAllocateArray /rax :movqImmReg
+      /rax :callqReg
       /rax :pushqReg
 
       /r15 :pushqMem
