@@ -1,0 +1,19 @@
+# provide helper function for URI coding
+<
+  <
+    { _ 37 eq { -- { { decode }_ } } { unencoded } ? * } ==:unencoded
+    { { 48 sub txt .consume .hexDigitsReverse } -20*10* 16 mul add unencoded } =*:decode
+
+    { # ==s
+      [ unencoded -102 { -01 * } each -- ] str .fromArray
+    } /consume deffd
+
+    [ "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_.~" { } each ] ==:unencodedChars
+
+    { # ==s
+      [ -01 { _ unencodedChars neq all { 37 -01 _ 16 div -01 16 mod "0123456789ABCDEF" -20*10* } rep } each ] str .fromArray
+    } /produce deffd
+  > /percentEncoding defv
+> /uri net .alg .defv
+
+# vim: syn=elymas

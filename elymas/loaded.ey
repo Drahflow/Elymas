@@ -10,6 +10,7 @@
   "lib/net/alg.ey"
   "lib/net/alg/server.ey"
   "lib/net/alg/http.ey"
+  "lib/net/alg/uri.ey"
 ] { _ dump include }' each
 
 {

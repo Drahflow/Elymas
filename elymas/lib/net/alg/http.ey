@@ -3,7 +3,7 @@
   net .alg .bufferedEpollServer "^" via
 
   <
-    { "request unconfigured (of httpServer)" die } /request deffst
+    { "request unconfigured (of rawHttpServer)" die } /request deffst
 
     { = }' /set deffst
     { scope keys }' /setters deffst
@@ -12,7 +12,7 @@
     } /installSetters deffst
   > _ ==settings "::" via
 
-  { -1010 deffst = }' ::installSetters # TODO: def??? should overwrite existing values
+  { -10 deffst }' ::installSetters
 
   { ":" via "" ==url  "" ==method < { defvst }' /put deffst > ==headers
     <
@@ -39,6 +39,40 @@
         ] conds } loop inBuffer } =*in
     >
   } ^accept
+
+  { ^run } /run deffst
+> } /rawHttpServer net .alg .deff
+
+{ <
+  net .alg .rawHttpServer "^" via ^settings "::" via
+
+  <
+    { "request unconfigured (of httpServer)" die } /request deffst
+
+    { = }' /set deffst
+    { scope keys }' /setters deffst
+    { _ ^settings .installSetters =*install 
+      setters { _ { set }_ -01 install }" each
+    } /installSetters deffst
+  > _ ==settings "::" via
+
+  { -10 deffst }' ::installSetters
+
+  { _ ==req ":" via
+    < { defvst }' > ==args { net .alg .uri .percentEncoding .|consume -30*20*1* }_ =*setArg
+    :url _ ==url
+           "^([^?]*)\\?(.*)$" regex {
+             =url "&" str .split { _ ==arg
+               "^([^=]*)=(.*)$" regex not { "" arg } rep
+               setArg
+             } each
+           } rep
+
+    url args
+    < req keys { _ { : }_ -01 deffst }' each # TODO: this forwarding logic seems ugly, find a better way to forward activity levels
+      ==args { }_ =url
+    > ::request
+  } ^request
 
   { ^run } /run deffst
 > } /httpServer net .alg .deff
