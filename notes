@@ -263,6 +263,21 @@ Overhead: 1/32.
   ( TODO: Oh, the performance... )
   The 0th string maps to 0 and so on.
 
+=== Stack ===
+* Length in bytes (including header)
+  bit 63-60: 1 0 1 1
+  bit 59: reserved for GC
+* Current stack pointer value
+* data
+
+=== Coroutine State ===
+* Length in bytes (including header)
+  bit 63-60: 1 1 0 0
+  bit 59: reserved for GC
+* Instruction pointer
+* Call stack pointer
+* Data stack pointer
+
 = Musings About The Optimizer =
 
 Main problem: How do we find out if the names mean what we believe they do?
@@ -421,3 +436,24 @@ Threadlist:
     <capture data>
   ]*
 ]
+
+= Musing about co-routines =
+
+* Includes data stack, call stack, rip
+
+{ ... } !! # create co-routine with empty data and call stack, put return address of fatal error report into call stack
+{ ...2 } { ...1 } !!' # create co-routine with full copy, starting with ...1, then continue execution at ...2
+{ ... } !!" # create co-routine with shared data stack and empty call stack
+CR      !!_ # clone co-routine, full copy of all stacks
+
+... n CR ! # pass control and n stack elements to CR
+... CR *   # pass control to CR, don't switch data stack
+... n f  ! # pass control to function f, ignore n
+... f *    # pass control to function f
+
+
+{ { ==badError ==error
+  badError error doStuffWhichFailsInVariousWays
+} { "a bad error occured, but we caught it" dump } !!'
+} { "a non-bad error occured, but we caught it" dump } !!'
+
