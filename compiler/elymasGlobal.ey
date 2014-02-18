@@ -496,10 +496,11 @@
       %50 /cl :cmpbImmReg
       /normalFunction :jeLbl8
       %10 /cl :cmpbImmReg
-      /stringFunctionSJ :jeLbl8 # TODO replace by long jump
+      /stringFunction :jeLbl32
       %70 /cl :cmpbImmReg
-      /unexecutable :jneLbl8
-      /arrayFunction :jmpLbl32
+      /arrayFunction :jeLbl32
+      %C0 /cl :cmpbImmReg
+      /coroutineFunction :jeLbl32
 
       @unexecutable
       /rdx :pushqReg
@@ -507,9 +508,6 @@
       /rax :pushqReg
       "not an executable thing" ::outputError
       :ud2
-
-      @stringFunctionSJ
-      /stringFunction :jmpLbl32
 
       @normalFunction
       # load scope
@@ -723,6 +721,53 @@
 
       /r15 :pushqMem
       8 /r15 :addqImm8Reg
+      :retn
+
+      @coroutineFunction
+      /r15 /rbx :movqMemReg
+      8 /r15 :addqImm8Reg
+
+      0 24 /rdx :cmpqImm8MemDisp8
+      /targetCallStackExists :jnzLbl8
+      /rdx :pushqReg
+      ::internalAllocateStack /rax :movqImmReg
+      /rax :callqReg
+      /rdx :popqReg
+      /rax 24 /rdx :movqRegMemDisp8
+      @targetCallStackExists
+
+      # save old state
+      /rbx 8 /r13 :movqRegMemDisp8
+      /r14 16 /r13 :movqRegMemDisp8
+      24 /r13 /rax :movqMemDisp8Reg
+      /r15 8 /rax :movqRegMemDisp8
+      32 /r13 /rax :movqMemDisp8Reg
+      /rax /rax :testqRegReg
+      /sourceDataStackMissing :jzLbl8
+      /rsp 8 /rax :movqRegMemDisp8
+      @sourceDataStackMissing
+
+      # exclude source opcodes from being optimized away
+      /rdx :pushqReg
+      /rbx /rdi :movqRegReg
+      ::internalObjectStart /rax :movqImmReg
+      /rax :callqReg
+      /rax /rax :testqRegReg
+      /nonHeapCoroutine :jzLbl8
+      58 /rax :btsqImm8Mem
+      @nonHeapCoroutine
+      /rdx :popqReg
+
+      # load new state
+      8 /rdx /rbx :movqMemDisp8Reg
+      16 /rdx /r14 :movqMemDisp8Reg
+      24 /rdx /rax :movqMemDisp8Reg
+      8 /rax /r15 :movqMemDisp8Reg
+
+      /r13 :pushqReg # push caller to target stack
+      /rdx /r13 :movqRegReg
+
+      /rbx :pushqReg
       :retn
     ]] /ey* defv
 
@@ -2580,6 +2625,8 @@
       %F0 /cl :andbImmReg
       %C0 /cl :cmpbImmReg
       /coroutineCase :jzLbl8
+      %50 /cl :cmpbImmReg
+      /functionCase :jzLbl32
 
       "type of object not handled in !" ::outputError
       :ud2
@@ -2654,6 +2701,14 @@
 
       /rbx :pushqReg
       :retn
+
+      @functionCase
+      /rcx :popqReg
+      /rbp :pushqReg
+
+      /rbx :pushqReg
+      /rax :movqImmOOBReg "ey!" "ey*" ::linkAbs64
+      /rax :jmpqReg
     ]] /ey! defv
   > _ ==globalFunctions3 { defv }' ::allocateOffsetStruct
 

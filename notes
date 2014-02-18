@@ -466,7 +466,6 @@ CR      !!_ # clone co-routine, full copy of all stacks
 ... f  n ! # pass control to function f, ignore n
 ... f *    # pass control to function f
 
-
 { { ==badError ==error
   badError error doStuffWhichFailsInVariousWays
 } { "a bad error occured, but we caught it" dump } !!'
