@@ -502,6 +502,9 @@
       /arrayFunction :jmpLbl32
 
       @unexecutable
+      /rdx :pushqReg
+      :ERRORMARKER /rax :movqImmReg
+      /rax :pushqReg
       "not an executable thing" ::outputError
       :ud2
 
@@ -2414,6 +2417,244 @@
       /rax :callqReg
       /end :jmpLbl8
     ]] /eydom defv
+
+    # create a coroutine with empty call stack and data stack
+    # 0 -> function to execute (type is ignored)
+    [[
+      8 /r15 :subqImm8Reg
+      /r15 :popqMem
+
+      /rax :popqReg
+      8 /rax /rsi :movqMemDisp8Reg
+      24 /rax /rdi :movqMemDisp8Reg
+      58 /rdi :btsqImm8Mem # prevent these opcodes from being optimized
+      16 /rdi :addqImm8Reg
+
+      # test for and skip initial popping of return address, there is nothing to return to
+      # leaving them in results in gobbling up of the first passed data item
+      %49 0 /rdi :cmpbImmMemDisp8
+      /wrongOpcodeSequence :jnzLbl8
+      %83 1 /rdi :cmpbImmMemDisp8
+      /wrongOpcodeSequence :jnzLbl8
+      %EF 2 /rdi :cmpbImmMemDisp8
+      /wrongOpcodeSequence :jnzLbl8
+      %08 3 /rdi :cmpbImmMemDisp8
+      /wrongOpcodeSequence :jnzLbl8
+      %49 4 /rdi :cmpbImmMemDisp8
+      /wrongOpcodeSequence :jnzLbl8
+      %8F 5 /rdi :cmpbImmMemDisp8
+      /wrongOpcodeSequence :jnzLbl8
+      %07 6 /rdi :cmpbImmMemDisp8
+      /wrongOpcodeSequence :jnzLbl8
+
+      7 /rdi :addqImm8Reg
+      ::internalAllocateCoroutine /rax :movqImmReg
+      /rax :callqReg
+      /rax :pushqReg
+
+      /r15 :pushqMem
+      8 /r15 :addqImm8Reg
+      :retn
+
+      @wrongOpcodeSequence
+      "could not parse function start while preparing coroutine" ::outputError
+      :ud2
+    ]] /ey!! defv
+
+    # create a coroutine with copied data and call stack
+    # push said coroutine to stack
+    # then continue execution at specified function
+    # 0 -> function to execute within new coroutine (type is ignored)
+    # 1 -> function to execute outside of new coroutine
+    [[
+      8 /r15 :subqImm8Reg
+      /r15 :popqMem
+
+      /rax :popqReg
+      8 /rax /rsi :movqMemDisp8Reg
+      24 /rax /rdi :movqMemDisp8Reg
+      58 /rdi :btsqImm8Mem # prevent these opcodes from being optimized
+      16 /rdi :addqImm8Reg
+
+      # test for and skip initial popping of return address
+      # leaving them in results in gobbling up of the first passed data item
+      # instead put the return address on the call stack
+      %49 0 /rdi :cmpbImmMemDisp8
+      /wrongOpcodeSequence :jnzLbl32
+      %83 1 /rdi :cmpbImmMemDisp8
+      /wrongOpcodeSequence :jnzLbl32
+      %EF 2 /rdi :cmpbImmMemDisp8
+      /wrongOpcodeSequence :jnzLbl32
+      %08 3 /rdi :cmpbImmMemDisp8
+      /wrongOpcodeSequence :jnzLbl32
+      %49 4 /rdi :cmpbImmMemDisp8
+      /wrongOpcodeSequence :jnzLbl32
+      %8F 5 /rdi :cmpbImmMemDisp8
+      /wrongOpcodeSequence :jnzLbl32
+      %07 6 /rdi :cmpbImmMemDisp8
+      /wrongOpcodeSequence :jnzLbl32
+
+      7 /rdi :addqImm8Reg
+      ::internalAllocateCoroutine /rax :movqImmReg
+      /rax :callqReg
+      /rax /rbx :movqRegReg
+
+      ::internalAllocateStack /rax :movqImmReg
+      /rax :callqReg
+      /rax 24 /rbx :movqRegMemDisp8
+
+      # copy call stack
+      :STACKBOTTOMMARKER /rdx :movqImmReg
+      /r15 /rsi :movqRegReg
+      /rdx /rsi :cmpqRegMem
+      /callStackEmpty :jzLbl8
+      @scanCallStack
+      8 /rsi :addqImm8Reg
+      /rdx /rsi :cmpqRegMem
+      /scanCallStack :jnzLbl8
+
+      8 /rax /rdi :movqMemDisp8Reg
+      /rsi /rcx :movqRegReg
+      /r15 /rcx :subqRegReg
+      3 /rcx :shrqImm8Reg
+      /rcx :incqReg
+      :std
+      :reprcx :movsq
+      :cld
+      8 /rdi :addqImm8Reg
+      /rdi 8 /rax :movqRegMemDisp8
+      @callStackEmpty
+
+      ::internalAllocateStack /rax :movqImmReg
+      /rax :callqReg
+      /rax 32 /rbx :movqRegMemDisp8
+
+      # copy data stack
+      :STACKBOTTOMMARKER /rdx :movqImmReg
+      /rsp /rsi :movqRegReg
+      /rdx /rsi :cmpqRegMem
+      /dataStackEmpty :jzLbl8
+      @scanDataStack
+      8 /rsi :addqImm8Reg
+      /rdx /rsi :cmpqRegMem
+      /scanDataStack :jnzLbl8
+
+      8 /rax /rdi :movqMemDisp8Reg
+      /rsi /rcx :movqRegReg
+      /rsp /rcx :subqRegReg
+      3 /rcx :shrqImm8Reg
+      :std
+      :reprcx :movsq
+      :cld
+      8 /rdi :addqImm8Reg
+      /rdi 8 /rax :movqRegMemDisp8
+      @dataStackEmpty
+
+      /rax :popqReg
+      /rbx :pushqReg
+      /rax :pushqReg
+
+      /r15 :pushqMem
+      8 /r15 :addqImm8Reg
+
+      |ey* /rax :movqImmReg
+      /rax :jmpqReg
+
+      @wrongOpcodeSequence
+      "could not parse function start while preparing coroutine" ::outputError
+      :ud2
+    ]] /ey!!' defv
+
+    # pass control to a coroutine
+    # 0 -> number of stack elements to copy over
+    # 1 -> coroutine to continue (may also be some other executable, in which case no stack passing is done)
+    # 2... -> passed stack arguments
+    [[
+      /rbx :popqReg
+
+      /rcx :popqReg
+      /rbp :popqReg
+      /rcx :pushqReg
+
+      7 /rbp /cl :movbMemDisp8Reg
+      %F0 /cl :andbImmReg
+      %C0 /cl :cmpbImmReg
+      /coroutineCase :jzLbl8
+
+      "type of object not handled in !" ::outputError
+      :ud2
+      
+      @coroutineCase 
+      0 24 /rbp :cmpqImm8MemDisp8
+      /targetCallStackExists :jnzLbl8
+      /rbp :pushqReg
+      ::internalAllocateStack /rax :movqImmReg
+      /rax :callqReg
+      /rbp :popqReg
+      /rax 24 /rbp :movqRegMemDisp8
+      @targetCallStackExists
+
+      0 32 /rbp :cmpqImm8MemDisp8
+      /targetDataStackExists :jnzLbl8
+      /rbp :pushqReg
+      ::internalAllocateStack /rax :movqImmReg
+      /rax :callqReg
+      /rbp :popqReg
+      /rax 32 /rbp :movqRegMemDisp8
+      @targetDataStackExists
+
+      /rcx :popqReg
+      /rcx ::unboxInteger
+
+      # move stack data
+      /rsp /rsi :movqRegReg
+
+      32 /rbp /rdi :movqMemDisp8Reg
+      8 /rdi /rdi :movqMemDisp8Reg
+      /rcx /rdx :movqRegReg
+      3 /rdx :shlqImm8Reg
+      /rdx /rdi :subqRegReg
+      /rdi :pushqReg
+      /rdi :pushqReg
+      32 /rbp /rdi :movqMemDisp8Reg
+      8 /rdi :popqMemDisp8
+      /rdi :popqReg
+      /rdx /rsp :addqRegReg
+      :reprcx :movsq
+
+      # save old state
+      /rbx 8 /r13 :movqRegMemDisp8
+      /r14 16 /r13 :movqRegMemDisp8
+      24 /r13 /rax :movqMemDisp8Reg
+      /r15 8 /rax :movqRegMemDisp8
+      32 /r13 /rax :movqMemDisp8Reg
+      /rsp 8 /rax :movqRegMemDisp8
+
+      # exclude source opcodes from being optimized away
+      /rbp :pushqReg
+      /rbx /rdi :movqRegReg
+      ::internalObjectStart /rax :movqImmReg
+      /rax :callqReg
+      /rax /rax :testqRegReg
+      /nonHeapCoroutine :jzLbl8
+      58 /rax :btsqImm8Mem
+      @nonHeapCoroutine
+      /rbp :popqReg
+
+      # load new state
+      8 /rbp /rbx :movqMemDisp8Reg
+      16 /rbp /r14 :movqMemDisp8Reg
+      24 /rbp /rax :movqMemDisp8Reg
+      8 /rax /r15 :movqMemDisp8Reg
+      32 /rbp /rax :movqMemDisp8Reg
+      8 /rax /rsp :movqMemDisp8Reg
+
+      /r13 :pushqReg # push caller to target stack
+      /rbp /r13 :movqRegReg
+
+      /rbx :pushqReg
+      :retn
+    ]] /ey! defv
   > _ ==globalFunctions3 { defv }' ::allocateOffsetStruct
 
   <
@@ -3014,7 +3255,26 @@
     } each
   } /createScopeExtensionEntries deff
 
-  [
+  [[
+    /afterRipInitialization :jmpLbl8
+    @ripInitialization
+    /rdi :popqReg
+    /rsi /rsi :xorqRegReg
+    ::internalAllocateCoroutine /rax :movqImmReg
+    /rax :callqReg
+    /rax :pushqReg
+
+    /rdx /rdx :xorqRegReg
+    63 /rdx :btsqImm8Reg
+    /rdx :pushqReg
+
+    |ey! /rax :movqImmReg
+    /rax :callqReg # switch over to heap-allocated coroutine
+
+    @afterRipInitialization
+    /ripInitialization :callqLbl32
+    /rax :popqReg # drop initial coroutine reference
+
     globalFunctions keys len
     globalFunctions2 keys len add
     globalFunctions3 keys len add
@@ -3034,7 +3294,7 @@
     globalMacros keys eydefq { | }' createScopeEntries
     globalT11t1Functions keys eydeffd t11t1 { | }' createTypedScopeEntries
     globalT1t1Functions keys eydeffd t1t1 { | }' createTypedScopeEntries
-  ] :execute
+  ]] :execute
 
   { ==name
     [[

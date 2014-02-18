@@ -1,0 +1,12 @@
+{
+  { } { -- restart } !!'
+} /restart deffd
+
+0 ==i
+
+restart ==checkpoint
+
+i 1 add =i
+i dump
+
+i 7 lt { checkpoint 0 ! } rep

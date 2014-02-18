@@ -492,6 +492,7 @@
       :globalAllocations .base /rax :movqImmReg # 99
       /rbx :movqImmOOBReg %EE %EE %EE %EE %EE %EE %EE %EE # 109
       /rbx /rax :movqRegMem # 112
+      /r13 :movqImmOOBReg %EE %EE %EE %EE %EE %EE %EE %EE # 122
 
       /r8 /rsp :xchgqRegReg # swap to elymas stack to ensure correct GC behavior for what follows
 
@@ -589,7 +590,15 @@
       eyprogramStart /rax :movqImmReg
       /rsp 2 /rax :movqRegMemDisp8
       # /r15 12 /rax :movqRegMemDisp8 # TODO: something like this (but correctly adjusted) would be right
-      :mainCallStack .base :STACKSIZE add /rdx :movqImmReg # TODO whereas this just flushes the stack
+      # TODO whereas this just flushes the stack
+      /r15 /rdx :movqRegReg
+      :STACKBOTTOMMARKER /rcx :movqImmReg
+      /cmpCallStackStart :jmpLbl8
+      @scanCallStackStart
+      8 /rdx :addqImm8Reg
+      @cmpCallStackStart
+      /rcx /rdx :cmpqRegMem
+      /scanCallStackStart :jnzLbl8
       /rdx 12 /rax :movqRegMemDisp8
       ::heapSize /rdx :movqImmReg
       /rdx /rdx :movqMemReg
@@ -604,6 +613,7 @@
       /rdx /rdx :movqMemReg
       /rdx :pushqReg # store allocation count for later return value
       /rdx 101 /rax :movqRegMemDisp8
+      /r13 114 /rax :movqRegMemDisp8
 
       ::internalAllocateInteger /rax :movqImmReg
       /rax :callqReg

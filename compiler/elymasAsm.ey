@@ -2,7 +2,10 @@
   4096 ==PAGESIZE
   4096 16 mul 8 mul ==STACKSIZE
   65536 ==GLOBALALLOCSSIZE
-  128 ==STACKSTART
+  16 ==STACKSTART
+
+  6148914691236517205 ==STACKBOTTOMMARKER
+  4 ==ERRORMARKER
 
   # hex decoding
   {
@@ -59,22 +62,49 @@
     { allocs .base } /base deff
   > ==globalAllocations
 
-  # global stack layout
-  # 0 - STACKSTART  : global variables
-  #              %0 : current stack pointer
-  # STACKSTART - ...: real stack
-  [ /mainStack /mainCallStack ] {
+  # stack layout
+  #    %0 : stack size
+  #    %8 : current stack pointer
+  #   ... : real stack
+  # <end> : stack bottom marker
+  [ /bootStack /bootCallStack ] {
     <
-      STACKSIZE alloc _ globalAllocations .register
+      PAGESIZE alloc _ globalAllocations .register
                         ==stack
       stack .base ==i
       [
-        stack .base STACKSIZE add imm64
+        PAGESIZE imm64
+        stack .base PAGESIZE add 8 sub imm64
+      ] { i sys .asm .poke i 1 add =i } each
+
+      stack .base PAGESIZE add 8 sub =i
+      [
+        STACKBOTTOMMARKER imm64
       ] { i sys .asm .poke i 1 add =i } each
 
       stack
     > -12 ==
   }' each
+
+  PAGESIZE alloc _ globalAllocations .register
+                   ==:initialCoroutine
+
+  # TODO create a heap-based initial coroutine
+  <
+    initialCoroutine .base ==i
+    [
+      40 0 0 0 0 0 0 %C8
+      0 imm64 # no instruction pointer, will be driven via executeOn
+      0 imm64 # no scope pointer, will be installed by elymalGlobal into r14
+      bootCallStack .base imm64
+      bootStack .base imm64
+      # 40 bytes so far, coroutine image stops here
+      # 40-47: original rsp value
+      0 imm64
+      # 48-55: currently running co-routine (so elymasGlobal can switch to heap allocated one)
+      initialCoroutine .base imm64
+    ] { i sys .asm .poke i 1 add =i } each
+  > --
 
   STACKSIZE alloc _ globalAllocations .register
                     .base ==:quoteEncodingBufferCode
@@ -89,8 +119,8 @@
     codearea
   } /arrayToCode deff
 
-  # take an array of instruction bytes and execute it on the given stack
-  { ==callStack ==valueStack ==opcodes
+  # take an array of instruction bytes and execute it in the given coroutine context
+  { ==opcodes
     [
       /rbx pushqReg
       /rbp pushqReg
@@ -98,19 +128,29 @@
       /r13 pushqReg
       /r14 pushqReg
       /r15 pushqReg
-      valueStack /rbx movqImmReg
-      /rsp /rbx xchgqRegMem
-      callStack /rbx movqImmReg
-      /r15 /rbx xchgqRegMem
-      /r14 8 /rbx xchgqRegMemDisp8
+      initialCoroutine .base 40 add /rbx movqImmReg
+      /rsp /rbx movqRegMem
+
+      initialCoroutine .base 48 add /rbx movqImmReg
+      /rbx /r13 movqMemReg
+      16 /r13 /r14 movqMemDisp8Reg
+      24 /r13 /rbx movqMemDisp8Reg
+      8 /rbx /r15 movqMemDisp8Reg
+      32 /r13 /rbx movqMemDisp8Reg
+      8 /rbx /rsp movqMemDisp8Reg
 
       opcodes _ len dearray
 
-      callStack /rbx movqImmReg
-      /r15 /rbx xchgqRegMem
-      /r14 8 /rbx xchgqRegMemDisp8
-      valueStack /rbx movqImmReg
-      /rsp /rbx xchgqRegMem
+      /r14 16 /r13 movqRegMemDisp8
+      24 /r13 /rbx movqMemDisp8Reg
+      /r15 8 /rbx movqRegMemDisp8
+      32 /r13 /rbx movqMemDisp8Reg
+      /rsp 8 /rbx movqRegMemDisp8
+      initialCoroutine .base 48 add /rbx movqImmReg
+      /r13 /rbx movqRegMem
+
+      initialCoroutine .base 40 add /rbx movqImmReg
+      /rbx /rsp movqMemReg
       /r15 popqReg
       /r14 popqReg
       /r13 popqReg
@@ -119,16 +159,12 @@
       /rbx popqReg
       retn
     ]
-  } /compileOn deff
+  } /compile deff
 
   {
-    compileOn arrayToCode _ .base sys .asm .execute
-                            .free
-  } /executeOn deff
-
-  { mainStack .base mainCallStack .base executeOn } /execute deff
-
-  { mainStack .base mainCallStack .base compileOn } /compile deff
+    compile arrayToCode _ .base sys .asm .execute
+                          .free
+  } /execute deff
 > /assembler defv
 
 # vim: syn=elymas

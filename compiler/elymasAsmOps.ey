@@ -55,8 +55,8 @@
 } /rex deff
 
 { ==mem ==reg
-  mem [ /spl /sp /esp /rsp /bpl /bp /ebp /rbp ] eq any {
-    "modrm00 not possible on rsp / rbp and their partial registers" die
+  mem [ /spl /sp /esp /rsp /bpl /bp /ebp /rbp /r12b /r12w /r12d /r12 /r13b /r13w /r13d /r13 ] eq any {
+    "modrm00 not possible on rsp / rbp / r12 / r13 and their partial registers" die
   } rep
 
                   %00
@@ -504,6 +504,7 @@
 /bts %0F %BA /five defAsmBtqImm
 
 /bsf %0F %BC defAsmBsfq
+/bsr %0F %BD defAsmBsfq
 
 { ==off
   %E8
@@ -1330,6 +1331,10 @@ memoryAddressingVariants keys { ==variant memoryAddressingVariants variant . =*p
   /five reg modrm11
   i imm8
 } /shrqImm8Reg deff
+
+{
+  %FD
+} /std deff
 
 {
   %AA

@@ -1,0 +1,14 @@
+0 ==?cr
+0 ==main
+
+{ =cr
+  1 =main
+  "main routine" dump
+} {
+  ==caller
+  0 =main
+  "coroutine" dump
+} !!'
+
+"afterwards" dump # mind = blown
+main { cr 0 ! } rep

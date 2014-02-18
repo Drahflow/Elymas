@@ -98,6 +98,13 @@ a-z: bareword characters
 }: quote end
 ~: <open>
 
+= Register Meanings =
+
+r15: call stack and internal storage
+rsp: data stack
+r14: current scope
+r13: current coroutine
+
 = Stuff on the Stack =
 
 0: zero
@@ -116,6 +123,12 @@ array begin marker
 
 0000000000000000000000000000000000000000000000000000000000000010
 quote begin marker
+
+0101010101010101010101010101010101010101010101010101010101010101
+bottom of stack marker
+
+0000000000000000000000000000000000000000000000000000000000000100
+error data marker (only for external debugging)
 
 
 = Memory Management =
@@ -218,7 +231,7 @@ Overhead: 1/32.
 * Length in bytes (including header)
   bit 63-60: 0 1 1 0
   bit 59: reserved for GC
-  bit 58: optimized or being optimized
+  bit 58: optimized or being optimized or excluded from optimization
 * Length of opcode block (rounded to 8 byte)
 * [ <opcode> ]*
 * [ <object pointer> ]*
@@ -268,15 +281,17 @@ Overhead: 1/32.
   bit 63-60: 1 0 1 1
   bit 59: reserved for GC
 * Current stack pointer value
-* data
+* <data ...>
+* bottom of stack marker
 
 === Coroutine State ===
 * Length in bytes (including header)
   bit 63-60: 1 1 0 0
   bit 59: reserved for GC
 * Instruction pointer
-* Call stack pointer
-* Data stack pointer
+* Current scope pointer
+* Call stack object pointer (may be zero to indicate empty stack)
+* Data stack object pointer (may be zero to indicate empty stack)
 
 = Musings About The Optimizer =
 
@@ -441,14 +456,14 @@ Threadlist:
 
 * Includes data stack, call stack, rip
 
-{ ... } !! # create co-routine with empty data and call stack, put return address of fatal error report into call stack
-{ ...2 } { ...1 } !!' # create co-routine with full copy, starting with ...1, then continue execution at ...2
+{ ... } !! # create co-routine with empty data and call stack
+{ ...2 } { ...1 } !!' # create co-routine with full copy, starting with ...1, push it to stack, then continue execution at ...2
 { ... } !!" # create co-routine with shared data stack and empty call stack
 CR      !!_ # clone co-routine, full copy of all stacks
 
-... n CR ! # pass control and n stack elements to CR
-... CR *   # pass control to CR, don't switch data stack
-... n f  ! # pass control to function f, ignore n
+... CR n ! # pass control and n stack elements to CR, passes "calling" CR object on top of stack
+... CR *   # pass control to CR, don't switch data stack, passes "calling" CR object on top of stack
+... f  n ! # pass control to function f, ignore n
 ... f *    # pass control to function f
 
 
@@ -456,4 +471,3 @@ CR      !!_ # clone co-routine, full copy of all stacks
   badError error doStuffWhichFailsInVariousWays
 } { "a bad error occured, but we caught it" dump } !!'
 } { "a non-bad error occured, but we caught it" dump } !!'
-

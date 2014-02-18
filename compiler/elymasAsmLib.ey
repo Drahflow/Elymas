@@ -349,22 +349,33 @@
       /r14 /rdi :movqRegReg
       /markObject :callqLbl32
 
-      # start from stack and mark all reachable blocks
-      :mainStack .base :STACKSIZE add /rsi :movqImmReg
-      @loopThroughMainStack
-      8 /rsi :subqImm8Reg
-      /rsi /rdi :movqMemReg
-      /markStackObject :callqLbl32
-      /rsi /rsp :cmpqRegReg
-      /loopThroughMainStack :jbLbl8
+      # start from current coroutine and mark all reachable blocks
+      /r13 /rdi :movqRegReg
+      /markObject :callqLbl32
 
-      :mainCallStack .base :STACKSIZE add /rsi :movqImmReg
-      @loopThroughCallStack
-      8 /rsi :subqImm8Reg
+      # start from stack and mark all reachable blocks
+      :STACKBOTTOMMARKER /rcx :movqImmReg
+      /rsp /rsi :movqRegReg
+      /rcx /rsi :cmpqRegMem
+      /dataStackEmpty :jzLbl8
+      @loopThroughDataStack
       /rsi /rdi :movqMemReg
       /markStackObject :callqLbl32
-      /rsi /r15 :cmpqRegReg
-      /loopThroughCallStack :jbLbl8
+      8 /rsi :addqImm8Reg
+      /rcx /rsi :cmpqRegMem
+      /loopThroughDataStack :jnzLbl8
+      @dataStackEmpty
+
+      /r15 /rsi :movqRegReg
+      /rcx /rsi :cmpqRegMem
+      /callStackEmpty :jzLbl8
+      @loopThroughCallStack
+      /rsi /rdi :movqMemReg
+      /markStackObject :callqLbl32
+      8 /rsi :addqImm8Reg
+      /rcx /rsi :cmpqRegMem
+      /loopThroughCallStack :jnzLbl8
+      @callStackEmpty
 
       # start from encoding buffer and mark all reachable blocks
       :quoteEncodingBufferObjects /rsi :movqImmReg
@@ -487,6 +498,10 @@
       /markScope :jzLbl32
       /rax :decqReg
       /markNameTable :jzLbl32
+      /rax :decqReg
+      /markStack :jzLbl32
+      /rax :decqReg
+      /markCoroutine :jzLbl32
 
       @markInvalidType
       /rax /rbx :movqRegReg # for easier inspection
@@ -669,6 +684,48 @@
       /rcx :popqReg
       :retn
 
+      @markStack
+      # /rdi :pushqReg
+      # "stack marked\n" outputError
+      # /rdi :popqReg
+
+      /rsi :pushqReg
+      /rcx :pushqReg
+
+      :STACKBOTTOMMARKER /rcx :movqImmReg
+      8 /rdi /rsi :movqMemDisp8Reg
+      /rcx /rsi :cmpqRegMem
+      /stackEmpty :jzLbl8
+
+      @loopThroughStack
+      /rsi /rdi :movqMemReg
+      /markStackObject :callqLbl32
+      8 /rsi :addqImm8Reg
+      /rcx /rsi :cmpqRegMem
+      /loopThroughStack :jnzLbl8
+
+      @stackEmpty
+
+      /rcx :popqReg
+      /rsi :popqReg
+      :retn
+
+      @markCoroutine
+      # /rdi :pushqReg
+      # "coroutine marked\n" outputError
+      # /rdi :popqReg
+
+      /rsi :pushqReg
+      /rdi /rsi :movqRegReg
+      8 /rsi /rdi :movqMemDisp8Reg
+      /markStackObject :callqLbl32
+      16 /rsi /rdi :movqMemDisp8Reg
+      /markObject :callqLbl32
+      24 /rsi /rdi :movqMemDisp8Reg
+      /markObject :callqLbl32
+      32 /rsi /rdi :movqMemDisp8Reg
+      /rsi :popqReg
+      /markObject :jmpLbl32
 
       # allocate next chunk of memory from the operating system
       @allocateFromSystem
@@ -785,6 +842,9 @@
       %90 /al :cmpbImmReg
       /isScope :jeLbl8
 
+      /rdi :pushqReg
+      :ERRORMARKER /rax :movqImmReg
+      /rax :pushqReg
       "object resolving in is not a scope" outputError
       :ud2
 
@@ -879,6 +939,33 @@
       /rax /rax :xorqRegReg
       :retn
     ]] /internalResolve defv
+
+    # return a pointer to start of object
+    # rdi -> pointer somewhere into an object (or outside of heap)
+    # rax <- pointer to start of object, zero if outside of heap
+    [[
+      /rax :movqImmOOBReg HEAPBASE
+      /rdx :movqImmOOBReg BLOCKBASE
+      /rax /rdi :subqRegReg
+      /nonHeapObject :jbLbl8
+
+      4 /rdi :shrqImm8Reg # rdi == cell index of pointer target
+      /testForStart :jmpLbl8
+
+      @scanLoop
+      /rdi :decqReg
+      @testForStart
+      /rdi /rdx :btqRegMem
+      /scanLoop :jncLbl8
+
+      4 /rdi :shlqImm8Reg
+      /rdi /rax :addqRegReg
+      :retn
+
+      @nonHeapObject
+      /rax /rax :xorqRegReg
+      :retn
+    ]] /internalObjectStart defv
   > { defv }' allocateOffsetStruct
 
   # TODO: link internal functions statically with relative calls
@@ -1043,6 +1130,49 @@
 
       :retn
     ] /internalAllocateString defv
+
+    # allocate empty stack
+    # rax <- new empty stack
+    [
+      :STACKSIZE /rdi :movqImmReg
+      internalAllocate /rax :movqImmReg
+      /rax :callqReg
+
+      # set type
+      %B0 7 /rax :orbImmMemDisp8
+
+      :STACKSIZE /rax /rdi :leaqMemDisp32Reg
+      8 /rdi :subqImm8Reg
+      :STACKBOTTOMMARKER /rdx :movqImmReg
+      /rdx /rdi :movqRegMem
+      /rdi 8 /rax :movqRegMemDisp8
+
+      :retn
+    ] /internalAllocateStack defv
+
+    # allocate coroutine state
+    # rdi -> instruction pointer
+    # rsi -> scope pointer
+    # rax <- new coroutine state
+    # does not do any stack copying
+    [[
+      /rsi :pushqReg
+      /rdi :pushqReg
+
+      40 /rdi :movqImmReg
+      internalAllocate /rax :movqImmReg
+      /rax :callqReg
+
+      # set type
+      %C0 7 /rax :orbImmMemDisp8
+
+      8 /rax :popqMemDisp8
+      16 /rax :popqMemDisp8
+      0 24 /rax :andqImm8MemDisp8
+      0 32 /rax :andqImm8MemDisp8
+      
+      :retn
+    ]] /internalAllocateCoroutine defv
   > { defv }' allocateOffsetStruct
 
   <
