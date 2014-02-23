@@ -433,22 +433,53 @@
       4 /rdi :shrqImm8Reg
       # rdi == cell index of first 16-byte cell of possible object
 
-      @searchStackObject
+      /rbp /rbp :xorqRegReg # rbp == 0: not from stack exploration, function code references ignored if trivial forward
       /rdi /r9 :btqRegMem # test block bit
+      /markObjectDirectHit :jcLbl8 # direct hit, no need for stack exploration
+
+      @searchStackObject
       /rdi :decqReg
+      /rdi /r9 :btqRegMem # test block bit
       /searchStackObject :jncLbl8
-      /rdi :incqReg
       # rdi == cell index of first 16-byte cell of object
 
       # TODO optimize this by jumping right into markObject
       /rdi /r10 :btsqRegMem # set mark bit
+      # but don't test mark bit, because we need to follow function refs even on later passes
       4 /rdi :shlqImm8Reg
       /r8 /rdi :addqRegReg
+      7 /rdi /al :movbMemDisp8Reg
+      %F0 /al :andbImmReg
+      %B0 /al :cmpbImmReg
+      /markObjectDone :jzLbl8 # stacks not eligible for stack walking
+
       1 /rbp :orqImm8Reg # rbp == 1: here from stack exploration, function code references valid in trivial forward
       /markObjectUnclean :jmpLbl8
 
+      # a short comment is in order to maybe clear up some of the seemingly arbitrary rules of stack walking:
+      # there are multiple reasons why addresses on the stack need to be corrected down to locate objects,
+      # think pointers to arrays, return addresses into function codes, etc.
+      # however, if we'd gladly locate stack objects as well, they'll be stack-walked, and if a stack-pointer
+      # ever ends up on a stack, the GC will stack overflow because stack-located objects are not
+      # already-mark checked. Why so? If the optimizer has replaced a function code with a trivial forward
+      # returning code might still follow references from the unreplaced code. Hence if the code was
+      # located via stack-walking, we need to follow the unreplaced code's references, even if the
+      # function code object was previously marked by some other avenue
+
+      # FIXME: clean this up, only skip mark check for function code objects actually
+
       @markObjectDone
       :retn
+
+      # direct hit during stack walking
+      @markObjectDirectHit
+      # rdi == cell index of first 16-byte cell of object
+      /rdi /r10 :btsqRegMem # test mark bit
+      /markObjectDone :jcLbl8 # was already marked
+      4 /rdi :shlqImm8Reg
+      /r8 /rdi :addqRegReg
+      # rdi == address of reachable object
+      /markObjectUnclean :jmpLbl8
 
       # recursively mark this object reachable
       # guaranteed not to clobber rcx, rsi (because it is used in many loops)
@@ -475,6 +506,7 @@
       /markObjectDone :jcLbl8 # was already marked
 
       @markObjectUnclean
+      # rdi == address of a reachable object
       /rax /rax :xorqRegReg
       7 /rdi /al :movbMemDisp8Reg
       %F0 /al :andbImmReg
