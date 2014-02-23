@@ -84,7 +84,7 @@ $: <open>
 <: scope start
 =: assignment
 >: scope end
-?: ternary operator
+?: ternary operator, error functions
 @: <open>
 A-Z: bareword characters
 [: array begin

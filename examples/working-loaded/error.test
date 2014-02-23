@@ -1,0 +1,107 @@
+# !!?, clones current coroutine state, useful in error handling, name follows intuitive understanding closely
+{ { } { -- !!? } !!' } "!!?" deffd
+
+<
+  "<weird entry into error handler>" ==origWhat
+
+  <
+    { "An unhandled error has occured, terminating program: " origWhat cat die } "" deffst
+  > ==handler
+
+  { _ =origWhat
+    { handler -101 .? not } { _ len 1 sub -01 str .prefix } loop # TODO: actually strip one .xxx part
+    < > handler -102 .
+  } "??"
+
+  { ==what _ ==actions keys
+    < { actions -101 . -01 =* }' each >' handler "" . what .
+  } "??!"
+
+  { handler < "" -11032 =* == >' =handler * } "?!"
+
+  { ==what =*onErrorStrategy ==main 0 ==i
+    { main { i onErrorStrategy =main i 1 add =i try } what ?! } _ =*try *
+  } "?!!"
+> -- 4 |deffd rep
+
+# verbose versions of above functions
+# { _ =origWhat ==what
+#   { handler what .? not } {
+#     what len 1 sub what str .prefix =what # TODO: actually strip one .xxx part
+#   } loop
+#   < > handler what .
+# } "??"
+#
+# { ==what ==actions
+#   ==alternatives
+#   <
+#     actions keys { actions -101 . -01 =* }' each
+#     alternatives
+#   >' handler "" . what .
+# } "??!"
+#
+# { ==what ==onError =*main
+#   handler ==oldHandler
+#   < onError what =* oldHandler "" == oldHandler >' =handler
+#   main
+# } "?!"
+
+### library ^^^^^^^^^^^^^^^
+
+{ ==file
+  "trying to frobnicate file" dump file dump
+  file "conf" eq
+  # 1 or
+  { ??io.read } rep # oops, this failed
+  "continuing frobnication..." dump
+} /frobnicateFile deffst
+
+{
+  { ==doItManually
+    "conf" ==file !!? ==restartFrobnication
+    {
+      file frobnicateFile
+    } {
+      <
+        { "conf.bak" =file restartFrobnication 0 ! } ==useBackup
+        { "Enter config by hand" dump doItManually 0 ! } ==manualEntry
+      > ??!io
+    } ?!io
+  } {
+    "manual entry starting (and grabbing stack)" dump
+  } !!'
+} /frobnicateConfig deffst
+
+
+{
+  {
+    frobnicateConfig
+  } {
+    -- "fail :(" die
+  } ?!io
+} /frobnicateUI deffst
+
+{
+  {
+    frobnicateConfig
+  } {
+    {
+      "using backup config" dump .useBackup
+    } {
+      "last resort" dump .manualEntry
+    } ?!io
+  } ?!io
+} /frobnicateUIBetter deffst
+
+{
+  {
+    frobnicateConfig
+  } [
+    { "using backup config" dump .useBackup }
+    { "last resort" dump .manualEntry }
+  ] ?!!io
+} /frobnicateUIBest deffst
+
+frobnicateUIBest
+
+# vim: syntax=elymas
