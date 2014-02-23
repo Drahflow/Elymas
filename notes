@@ -46,6 +46,7 @@ v =name -> set current value of name to v, leave modes intact
 < -> push new scope
 > -> pop scope, structured data object now on stack
 < 0 =a 0 =b > -> something which has a and b is on top of stack
+< ... parent >' -> push scope with non-local parent (at the end only)
 
 0 1 2 _    -> 0 1 2 2
 0 1 2 -0   -> 0 1 2

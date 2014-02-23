@@ -1158,6 +1158,23 @@
       :retn
     ] /ey> defv
 
+    # switch parent of current scope to stack top object
+    # push current scope onto stack
+    # switch current scope to original parent
+    # 0 -> new parent
+    # 0 <- scope just exited
+    [
+      /rbx :popqReg
+      /rdx :popqReg
+      16 /r14 /rax :movqMemDisp8Reg
+      /rdx 16 /r14 :movqRegMemDisp8
+      /r14 :pushqReg
+      /rax /r14 :movqRegReg
+      /rbx :pushqReg
+
+      :retn
+    ] /ey>' defv
+
     # push current scope onto stack
     # 0 <- current scope
     [
