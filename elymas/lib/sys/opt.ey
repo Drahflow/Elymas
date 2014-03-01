@@ -162,7 +162,7 @@
   } /holdsInt deffd
 
   { ==o ==executingScope
-    0 ==containsScopeModifications # TODO: replace <, > by macros ( {, scope } * respectively) then remove this
+    0 ==containsScopeModifications
 
     { _ ==logic
       logic { ==entry 0 entry * ==action
@@ -172,6 +172,10 @@
           }
 
           { action CALL eq { 1 entry * ">" | ::rawCodeAddress eq }' andif }' {
+            1 =containsScopeModifications
+          }
+
+          { action CALL eq { 1 entry * ">'" | ::rawCodeAddress eq }' andif }' {
             1 =containsScopeModifications
           }
         ] conds
