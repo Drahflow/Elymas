@@ -1,0 +1,17 @@
+<
+  "]" | "]]" deffd
+
+  {
+    ]] _ =*a len ==l
+    {
+      _ 0 lt { "index too low" die } rep
+      _ l ge { "index too high" die } rep
+        a
+    }
+  }
+> -- "]" deffd
+
+[ 1 2 3 ] =*a
+
+1 a
+7 a
