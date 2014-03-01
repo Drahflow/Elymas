@@ -1,0 +1,34 @@
+<
+  "<weird entry into error handler>" ==origWhat
+
+  < > ==theHandler
+
+  {
+    theHandler sys .dyn .get not { <
+      { "An unhandled error has occured, terminating program: " origWhat cat die } "" deffst
+    > } rep
+  } =*currentHandler
+
+  { ==handler # ==what
+    { handler -101 .? not } { _ len 1 sub -01 str .prefix } loop # TODO: actually strip one .xxx part
+    handler -01 .
+  } /applyHandler deffd
+
+  # !!?, clones current coroutine state, useful in error handling, name follows intuitive understanding closely
+  { { } { -- !!? } !!' } "!!?"
+
+  { _ =origWhat # ==possibleActions
+    currentHandler applyHandler
+  } "???"
+
+  { < > -01 ??? } "??"
+  { { currentHandler applyHandler }          currentHandler "" . theHandler sys .dyn .with } "??!"
+  { { origWhat currentHandler applyHandler } currentHandler "" . theHandler sys .dyn .with } "??!'"
+  { currentHandler < "" -11032 =* == >' theHandler sys .dyn .with } "?!"
+
+  { ==what =*onErrorStrategy ==main 0 ==i
+    { main { i onErrorStrategy =main i 1 add =i try } what ?! } _ =*try *
+  } "?!!"
+> -- 7 |deffd rep
+
+# vim: syn=elymas
