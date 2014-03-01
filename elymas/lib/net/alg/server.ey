@@ -1,131 +1,142 @@
 # provide a standard epoll-based tcp/ip server
-{ <
-  <
-    { 1 } /running deffst
-    { 1000000 } /interval deffst
-    { "unconfigured accept (of epollServer)" die } /accept deffst
-    { "unconfigured port (of epollServer)" die } /port deffst
+<
+  { ==err _ 0 lt { err ?? } rep } "+??" deffd
+  { ==err ==actions _ 0 lt { actions err ??? } rep } "+???" deffd
 
-    { = }' /set deffst
-    { scope keys }' /setters deffst
-    { =*install 
-      setters { _ { set }_ -01 install }" each
-    } /installSetters deffst
-  > _ ==settings "::" via
+  { <
+    <
+      { 1 } /running deffst
+      { 1000000 } /interval deffst
+      { "unconfigured accept (of epollServer)" die } /accept deffst
+      { "unconfigured port (of epollServer)" die } /port deffst
 
-  { deffst }' ::installSetters
+      { = }' /set deffst
+      { scope keys }' /setters deffst
+      { =*install 
+        setters { _ { set }_ -01 install }" each
+      } /installSetters deffst
+    > _ ==settings "::" via
 
-  sys .linux "+" via +epoll "++" via
-  sys .asm "+!" via
-  net .tcp "+:" via
+    { deffst }' ::installSetters
 
-  < > ==:noHandler
+    sys .linux "+" via +epoll "++" via
+    sys .asm "+!" via
+    net .tcp "+:" via
 
-  {
-    ::port +:listenFd ==listenFd
+    < > ==:noHandler
 
-    [ ] ==allEventHandlers
-    { ==fd ==handler
-      { allEventHandlers len fd le }' {
-        allEventHandlers [ noHandler ] cat =allEventHandlers
+    {
+      ::port +:listenFd ==listenFd
+
+      [ ] ==allEventHandlers
+      { ==fd ==handler
+        { allEventHandlers len fd le }' {
+          allEventHandlers [ noHandler ] cat =allEventHandlers
+        } loop
+        handler fd allEventHandlers =[]
+      } /protectGC deffst
+      { ==fd noHandler fd allEventHandlers =[] } /unprotectGC deffst
+
+      <
+        {
+          listenFd +:acceptFd +??io.net.accept ==fd
+
+          <
+            {
+              epoll ++EPOLLCTLDEL fd 0 0 ++ctl +??io.net.epoll --
+              fd +close +??io.net.close --
+              fd unprotectGC
+            } /close deffst
+            { ==count
+              count str .alloc ==buf
+              fd buf count +read
+                |close < { 0 } ; =*close > +???io.net.con.read
+              buf str .inplacePrefix
+            } /read deff
+            { ==buf
+              fd buf _ len +write
+                |close < =*close > +???io.net.con.write
+            } /write deff
+            { ==flags
+              epoll ++EPOLLCTLMOD fd flags eventHandler +!rawAddress ++ctl +??io.net.epoll --
+            } /ctl deffst
+          > ::accept ==eventHandler
+
+          epoll ++EPOLLCTLADD fd ++EPOLLIN ++EPOLLERR bor eventHandler +!rawAddress ++ctl +??io.net.epoll --
+          eventHandler fd protectGC
+        } =*in
+        { "unexpected output capability on listening socket" die } =*out
+        { ??io.net } =*err
+      > ==listenFdEventHandler
+
+      listenFdEventHandler listenFd protectGC
+
+      ++create +??io.net.epoll ==epoll
+      epoll ++EPOLLCTLADD listenFd ++EPOLLIN listenFdEventHandler +!rawAddress ++ctl +??io.net.epoll --
+
+      { ::running } {
+        epoll 16 ::interval ++wait +??io.net.wait --
+        {
+          _ .data +!rawObject ":" via
+            .events
+            _ ++EPOLLIN  band not not { :in  } rep
+            _ ++EPOLLOUT band not not { :out } rep
+              ++EPOLLERR band not not { :err } rep
+        } each
       } loop
-      handler fd allEventHandlers =[]
-    } /protectGC deffst
-    { ==fd noHandler fd allEventHandlers =[] } /unprotectGC deffst
+    } /run deffst
+  > } /epollServer net .alg .deff
+
+  { <
+    net .alg .epollServer "^" via
 
     <
-      {
-        listenFd +:acceptFd ==fd
+      { "unconfigured accept (of bufferedEpollServer)" die } /accept deffst
+      { 1048576 } /outputBufferLimit deffst
 
-        <
-          {
-            epoll ++EPOLLCTLDEL fd 0 0 ++ctl
-            fd +close
-            fd unprotectGC
-          } /close deffst
-          { ==count
-            count str .alloc ==buf
-            fd buf count +read
-            _ 0 lt { "read failed" die } rep # TODO: real error handling
-            buf str .inplacePrefix
-          } /read deff
-          { ==buf
-            fd buf _ len +write
-            _ 0 lt { "write failed" die } rep # TODO: real error handling
-          } /write deff
-          { ==flags
-            epoll ++EPOLLCTLMOD fd flags eventHandler +!rawAddress ++ctl
-          } /ctl deffst
-        > ::accept ==eventHandler
+      { = }' /set deffst
+      { scope keys }' /setters deffst
+      { _ ^settings .installSetters =*install 
+        setters { _ { set }_ -01 install }" each
+      } /installSetters deffst
+    > _ ==settings "::" via
 
-        epoll ++EPOLLCTLADD fd ++EPOLLIN ++EPOLLERR bor eventHandler +!rawAddress ++ctl
-        eventHandler fd protectGC
-      } =*in
-      { "unexpected output capability on listening socket" die } =*out
-      { "error on main server socket" die } =*err
-    > ==listenFdEventHandler
+    { deffst }' ::installSetters
 
-    listenFdEventHandler listenFd protectGC
+    sys .linux .epoll "++" via
 
-    ++create ==epoll
-    epoll ++EPOLLCTLADD listenFd ++EPOLLIN listenFdEventHandler +!rawAddress ++ctl
+    { ":" via "" ==inBuffer "" ==outBuffer 0 ==finished
+      <
+        {
+          outBuffer -01 cat _ =outBuffer
+                              len ::outputBufferLimit gt {
+                                |close < =*close
+                                  { ::outputBufferLimit 2 mul outputBufferLimit } =*increase
+                                > ???limit.io.out
+                              } rep
+          ++EPOLLOUT ++EPOLLIN ++EPOLLERR bor bor :ctl
+        } =*write
+        { :close } =*close
+        { 1 =finished } =*finish
+      > ::accept ":::" via <
+        {
+          4096 :read _ len
+            { inBuffer -01 cat :::in =inBuffer }
+            { -- :::end }
+            ? *
+        } =*in
+        {
+          outBuffer _ :write -01 str .postfix
+            _ =outBuffer
+              len _ { ++EPOLLOUT } { 0 } ? * ++EPOLLIN ++EPOLLERR bor bor :ctl
+                    not finished and { :close } rep
+        } =*out
+        { :::err } =*err
+      >
+    } ^accept
 
-    { ::running } {
-      epoll 16 ::interval ++wait -- # TODO: error handling
-      {
-        _ .data +!rawObject ":" via
-          .events
-          _ ++EPOLLIN  band not not { :in  } rep
-          _ ++EPOLLOUT band not not { :out } rep
-            ++EPOLLERR band not not { :err } rep
-      } each
-    } loop
-  } /run deffst
-> } /epollServer net .alg .deff
-
-{ <
-  net .alg .epollServer "^" via
-
-  <
-    { "unconfigured accept (of bufferedEpollServer)" die } /accept deffst
-
-    { = }' /set deffst
-    { scope keys }' /setters deffst
-    { _ ^settings .installSetters =*install 
-      setters { _ { set }_ -01 install }" each
-    } /installSetters deffst
-  > _ ==settings "::" via
-
-  { deffst }' ::installSetters
-
-  sys .linux .epoll "++" via
-
-  { ":" via "" ==inBuffer "" ==outBuffer 0 ==finished
-    <
-      {
-        outBuffer -01 cat =outBuffer
-        ++EPOLLOUT ++EPOLLIN ++EPOLLERR bor bor :ctl
-      } =*write
-      { :close } =*close
-      { 1 =finished } =*finish
-    > ::accept ":::" via <
-      {
-        4096 :read _ len
-          { inBuffer -01 cat :::in =inBuffer }
-          { -- :::end }
-          ? *
-      } =*in
-      {
-        outBuffer _ :write -01 str .postfix
-          _ =outBuffer
-            len _ { ++EPOLLOUT } { 0 } ? * ++EPOLLIN ++EPOLLERR bor bor :ctl
-                  not finished and { :close } rep
-      } =*out
-      { :::err } =*err
-    >
-  } ^accept
-
-  { ^run } /run deffst
-> } /bufferedEpollServer net .alg .deff
+    { ^run } /run deffst
+  > } /bufferedEpollServer net .alg .deff
+> --
 
 # vim: syn=elymas

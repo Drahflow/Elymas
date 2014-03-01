@@ -35,12 +35,19 @@
               } =*fail
             > ::request
           }
-          { 1 } { "" =inBuffer :close } # TODO: error reporting
+          { 1 } {
+            "HTTP/1.0 400 Error\r\nContent-Type: text/html\r\n\r\n<html><body>Could not parse request</body></html>\r\n"
+            :write :finish
+          }
         ] conds } loop inBuffer } =*in
     >
   } ^accept
 
-  { ^run } /run deffst
+  {
+    { ^run } {
+      _ .?close { .close } { ??!' } ? *
+    } ?!io.net
+  } /run deffst
 > } /rawHttpServer net .alg .deff
 
 { <
@@ -68,10 +75,7 @@
              } each
            } rep
 
-    url args
-    < req keys { _ { : }_ -01 deffst }' each # TODO: this forwarding logic seems ugly, find a better way to forward activity levels
-      ==args { }_ =url
-    > ::request
+    url args < ==args ==url req >' ::request
   } ^request
 
   { ^run } /run deffst

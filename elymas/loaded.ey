@@ -1,6 +1,7 @@
 #!/usr/bin/env elymas
 
 [
+  "lib/err.ey"
   "lib/bin.ey"
   "lib/sys/linux.ey"
   "lib/net.ey"

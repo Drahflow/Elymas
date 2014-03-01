@@ -1,6 +1,9 @@
 # Provide nice ways to do TCP/IP networking
 
 <
+  { ==err _ 0 lt { err ?? } rep } "+??" deffd
+  { ==err ==actions _ 0 lt { actions err ??? } rep } "+???" deffd
+
   bin .scan  "->" via
   bin .print "<-" via
   bin .produce "<=" via
@@ -22,8 +25,8 @@
     net .dns .resolveIpv4
     -01 txt .consume .u
     sockaddrIpv4
-    +AFINET +SOCKSTREAM +IPPROTOTCP +socket _ ==s # TODO: error handling
-    -01 +connect -- # TODO: error handling
+    +AFINET +SOCKSTREAM +IPPROTOTCP +socket +??io.net.socket _ ==s
+    -01 +connect +??io.net.connect --
     s
   } /connectFd deffd
 
@@ -37,9 +40,9 @@
   # 0 <- listening socket fd
   { # ==port
     0 <=un32 -01 sockaddrIpv4
-    +AFINET +SOCKSTREAM +IPPROTOTCP +socket _ ==s # TODO: error handling
-    -01 +bind -- # TODO: error handling
-    s 256 +listen -- # TODO: error handling
+    +AFINET +SOCKSTREAM +IPPROTOTCP +socket +??io.net.socket _ ==s
+    -01 +bind +??io.net.bind --
+    s 256 +listen +??io.net.listen --
     s
   } _ /listenFd deffd
       /listen   deffd
@@ -47,7 +50,7 @@
   # 0 -> listening socket fd
   # 0 <- newly accepted connection fd
   { # ==fd
-    +accept # TODO: error handling
+    +accept +??io.net.accept
   } /acceptFd deffd
 
   # 0 -> listening socket fd
