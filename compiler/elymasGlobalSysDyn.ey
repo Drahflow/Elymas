@@ -1,0 +1,83 @@
+# dynamic variables with stack
+<
+  "dyn" enterSubScope
+
+  5 ==DYNAMICVARIABLEMARKER
+
+  <
+    # get dynamic variable value
+    # 0 -> dynamic variable object
+    # 0 <- non-zero if a value is defined, zero otherwise
+    # 1 <- current value (if it exists)
+    [[
+      /rbx :popqReg
+
+      /rdx :popqReg
+      DYNAMICVARIABLEMARKER /rax :movqImmReg
+      :STACKBOTTOMMARKER /rcx :movqImmReg
+      /r15 /rsi :movqRegReg
+      8 /rsi :subqImm8Reg
+
+      @scanStack
+      8 /rsi :addqImm8Reg
+
+      /rsi /rax :cmpqMemReg
+      /dynamicVariableMarker :jzLbl8
+      /rsi /rcx :cmpqMemReg
+      /scanStack :jnzLbl8
+
+      # no value was found
+      /rax /rax :xorqRegReg
+      63 /rax :btsqImm8Reg
+      /rax :pushqReg
+
+      /rbx :pushqReg
+      :retn
+
+      @dynamicVariableMarker
+      8 /rsi /rdx :cmpqMemDisp8Reg
+      /scanStack :jnzLbl8 # wrong variable
+
+      16 /rsi :pushqMemDisp8
+      /rax /rax :xorqRegReg
+      /rax :incqReg
+      63 /rax :btsqImm8Reg
+      /rax :pushqReg
+
+      /rbx :pushqReg
+      :retn
+    ]] /eyget defv
+
+    # set dynamic variable and execute function
+    # 0 -> dynamic variable object
+    # 1 -> value to set
+    # 2 -> object to execute
+    [[
+      8 /r15 :subqImm8Reg
+      /r15 :popqMem
+
+      24 /r15 :subqImm8Reg
+      8 /r15 :popqMemDisp8
+      16 /r15 :popqMemDisp8
+      DYNAMICVARIABLEMARKER /rax :movqImmReg
+      /rax /r15 :movqRegMem
+
+      |ey* /rax :movqImmReg
+      /rax :callqReg
+
+      24 /r15 :addqImm8Reg
+      /r15 :pushqMem
+      8 /r15 :addqImm8Reg
+      :retn
+    ]] /eywith defv
+  > _ ==globalFunctions { defv }' ::allocateOffsetStruct
+
+  [
+    globalFunctions keys eydeff { | }' createScopeEntries
+    createScopeExtensionEntries
+  ] :execute
+
+  leaveSubScope
+> --
+
+# vim: syn=elymas

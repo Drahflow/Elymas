@@ -131,6 +131,11 @@ bottom of stack marker
 0000000000000000000000000000000000000000000000000000000000000100
 error data marker (only for external debugging)
 
+0000000000000000000000000000000000000000000000000000000000000101
+dynamic variable binding marker (call stack only)
+next two cells (upwards into the stack)
+* reference to dynamic variable object
+* reference to current value
 
 = Memory Management =
 

@@ -120,6 +120,7 @@
 
   "elymasGlobalSysAsm.ey" include
   "elymasGlobalSysOpt.ey" include
+  "elymasGlobalSysDyn.ey" include
   "elymasGlobalSysTyped.ey" include
 
   leaveSubScope
