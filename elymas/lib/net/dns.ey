@@ -2,6 +2,9 @@
 # Spec: http://www.faqs.org/rfcs/rfc1035.html
 
 <
+  { ==err _ 0 lt { err ?? } rep } "+??" deffd
+  { ==err ==actions _ 0 lt { actions err ??? } rep } "+???" deffd
+
 # Uncomment to enable function ("deffd") tracing for this scope
 #   {
 #     -010 { " executing" cat dump }_ -01 ; -01 =*:
@@ -23,20 +26,20 @@
   { ==host
     ensureResolvConf
     resolvConf .nameserver parseIpv4 53 net .udp .sockaddrIpv4
-    +AFINET +SOCKDGRAM +IPPROTOUDP +socket _ ==s # TODO: error handling
-    -01 +connect -- # TODO: error handling
+    +AFINET +SOCKDGRAM +IPPROTOUDP +socket +??io.net.socket _ ==s
+    -01 +connect +??io.net.connect --
 
       s
       host buildDnsQueryMessage
       _ len
-    +write -- # TODO: error handling
+    +write +??io.net.write -- # TODO: correctly handle non-full writes
 
     1024 str .alloc ==buf
 
       s 
       buf
       _ len
-    +read # TODO: error handling
+    +read +??io.net.read
     buf str .inplacePrefix =buf
 
     buf

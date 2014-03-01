@@ -1,6 +1,9 @@
 # Provide nice ways to do TCP/IP networking
 
 <
+  { ==err _ 0 lt { err ?? } rep } "+??" deffd
+  { ==err ==actions _ 0 lt { actions err ??? } rep } "+???" deffd
+
   bin .scan  "->" via
   bin .print "<-" via
   bin .produce "<=" via
@@ -23,7 +26,7 @@
     -01 txt .consume .u16
     sockaddrIpv4
     +socket _ ==s
-    -01 +connect -- # TODO: error handling
+    -01 +connect +??io.net.connect --
   } /connectFd deffd
 
   # 0 -> "host:port"
