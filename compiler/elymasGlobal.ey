@@ -18,173 +18,6 @@
   1 ==ARRAYMARKER
   2 ==QUOTEMARKER
 
-  # 0 -> integer
-  # 1 -> integer
-  # 0 <- result of the arithmetic operation
-  { ==opcodes
-    [[
-      /rbx :popqReg
-
-      # load arguments and test for boxed integers
-      /rcx :popqReg
-      /rcx ::unboxInteger
-
-      /rdx :popqReg
-      /rdx ::unboxInteger
-
-      # actual calculation, result expected in rdx
-      opcodes _ len dearray
-
-      /rdx /rax :movqRegReg
-      32 /rax :shrqImm8Reg
-      /boxResult :jnzLbl8
-
-      # push unboxed result
-      63 /rdx :btsqImm8Reg
-      /rdx :pushqReg
-      /rbx :pushqReg
-      :retn
-
-      @boxResult
-      /rdx :pushqReg
-      # allocate result
-      ::internalAllocateInteger /rax :movqImmReg
-      /rax :callqReg
-
-      # save result into boxed int
-      8 /rax :popqMemDisp8
-
-      # push int address on program stack
-      /rax :pushqReg
-      /rbx :pushqReg
-      :retn
-    ]]
-  } /makeArith deff
-
-  # 0 -> float or integer
-  # 1 -> float or integer
-  # 0 <- result of the arithmetic operation
-  { ==comparisonResult ==floatOpcodes ==intOpcodes
-    [[
-      /rbx :popqReg
-
-      /rcx :popqReg
-      /rdx :popqReg
-
-      63 /rcx :btqImm8Reg
-      /rcxNotFloat :jcLbl8
-      7 /rcx /al :movbMemDisp8Reg
-      %F0 /al :andbImmReg
-      %20 /al :cmpbImmReg
-      /floatCase :jzLbl8
-      @rcxNotFloat
-
-      63 /rdx :btqImm8Reg
-      /rdxNotFloat :jcLbl8
-      7 /rdx /al :movbMemDisp8Reg
-      %F0 /al :andbImmReg
-      %20 /al :cmpbImmReg
-      /floatCase :jzLbl8
-      @rdxNotFloat
-
-      @intCase
-
-      # load arguments and test for boxed integers
-      /rcx ::unboxInteger
-      /rdx ::unboxInteger
-
-      # actual calculation, result expected in rdx
-      intOpcodes _ len dearray
-
-      /rdx /rax :movqRegReg
-      32 /rax :shrqImm8Reg
-      /boxResult :jnzLbl8
-
-      # push unboxed result
-      63 /rdx :btsqImm8Reg
-      /rdx :pushqReg
-      /rbx :pushqReg
-      :retn
-
-      @boxResult
-      /rdx :pushqReg
-      # allocate result
-      ::internalAllocateInteger /rax :movqImmReg
-      /rax :callqReg
-
-      # save result into boxed int
-      8 /rax :popqMemDisp8
-
-      # push int address on program stack
-      /rax :pushqReg
-      /rbx :pushqReg
-      :retn
-
-      @floatCase
-
-      63 /rdx :btrqImm8Reg
-      /loadFirstArgUnboxedInt :jcLbl8
-      7 /rdx /al :movbMemDisp8Reg
-      %F0 /al :andbImmReg
-      %20 /al :cmpbImmReg
-      /loadFirstArgFloat :jzLbl8
-
-      # @loadFirstArgBoxedInt
-      8 /rdx :fildqMemDisp8
-      /loadedFirstArg :jmpLbl8
-
-      @loadFirstArgUnboxedInt
-      /rdx :pushqReg
-      0 /rsp :fildqMemDisp8
-      /rdx :popqReg
-      /loadedFirstArg :jmpLbl8
-
-      @loadFirstArgFloat
-      8 /rdx :fld64MemDisp8
-
-      @loadedFirstArg
-
-      63 /rcx :btrqImm8Reg
-      /loadSecondArgUnboxedInt :jcLbl8
-      7 /rcx /al :movbMemDisp8Reg
-      %F0 /al :andbImmReg
-      %20 /al :cmpbImmReg
-      /loadSecondArgFloat :jzLbl8
-
-      # @loadSecondArgBoxedInt
-      8 /rcx :fildqMemDisp8
-      /loadedSecondArg :jmpLbl8
-
-      @loadSecondArgUnboxedInt
-      /rcx :pushqReg
-      0 /rsp :fildqMemDisp8
-      /rcx :popqReg
-
-      /loadedSecondArg :jmpLbl8
-
-      @loadSecondArgFloat
-      8 /rcx :fld64MemDisp8
-
-      @loadedSecondArg
-
-      floatOpcodes _ len dearray
-      
-      comparisonResult {
-        63 /rdx :btsqImm8Reg
-        /rdx :pushqReg
-      } {
-        ::internalAllocateFloat /rax :movqImmReg
-        /rax :callqReg
-        /rax :pushqReg
-
-        8 /rax :fstp64MemDisp8
-      } ? *
-
-      /rbx :pushqReg
-      :retn
-    ]]
-  } /makeFullArith deff
-
   <
     # do nothing
     [
@@ -3012,6 +2845,135 @@
     # ] /taat1 defv
   > _ =globalTypes { defv }' ::allocateOffsetStruct
 
+  # 0 -> integer or float
+  # 1 -> integer or float
+  # 0 <- result of the arithmetic operation
+  { ==comparisonResult ==floatOpcodes ==intOpcodes
+    [[
+      /rbx :popqReg
+
+      /rcx :popqReg
+      /rdx :popqReg
+
+      63 /rcx :btqImm8Reg
+      /rcxInteger :jcLbl8
+      7 /rcx /al :movbMemDisp8Reg
+      %F0 /al :andbImmReg
+      %20 /al :cmpbImmReg
+      /floatCase :jzLbl8
+      @rcxInteger
+
+      63 /rdx :btqImm8Reg
+      /rdxInteger :jcLbl8
+      7 /rdx /al :movbMemDisp8Reg
+      %F0 /al :andbImmReg
+      %20 /al :cmpbImmReg
+      /floatCase :jzLbl8
+      @rdxInteger
+
+      @intCase
+
+      # load arguments and test for boxed integers
+      /rcx ::unboxInteger
+      /rdx ::unboxInteger
+
+      # actual calculation, result expected in rdx
+      intOpcodes _ len dearray
+
+      /rdx /rax :movqRegReg
+      32 /rax :shrqImm8Reg
+      /boxResult :jnzLbl8
+
+      # push unboxed result
+      63 /rdx :btsqImm8Reg
+      /rdx :pushqReg
+      /rbx :pushqReg
+      :retn
+
+      @boxResult
+      /rdx :pushqReg
+      # allocate result
+      ::internalAllocateInteger /rax :movqImmReg
+      /rax :callqReg
+
+      # save result into boxed int
+      8 /rax :popqMemDisp8
+
+      # push int address on program stack
+      /rax :pushqReg
+      /rbx :pushqReg
+      :retn
+
+      @floatCase
+
+      63 /rdx :btrqImm8Reg
+      /loadFirstArgUnboxedInt :jcLbl8
+      7 /rdx /al :movbMemDisp8Reg
+      %F0 /al :andbImmReg
+      %20 /al :cmpbImmReg
+      /loadFirstArgFloat :jzLbl8
+
+      # @loadFirstArgBoxedInt
+      8 /rdx :fildqMemDisp8
+      /loadedFirstArg :jmpLbl8
+
+      @loadFirstArgUnboxedInt
+      /rdx :pushqReg
+      0 /rsp :fildqMemDisp8
+      /rdx :popqReg
+      /loadedFirstArg :jmpLbl8
+
+      @loadFirstArgFloat
+      8 /rdx :fld64MemDisp8
+
+      @loadedFirstArg
+
+      63 /rcx :btrqImm8Reg
+      /loadSecondArgUnboxedInt :jcLbl8
+      7 /rcx /al :movbMemDisp8Reg
+      %F0 /al :andbImmReg
+      %20 /al :cmpbImmReg
+      /loadSecondArgFloat :jzLbl8
+
+      # @loadSecondArgBoxedInt
+      8 /rcx :fildqMemDisp8
+      /loadedSecondArg :jmpLbl8
+
+      @loadSecondArgUnboxedInt
+      /rcx :pushqReg
+      0 /rsp :fildqMemDisp8
+      /rcx :popqReg
+
+      /loadedSecondArg :jmpLbl8
+
+      @loadSecondArgFloat
+      8 /rcx :fld64MemDisp8
+
+      @loadedSecondArg
+
+      floatOpcodes _ len dearray
+      
+      comparisonResult {
+        63 /rdx :btsqImm8Reg
+        /rdx :pushqReg
+      } {
+        ::internalAllocateFloat /rax :movqImmReg
+        /rax :callqReg
+        /rax :pushqReg
+
+        8 /rax :fstp64MemDisp8
+      } ? *
+
+      /rbx :pushqReg
+      :retn
+    ]]
+  } /makeFullArith deff
+
+  { ==name
+    name " not available on floats" cat ::outputError
+    :ud2
+  } /floatUnsupported deff
+
   <
     # equality on ints and strings
     [[
@@ -3073,20 +3035,24 @@
     ]] /eyeq defv
 
     [
-      # FIXME: call eq to get full neq for all types
-      /rdi /rdi :xorqRegReg
-      1 /rsi :movqImmReg
-      /rdx /rcx :cmpqRegReg 
-      /rsi /rdx :movqRegReg
-      /rdi /rdx :cmovzqRegReg
-    ] makeArith /eyneq defv
+      8 /r15 :subqImm8Reg
+      /r15 :popqMem
+
+      /rax :movqImmOOBReg "eyneq" "eyeq" ::linkAbs64
+      /rax :callqReg
+      1 0 /rsp :xorbImmMemDisp8
+
+      /r15 :pushqMem
+      8 /r15 :addqImm8Reg
+      :retn
+    ] /eyneq defv
 
     # arithmetic functions
     [ /rcx /rdx :addqRegReg ] [ :faddp ] 0 makeFullArith /eyadd defv
     [ /rcx /rdx :subqRegReg ] [ :fsubp ] 0 makeFullArith /eysub defv
-    [ /rcx /rdx :andqRegReg ] makeArith /eyband defv
-    [ /rcx /rdx :orqRegReg ] makeArith /eybor defv
-    [ /rcx /rdx :xorqRegReg ] makeArith /eybxor defv
+    [ /rcx /rdx :andqRegReg ] [[ "band" floatUnsupported ]] 0 makeFullArith /eyband defv
+    [ /rcx /rdx :orqRegReg ] [[ "bor" floatUnsupported ]] 0 makeFullArith /eybor defv
+    [ /rcx /rdx :xorqRegReg ] [[ "bxor" floatUnsupported ]] 0 makeFullArith /eybxor defv
 
     [
       /rdi /rdi :xorqRegReg
@@ -3159,7 +3125,7 @@
       /rdx /rdx :xorqRegReg
       /rcx :divqReg
       /rax :popqReg
-    ] makeArith /eymod defv
+    ] [[ "mod" floatUnsupported ]] 0 makeFullArith /eymod defv
     [
       /rax :pushqReg
       /rdx /rax :movqRegReg
@@ -3182,7 +3148,7 @@
       @no
       /rdx /rdx :xorqRegReg
       @done
-    ]] makeArith /eyand defv
+    ]] [[ "and" floatUnsupported ]] 0 makeFullArith /eyand defv
     [[
       /rcx /rcx :testqRegReg
       /yes :jnzLbl8
@@ -3194,7 +3160,7 @@
       @yes
       1 /rdx :movqImmReg
       @done
-    ]] makeArith /eyor defv
+    ]] [[ "or" floatUnsupported ]] 0 makeFullArith /eyor defv
   > _ =globalT11t1Functions { defv }' ::allocateOffsetStruct
 
   <

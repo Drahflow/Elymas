@@ -1437,6 +1437,8 @@ memoryAddressingVariants keys { ==variant memoryAddressingVariants variant . =*p
   } /xchgqReg variant defOp
 } each
 
+/xor %30 defAsmAddb
 /xor %31 defAsmAddq
+/xor /six defAsmAddImm
 
 # vim: syn=elymas
