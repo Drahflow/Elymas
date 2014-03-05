@@ -59,18 +59,43 @@
     # 1 -> alternative not 0
     # 2 -> decision value
     # 0 <- the selected alternative
-    [
+    [[
       /rbx :popqReg
       /rcx :popqReg
       /rdx :popqReg
       /rax :popqReg
-      /rax ::unboxInteger
+      63 /rax :btrqImm8Reg
+      /unboxedIntegerCase :jcLbl8
+      7 /rax /sil :movbMemDisp8Reg
+      %F0 /sil :andbImmReg
+      /integerCase :jzLbl8
+      %90 /sil :cmpbImmReg
+      /scopeCase :jzLbl8
+
+      "invalid type while evaluating ?" ::outputError
+      :ud2
+
+      @integerCase
+      8 /rax /rax :movqMemDisp8Reg
+
+      @unboxedIntegerCase
       /rax /rax :testqRegReg
       /rcx /rdx :cmovzqRegReg
       /rdx :pushqReg
       /rbx :pushqReg
       :retn
-    ] /ey? defv
+
+      @scopeCase
+      /rdx :pushqReg
+      /rcx :pushqReg
+      /rax :pushqReg
+      /rax :movqImmOOBReg "#?" ::string
+      /rax :pushqReg
+      /rax :movqImmOOBReg "ey?" "ey." ::linkAbs64
+
+      /rbx :pushqReg
+      /rax :jmpqReg
+    ]] /ey? defv
 
     # create a new entry in the current scope for the given name
     # mark that entry's default action according to activation
@@ -334,6 +359,8 @@
       /arrayFunction :jeLbl32
       %C0 /cl :cmpbImmReg
       /coroutineFunction :jeLbl32
+      %90 /cl :cmpbImmReg
+      /scopeFunction :jeLbl32
 
       @unexecutable
       /rdx :pushqReg
@@ -602,6 +629,16 @@
 
       /rbx :pushqReg
       :retn
+
+      @scopeFunction
+      /rdx :pushqReg
+      /rax :movqImmOOBReg "#*" ::string
+      /rax :pushqReg
+      /rax :movqImmOOBReg "ey*" "ey." ::linkAbs64
+
+      /r15 :pushqMem
+      8 /r15 :addqImm8Reg
+      /rax :jmpqReg
     ]] /ey* defv
 
     # array construction, push begin marker on stack
@@ -669,6 +706,8 @@
       /arrayAssign :jeLbl8
       %10 /cl :cmpbImmReg
       /stringAssign :jeLbl8
+      %90 /cl :cmpbImmReg
+      /scopeAssign :jeLbl32
 
       "non-array, non-string passed to =[]" ::outputError
       :ud2
@@ -714,6 +753,16 @@
       /r15 :pushqMem
       8 /r15 :addqImm8Reg
       :retn
+
+      @scopeAssign
+      /rbx :pushqReg
+      /rax :movqImmOOBReg "#=[]" ::string
+      /rax :pushqReg
+      /rax :movqImmOOBReg "ey=[]" "ey." ::linkAbs64
+
+      /r15 :pushqMem
+      8 /r15 :addqImm8Reg
+      /rax :jmpqReg
     ]] /ey=[] defv
 
     # length of array or string
@@ -730,6 +779,8 @@
       /stringLen :jeLbl8
       %70 /cl :cmpbImmReg
       /arrayLen :jeLbl8
+      %90 /cl :cmpbImmReg
+      /scopeLen :jeLbl32
 
       "neither string nor array in len" ::outputError
       :ud2
@@ -751,6 +802,16 @@
       /r15 :pushqMem
       8 /r15 :addqImm8Reg
       :retn
+
+      @scopeLen
+      /rax :pushqReg
+      /rax :movqImmOOBReg "#len" ::string
+      /rax :pushqReg
+      /rax :movqImmOOBReg "eylen" "ey." ::linkAbs64
+
+      /r15 :pushqMem
+      8 /r15 :addqImm8Reg
+      /rax :jmpqReg
     ]] /eylen defv
 
     # concatenate two arrays or strings
@@ -767,10 +828,10 @@
       %70 /cl :cmpbImmReg
       /arrayCat :jeLbl8
       %10 /cl :cmpbImmReg
-      /unknownType :jneLbl8
-      /stringCat :jmpLbl32
+      /stringCat :jeLbl32
+      %90 /cl :cmpbImmReg
+      /scopeCat :jeLbl32
 
-      @unknownType
       "neither string nor array in cat" ::outputError
       :ud2
 
@@ -779,6 +840,8 @@
 
       7 /rbx /cl :movbMemDisp8Reg
       %F0 /cl :andbImmReg
+      %90 /cl :cmpbImmReg
+      /scopeReverseCat :jeLbl32
       %70 /cl :cmpbImmReg
       /mismatch :jneLbl8
 
@@ -822,6 +885,8 @@
 
       7 /rbx /cl :movbMemDisp8Reg
       %F0 /cl :andbImmReg
+      %90 /cl :cmpbImmReg
+      /scopeReverseCat :jeLbl32
       %10 /cl :cmpbImmReg
       /mismatch :jneLbl8
 
@@ -854,6 +919,27 @@
       /r15 :pushqMem
       8 /r15 :addqImm8Reg
       :retn
+
+      @scopeCat
+      /rax :pushqReg
+      /rax :movqImmOOBReg "#cat" ::string
+      /rax :pushqReg
+      /rax :movqImmOOBReg "eycat" "ey." ::linkAbs64
+
+      /r15 :pushqMem
+      8 /r15 :addqImm8Reg
+      /rax :jmpqReg
+
+      @scopeReverseCat
+      /rax :pushqReg
+      /rbx :pushqReg
+      /rax :movqImmOOBReg "#-01 cat" ::string
+      /rax :pushqReg
+      /rax :movqImmOOBReg "eycat" "ey." ::linkAbs64
+
+      /r15 :pushqMem
+      8 /r15 :addqImm8Reg
+      /rax :jmpqReg
     ]] /eycat defv
 
     # push array contents on stack
@@ -1999,6 +2085,8 @@
       /eachArray :jzLbl8
       %10 /cl :cmpbImmReg
       /eachString :jzLbl8
+      %90 /cl :cmpbImmReg
+      /eachScope :jzLbl32
 
       "neither string nor array in each" ::outputError
       :ud2
@@ -2063,6 +2151,18 @@
       /r15 :pushqMem
       8 /r15 :addqImm8Reg
       :retn
+
+      @eachScope
+      16 /r15 :pushqMemDisp8
+      /rax :pushqReg
+      /rax :movqImmOOBReg "#each" ::string
+      /rax :pushqReg
+      /rax :movqImmOOBReg "eyeach" "ey." ::linkAbs64
+
+      32 /r15 :addqImm8Reg
+      /r15 :pushqMem
+      8 /r15 :addqImm8Reg
+      /rax :jmpqReg
     ]] /eyeach defv
 
     # explicitely resolve a scope member
@@ -2267,7 +2367,7 @@
       %F0 /cl :andbImmReg
       %70 /cl :cmpbImmReg
       /arrayDom :jeLbl8
-      %20 /cl :cmpbImmReg
+      %90 /cl :cmpbImmReg
       /scopeDom :jeLbl8
 
       @unboxedIntegerPassed
@@ -2306,11 +2406,13 @@
 
       @scopeDom
       /rax :pushqReg
-      /rax :movqImmOOBReg "dom" ::string
+      /rax :movqImmOOBReg "#dom" ::string
       /rax :pushqReg
       |ey. /rax :movqImmReg
-      /rax :callqReg
-      /end :jmpLbl8
+
+      /r15 :pushqMem
+      8 /r15 :addqImm8Reg
+      /rax :jmpqReg
     ]] /eydom defv
 
     # create a coroutine with empty call stack and data stack
@@ -2477,6 +2579,8 @@
       /coroutineCase :jzLbl8
       %50 /cl :cmpbImmReg
       /functionCase :jzLbl32
+      %90 /cl :cmpbImmReg
+      /scopeCase :jzLbl32
 
       "type of object not handled in !" ::outputError
       :ud2
@@ -2552,6 +2656,7 @@
       /rbx :pushqReg
       :retn
 
+      @scopeCase
       @functionCase
       /rcx :popqReg
       /rbp :pushqReg

@@ -1,0 +1,19 @@
+"canary"
+< { -- -- "here: ?" dump } "#?" deffd > /foo /bar ?
+_ dump
+< { "here: *" dump } "#*" deffd > *
+_ dump
+< { "here: =[]" dump } "#=[]" deffd > =[]
+_ dump
+< { "here: len" dump } "#len" deffd > len
+_ dump
+/foo < { "here: cat (with: " -01 cat ")" cat dump } "#cat" deffd > cat
+_ dump
+< { "here: -01 cat (with: " -01 cat ")" cat dump } "#-01 cat" deffd > /foo cat
+_ dump
+< { -- "here: each" dump } "#each" deffd > { "xxx" die } each
+_ dump
+< { "here: dom" dump } "#dom" deffd > dom
+_ dump
+< { "here: *" dump } "#*" deffd > 0 !
+_ dump

@@ -65,7 +65,7 @@ dup = _
 
 !: co-routines and threads
 ": string quote
-#: line comment
+#: line comment, complex scope types
 $: <open>
 %: <open>
 &: <open>
