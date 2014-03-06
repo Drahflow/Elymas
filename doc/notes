@@ -342,15 +342,17 @@ Main problem: How do we find out if the names mean what we believe they do?
 * [] dynamic: nothing can be assumed
 * [v] inactive: push value
 * [f] active: execute unless quoted
+* [m] member: like active, but push scope resolving in first
 * [q] quote-active: execute on first resolution (execution is instant)
 +---------------------------------------------------+
 |   |      |   s   |   t   |   st   |   c   |   d   |
 +---+------+-------+-------+--------+-------+-------+
 | v | defv | defvs | defvt | defvst | defvc | defvd |
 | f | deff | deffs | defft | deffst | deffc | deffd |
+| m | defm | defms | defmt | defmst | defmc | defmd |
 | q | defq |       |       |        |       |       |
 +---+------+-------+-------+--------+-------+-------+
-* defaults: |defvs "==" deffd |deffs "=*" deffd
+* defaults: |defvs "==" deffd |deffs "=*" deffd |defms "=." deffd
 * it is possible to globally turn checking (after dynamic resolution) on
 
 == Sticky Resolution ==

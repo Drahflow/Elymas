@@ -1,0 +1,18 @@
+{ ==caller ==data
+  "coroutine 1" dump data dump
+  data caller * =caller =data
+  "coroutine 2" dump data dump
+  data caller * =caller =data
+  "coroutine 3" dump data dump
+  data caller *
+} !! ==cr
+
+"data"
+cr * --
+"here 1" dump
+cr * --
+"here 2" dump
+cr * --
+"here 3" dump
+
+0 sys .exit

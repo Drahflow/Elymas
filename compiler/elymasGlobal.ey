@@ -2629,6 +2629,8 @@
       24 /r13 /rax :movqMemDisp8Reg
       /r15 8 /rax :movqRegMemDisp8
       32 /r13 /rax :movqMemDisp8Reg
+      /rax /rax :testqRegReg
+      /sourceDataStackMissing :jzLbl8
       /rsp 8 /rax :movqRegMemDisp8
 
       # exclude source opcodes from being optimized away
@@ -2673,6 +2675,10 @@
       /rbx :pushqReg
       /rax :movqImmOOBReg "ey!" "ey." ::linkAbs64
       /rax :jmpqReg
+
+      @sourceDataStackMissing
+      "cannot leave coroutine with ! which was entered by * (missing own stack)" ::outputError
+      :ud2
     ]] /ey! defv
   > _ ==globalFunctions3 { defv }' ::allocateOffsetStruct
 
