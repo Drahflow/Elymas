@@ -1,0 +1,5 @@
+0 /yes /no ? dump
+1 /yes /no ? dump
+< { -- -- /lul } "?" deffd > ==s
+s dump
+s /yes /no ? dump
