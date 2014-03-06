@@ -15,5 +15,5 @@ _ dump
 _ dump
 < { "here: dom" dump } "#dom" deffd > dom
 _ dump
-< { "here: *" dump } "#*" deffd > 0 !
+< { "here: !" dump "element count: " dump dump } "#!" deffd > 42 !
 _ dump

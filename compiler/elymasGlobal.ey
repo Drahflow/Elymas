@@ -2656,13 +2656,22 @@
       /rbx :pushqReg
       :retn
 
-      @scopeCase
       @functionCase
       /rcx :popqReg
       /rbp :pushqReg
 
       /rbx :pushqReg
       /rax :movqImmOOBReg "ey!" "ey*" ::linkAbs64
+      /rax :jmpqReg
+
+      @scopeCase
+      /rbp :pushqReg
+
+      /rax :movqImmOOBReg "#!" ::string
+      /rax :pushqReg
+
+      /rbx :pushqReg
+      /rax :movqImmOOBReg "ey!" "ey." ::linkAbs64
       /rax :jmpqReg
     ]] /ey! defv
   > _ ==globalFunctions3 { defv }' ::allocateOffsetStruct
