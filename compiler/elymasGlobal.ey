@@ -41,11 +41,14 @@
       /rax /rax :testqRegReg
       /found :jnzLbl8
 
-      "unresolved name in |: " ::outputError
-      /rbx /rdi :movqRegReg
-      ::internalDumpErrorString /rax :movqImmReg
-      /rax :callqReg
-      :ud2
+      /rcx :popqReg
+      /rbx :pushqReg
+      /r14 :pushqReg
+      /rax :movqImmOOBReg "#.|" ::string
+      /rax :pushqReg
+      /rax :movqImmOOBReg "ey|" "ey." ::linkAbs64
+      /rcx :pushqReg
+      /rax :jmpqReg
 
       @found
       /rcx :popqReg
@@ -325,11 +328,15 @@
       /rax /rax :testqRegReg
       /found :jnzLbl8
 
-      "unresolved name in =: " ::outputError
-      /rbx /rdi :movqRegReg
-      ::internalDumpErrorString /rax :movqImmReg
-      /rax :callqReg
-      :ud2
+      /rbx :pushqReg
+      /r14 :pushqReg
+      /rax :movqImmOOBReg "#.=" ::string
+      /rax :pushqReg
+      /rax :movqImmOOBReg "ey=" "ey." ::linkAbs64
+
+      /r15 :pushqMem
+      8 /r15 :addqImm8Reg
+      /rax :jmpqReg
 
       @found
       /rcx :popqMem

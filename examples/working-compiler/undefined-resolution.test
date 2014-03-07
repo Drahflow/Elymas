@@ -1,0 +1,13 @@
+<
+  { "#." dump dump } "#." deffd
+  { "#.|" dump dump } "#.|" deffd
+  { "#.?" dump dump } "#.?" deffd
+  { "#.=" dump dump dump } "#.=" deffd
+> ==s
+
+< { |pipebare } =*f s >' .f
+< { 42 =equalbare } =*f s >' .f
+s .|dotpipe
+s .?dotquestion
+s .dot
+< { bare } =*f s >' .f
