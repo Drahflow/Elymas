@@ -11,3 +11,12 @@ s .|dotpipe
 s .?dotquestion
 s .dot
 < { bare } =*f s >' .f
+
+{
+  < { |pipebare } =*f s >' .f
+  < { 42 =equalbare } =*f s >' .f
+  s .|dotpipe
+  s .?dotquestion
+  s .dot
+  < { bare } =*f s >' .f
+} _ * *

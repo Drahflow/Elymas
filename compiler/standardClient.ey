@@ -1,3 +1,9 @@
+## dynamic member lookup fallback routines
+{ -- 0 } "#.?" deffd
+{ "undefined member in .: " -01 cat die } "#." deffd
+{ "undefined member in .|: " -01 cat die } "#.|" deffd
+{ "undefined member in =: " -01 cat die } "#.=" deffd
+
 ## regex support
 # ideas taken from http://swtch.com/~rsc/regexp/regexp3.html
 # FIXME: correctly handly */+/? priority

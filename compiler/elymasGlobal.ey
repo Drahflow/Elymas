@@ -1172,11 +1172,16 @@
       :ud2
 
       @unresolved
-      "unresolved name in internalExecuteIdentifierUnquoted: " ::outputError
-      /r15 /rdi :movqMemReg
-      ::internalDumpErrorString /rax :movqImmReg
-      /rax :callqReg
-      :ud2
+      /r15 :pushqMem # push member
+      /r14 :pushqReg # push scope
+      /rax :movqImmOOBReg "#." ::string
+      /rax :pushqReg
+      /rax :movqImmOOBReg "internalExecuteIdentifierUnquoted" "ey." ::linkAbs64
+
+      8 /r15 :addqImm8Reg
+      /r15 :pushqMem
+      8 /r15 :addqImm8Reg
+      /rax :jmpqReg
 
       @active
       |ey* /rax :movqImmReg
@@ -1234,11 +1239,16 @@
       :ud2
 
       @unresolved
-      "unresolved name in internalExecuteIdentifierUnquotedAndPatchLateResolve: " ::outputError
-      /r15 /rdi :movqMemReg
-      ::internalDumpErrorString /rax :movqImmReg
-      /rax :callqReg
-      :ud2
+      /r15 :pushqMem # push member
+      /r14 :pushqReg # push scope
+      /rax :movqImmOOBReg "#." ::string
+      /rax :pushqReg
+      /rax :movqImmOOBReg "internalExecuteIdentifierUnquotedAndPatchLateResolve" "ey." ::linkAbs64
+
+      16 /r15 :addqImm8Reg
+      /r15 :pushqMem
+      8 /r15 :addqImm8Reg
+      /rax :jmpqReg
 
       @active # TODO patch late resolve call away
       |ey* /rax :movqImmReg
@@ -2179,11 +2189,13 @@
       8 /r15 :subqImm8Reg
       /r15 :popqMem
 
-      8 /r15 :subqImm8Reg
-      /r15 :popqMem # store identifier
+      @restart
+      16 /r15 :subqImm8Reg
+      8 /r15 :popqMemDisp8 # store identifier
+      /r15 :popqMem # store scope
       
-      /rdi :popqReg # fetch scope
-      /r15 /rsi :movqMemReg
+      /r15 /rdi :movqMemReg
+      8 /r15 /rsi :movqMemDisp8Reg
       ::internalResolve /rax :movqImmReg
       /rax :callqReg
 
@@ -2199,23 +2211,25 @@
       "invalid activation mode in ." ::outputError
       :ud2
 
-      @unresolved
-      "unresolved name in .: " ::outputError
-      /r15 /rdi :movqMemReg
-      ::internalDumpErrorString /rax :movqImmReg
-      /rax :callqReg
-      :ud2
-
       @active
       |ey* /rax :movqImmReg
       /rax :callqReg
 
       @inactive
       @done
-      8 /r15 :addqImm8Reg
+      16 /r15 :addqImm8Reg
       /r15 :pushqMem
       8 /r15 :addqImm8Reg
       :retn
+
+      @unresolved
+      8 /r15 :pushqMemDisp8
+      /r15 :pushqMem
+      16 /r15 :addqImm8Reg
+
+      /rax :movqImmOOBReg "#." ::string
+      /rax :pushqReg
+      /restart :jmpLbl8
     ]] /ey. defv
 
     # explicitely resolve a scope member, but never execute
@@ -2225,11 +2239,12 @@
       8 /r15 :subqImm8Reg
       /r15 :popqMem
 
-      8 /r15 :subqImm8Reg
-      /r15 :popqMem # store identifier
+      16 /r15 :subqImm8Reg
+      8 /r15 :popqMemDisp8 # store identifier
+      /r15 :popqMem # store scope
       
-      /rdi :popqReg # fetch scope
-      /r15 /rsi :movqMemReg
+      /r15 /rdi :movqMemReg
+      8 /r15 /rsi :movqMemDisp8Reg
       ::internalResolve /rax :movqImmReg
       /rax :callqReg
 
@@ -2237,17 +2252,24 @@
       /unresolved :jzLbl8
       /rax :pushqReg
 
-      8 /r15 :addqImm8Reg
+      16 /r15 :addqImm8Reg
       /r15 :pushqMem
       8 /r15 :addqImm8Reg
       :retn
 
       @unresolved
-      "unresolved name in .|: " ::outputError
-      /r15 /rdi :movqMemReg
-      ::internalDumpErrorString /rax :movqImmReg
-      /rax :callqReg
-      :ud2
+      8 /r15 :pushqMemDisp8
+      /r15 :pushqMem
+      16 /r15 :addqImm8Reg
+
+      /rax :movqImmOOBReg "#.|" ::string
+      /rax :pushqReg
+
+      /r15 :pushqMem
+      8 /r15 :addqImm8Reg
+
+      /rax :movqImmOOBReg "ey.|" "ey." ::linkAbs64
+      /rax :jmpqReg
     ]] /ey.| defv
 
     # test whether a scope member exists
@@ -2258,24 +2280,42 @@
       8 /r15 :subqImm8Reg
       /r15 :popqMem
 
-      /rsi :popqReg # fetch identifier
-      /rdi :popqReg # fetch scope
+      16 /r15 :subqImm8Reg
+      8 /r15 :popqMemDisp8 # store identifier
+      /r15 :popqMem # store scope
+      
+      /r15 /rdi :movqMemReg
+      8 /r15 /rsi :movqMemDisp8Reg
       ::internalResolve /rax :movqImmReg
       /rax :callqReg
 
       /rax /rax :testqRegReg
       /unresolved :jzLbl8
       1 /rax :movqImmReg
-      @unresolved
       63 /rax :btsqImm8Reg
+      /rax :pushqReg
+
+      16 /r15 :addqImm8Reg
+      /r15 :pushqMem
+      8 /r15 :addqImm8Reg
+      :retn
+
+      @unresolved
+      8 /r15 :pushqMemDisp8
+      /r15 :pushqMem
+      16 /r15 :addqImm8Reg
+
+      /rax :movqImmOOBReg "#.?" ::string
       /rax :pushqReg
 
       /r15 :pushqMem
       8 /r15 :addqImm8Reg
-      :retn
+
+      /rax :movqImmOOBReg "ey.?" "ey." ::linkAbs64
+      /rax :jmpqReg
     ]] /ey.? defv
 
-    # test whether a scope member exists without following parent pointers
+    # test whether a scope member exists without following parent pointers or dynamic lookup
     # 0 -> member name
     # 1 -> scope
     # 0 <- 1 if scope member exists directly in scope, 0 otherwise
