@@ -525,7 +525,19 @@
         invalid # function code
         { [ 1 0 object len 1 sub ] 0 object * typeStackInternal } # array
         invalid # function type
-        literal # scope
+        {
+          [
+            { object "#*" .? } {
+              object "#in" . ==in
+              in len 1 neq { "multi-input scope in typeStack" die } rep
+              [ 0 in * 0 1 neg ]
+              object "#out" . ==out
+              out len 1 neq { "multi-output scope in typeStack" die } rep
+              0 out * typeStackInternal
+            }
+            { 1 } literal
+          ] conds
+        } # scope
         invalid # name table
         unknown
         unknown
@@ -783,6 +795,45 @@
     } /execute sys .typed .deff
   > --
 > --
+
+{ _ ==f _ sys .typed .inputs ==inputs
+          sys .typed .outputs ==outputs
+  inputs len 2 lt { f } {
+    { "t from curry should never execute" die }
+      [ inputs len 1 sub inputs * ] outputs '' ==t
+    0 inputs len 2 sub range reverse { ==i t [ i inputs * ] [ t ] '' =t } each
+    1 inputs len range reverse { ==i
+      f < =*g { { g }_ } > -- [ i inputs * ] [ t ] '' =f
+      0 t sys .typed .outputs * =t
+    } each
+    f
+  } ? *
+} /curry deffd
+
+{ | curry } "||" deffd
+{ ==o
+  { "unknown type in **" die } ==:unknown
+  { "invalid type in **" die } ==:invalid
+
+  o sys .typed .type [
+    { o } # integer
+    { o } # string
+    { o } # float
+    unknown
+    invalid # extension area
+    { o * ** } # function
+    invalid # function code
+    { o * ** } # array
+    invalid # function type
+    { o "#*" .? { o * ** } { o } ? * } # scope
+    invalid # name table
+    unknown
+    unknown
+    unknown
+    unknown
+    unknown
+  ] * *
+} "**" deffd
 
 # global extensions
 <

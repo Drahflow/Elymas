@@ -1,0 +1,25 @@
+{ _ ==f _ sys .typed .inputs ==inputs
+          sys .typed .outputs ==outputs
+  inputs len 2 lt { f } {
+    { "t from curry should never execute" die }
+      [ inputs len 1 sub inputs * ] outputs '' ==t
+    0 inputs len 2 sub range reverse { ==i t [ i inputs * ] [ t ] '' =t } each
+    1 inputs len range reverse { ==i
+      f < =*g { { g }_ } > -- [ i inputs * ] [ t ] '' =f
+      0 t sys .typed .outputs * =t
+    } each
+    f
+  } ? *
+} /curry deffd
+
+|add curry ==a
+5 5 a * * dump
+
+a sys .typed .inputs dump
+a sys .typed .outputs _ dump 0 -01 * ==b
+b sys .typed .inputs dump
+b sys .typed .outputs _ dump 0 -01 * ==c
+
+3 3 |a |a mul * * dump
+
+# vim: syn=elymas

@@ -1,0 +1,27 @@
+<
+  { .v -01 . } "#*" defmd
+  { -- [ 0 ] } "#in" defmd
+  { -- [ 0 ] } "#out" defmd
+  { .v keys } "#dom" defmd
+  { .v ==v =*f v keys { v -01 . f } each } "#each" defmd
+  { < < { defv }' > ==v "#=[]" =* > }
+> -- /map deffd
+
+map ==m
+
+0 "foo" m =[]
+1 "bar" m =[]
+2 "quux" m =[]
+
+"foo" m * dump
+"bar" m * dump
+"quux" m * dump
+
+m dom dump
+m { dump } each
+
+5 m mul ==mm
+
+"foo" mm * dump
+"bar" mm * dump
+"quux" mm * dump
