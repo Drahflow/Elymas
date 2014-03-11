@@ -1167,6 +1167,8 @@
       /active :jzLbl8
       2 /cl :cmpbImmReg
       /active :jzLbl8
+      3 /cl :cmpbImmReg
+      /member :jzLbl8
 
       "invalid activation mode in internalExecuteIdentifierUnquoted" ::outputError
       :ud2
@@ -1182,6 +1184,11 @@
       /r15 :pushqMem
       8 /r15 :addqImm8Reg
       /rax :jmpqReg
+
+      @member
+      /rax :popqReg
+      /r14 :pushqReg
+      /rax :pushqReg
 
       @active
       |ey* /rax :movqImmReg
@@ -1234,6 +1241,8 @@
       /active :jzLbl8
       2 /cl :cmpbImmReg
       /active :jzLbl8
+      3 /cl :cmpbImmReg
+      /member :jzLbl8
 
       "invalid activation mode in internalExecuteIdentifierUnquotedAndPatchLateResolve" ::outputError
       :ud2
@@ -1250,6 +1259,11 @@
       8 /r15 :addqImm8Reg
       /rax :jmpqReg
 
+      @member # TODO patch late resolve call away
+      /rax :popqReg
+      /r14 :pushqReg
+      /rax :pushqReg
+
       @active # TODO patch late resolve call away
       |ey* /rax :movqImmReg
       /rax :callqReg
@@ -1263,12 +1277,14 @@
       :retn
 
       @patchConstant
-      %0F /dl :testbImmReg
+      %0F /dl :andbImmReg
       /patchConstantPassive :jzLbl32
-      %01 /dl :testbImmReg
-      /patchConstantActive :jnzLbl32
-      %02 /dl :testbImmReg
-      /patchConstantQuoted :jnzLbl8
+      %01 /dl :cmpbImmReg
+      /patchConstantActive :jzLbl32
+      %02 /dl :cmpbImmReg
+      /patchConstantQuoted :jzLbl8
+      %03 /dl :cmpbImmReg
+      /member :jzLbl8 # TODO: patch this as well
 
       "invalid activation mode in internalExecuteIdentifierUnquotedAndPatchLateResolve@patchConstant" ::outputError
       :ud2
@@ -1429,12 +1445,14 @@
       @patchStatic
       /rax :popqReg # fetch resolved object (just to remove it from stack)
 
-      %0F /dl :testbImmReg
+      %0F /dl :andbImmReg
       /patchStaticPassive :jzLbl32
-      %01 /dl :testbImmReg
-      /patchStaticActive :jnzLbl32
-      %02 /dl :testbImmReg
-      /patchStaticQuoted :jnzLbl8
+      %01 /dl :cmpbImmReg
+      /patchStaticActive :jzLbl32
+      %02 /dl :cmpbImmReg
+      /patchStaticQuoted :jzLbl8
+      %03 /dl :cmpbImmReg
+      /member :jzLbl32 # TODO: patch this as well
 
       "invalid activation mode in internalExecuteIdentifierUnquotedAndPatchLateResolve@patchStatic" ::outputError
       :ud2
@@ -1625,9 +1643,11 @@
       0 /cl :cmpbImmReg
       /inactive :jzLbl32
       1 /cl :cmpbImmReg
-      /active :jzLbl8
+      /active :jzLbl32
       2 /cl :cmpbImmReg
       /quoteActive :jzLbl8
+      3 /cl :cmpbImmReg
+      /member :jzLbl8
 
       "invalid activation mode in internalExecuteIdentifier" ::outputError
       :ud2
@@ -1636,7 +1656,7 @@
       ::currentQuoted /rax :movqImmReg
       /rax /rax :movqMemReg
       /rax /rax :testqRegReg
-      /constructQuotedResolve :jnzLbl8
+      /constructQuotedResolve :jnzLbl32
 
       "unresolved name in internalExecuteIdentifier: " ::outputError
       /r15 /rdi :movqMemReg
@@ -1645,6 +1665,18 @@
       :ud2
 
       @quoteActive
+      /rax :pushqReg
+      |ey* /rax :movqImmReg
+      /rax :callqReg
+      /done :jmpLbl8
+
+      @member
+      ::currentQuoted /rbx :movqImmReg
+      /rbx /rbx :movqMemReg
+      /rbx /rbx :testqRegReg
+      /constructQuotedResolve :jnzLbl32
+
+      /r14 :pushqReg
       /rax :pushqReg
       |ey* /rax :movqImmReg
       /rax :callqReg
@@ -1740,16 +1772,22 @@
     } %00 -101* /eydefv defv
       %01 -101* /eydeff defv
       %02 -101* /eydefq defv
+      %03 -101* /eydefm defv
       %10 -101* /eydefvs defv
       %11 -101* /eydeffs defv
+      %13 -101* /eydefms defv
       %20 -101* /eydefvt defv
       %21 -101* /eydefft defv
+      %23 -101* /eydefmt defv
       %30 -101* /eydefvst defv
       %31 -101* /eydeffst defv
+      %33 -101* /eydefmst defv
       %40 -101* /eydefvc defv
       %41 -101* /eydeffc defv
+      %43 -101* /eydefmc defv
       %C0 -101* /eydefvd defv
       %C1 -101* /eydeffd defv
+      %C3 -101* /eydefmd defv
       --
 
     # retype a function
@@ -2203,13 +2241,20 @@
       /unresolved :jzLbl8
       /rax :pushqReg
 
-      %0F /dl :testbImmReg
+      %0F /dl :andbImmReg
       /inactive :jzLbl8
-      %01 /dl :testbImmReg
-      /active :jnzLbl8
+      %01 /dl :cmpbImmReg
+      /active :jzLbl8
+      %03 /dl :cmpbImmReg
+      /member :jzLbl8
 
       "invalid activation mode in ." ::outputError
       :ud2
+
+      @member
+      /rax :popqReg
+      /r15 :pushqMem
+      /rax :pushqReg
 
       @active
       |ey* /rax :movqImmReg

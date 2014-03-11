@@ -1,0 +1,9 @@
+<
+  { keys dump } /k defmd
+> ==c
+
+< c >' .k
+
+{
+  < c >' .k
+} _ * *
