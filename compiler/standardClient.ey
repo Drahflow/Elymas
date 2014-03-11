@@ -527,6 +527,15 @@
         invalid # function type
         {
           [
+            { object "#dom" .? } {
+              object "#dom" . ==d
+              object "#in" . ==in
+              in len 1 neq { "multi-input scope (with #dom) in typeStack" die } rep
+              [ 0 in * 0 d len 1 sub ]
+              object "#out" . ==out
+              out len 1 neq { "multi-output scope (with #dom) in typeStack" die } rep
+              0 out * typeStackInternal
+            }
             { object "#*" .? } {
               object "#in" . ==in
               in len 1 neq { "multi-input scope in typeStack" die } rep
@@ -601,15 +610,23 @@
     } /commonIterationType deff
 
     { ==arr
-      0
+      arr sys .typed .type 7 eq { [ arr _ len dearray ] } { arr "#iclone" . } ? *
+    } /cloneForLoop deff
+    
+    { ==arr ==i
+      arr sys .typed .type 7 eq { i } { i arr "#itrans" . } ? *
+    } /transformLoopIndex deff
+
+    { ==arr
+      arr sys .typed .type 7 eq { 0 } { arr "#istart" . } ? *
     } /getLoopStart deff
 
     { ==arr
-      arr len eq
+      arr sys .typed .type 7 eq { arr len eq } { arr "#iend" . } ? *
     } /isLoopEnd deff
 
     { ==arr
-      1 add
+      arr sys .typed .type 7 eq { 1 add } { arr "#istep" . } ? *
     } /doLoopStep deff
 
     # Executing a function f: A->B->C (i.e. B A f) on concrete arguments b a.
@@ -751,18 +768,18 @@
             [ argTypes _ len dearray ==argType ] =argTypes
             [ loops _ len dearray ==loopIndex ] =loops
             loopIndex 0 ge {
-              [ ] ==results
               loopIndex concreteArgs * ==loopedOver
+              loopedOver cloneForLoop ==results
               loopedOver getLoopStart ==i
               { i loopedOver isLoopEnd not } {
                 [ concreteArgs _ len dearray ] ==concreteArgsCopy
                 stage { ==j
                   # TODO: think about a single function returning multiple values
-                  i j concreteArgs * * j concreteArgsCopy =[]
+                  i loopedOver transformLoopIndex j concreteArgs * * j concreteArgsCopy =[]
                 } each
 
-                [ concreteArgsCopy stageCalls argTypes loops unravel ]
-                results -01 cat =results
+                concreteArgsCopy stageCalls argTypes loops unravel
+                  i loopedOver transformLoopIndex results =[]
                 # results dump
                 # TODO: think about a single function returning multiple values
                 # should be solved by producing two arrays side by side

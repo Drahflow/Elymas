@@ -1,0 +1,37 @@
+<
+  { .v -01 . } "#*" defmd
+  { [ 0 ] } "#in" deffd
+  { [ 0 ] } "#out" deffd
+  { .v keys } "#dom" defmd
+  { .v ==v =*f v keys { v -01 . f } each } "#each" defmd
+  { 0 } "#istart" deffd
+  { .v keys len eq } "#iend" defmd
+  { 1 add } "#istep" deffd
+  { .v keys * } "#itrans" defmd
+  { < < { defv }' > ==v "#=[]" =* > } _ "#iclone" deffd
+> -- /map deffd
+
+{ map } "(" deffd
+{ } ")" deffd
+{ -2102 =[] } "=>" deffd
+
+(
+  0 =>foo
+  1 =>bar
+  2 =>quux
+) ==m
+
+{ _ ==m dom {
+  _ ": " cat -01 m * txt .produce .u cat dump
+  } each 
+} /mdump deffd
+
+"foo" m * dump
+"bar" m * dump
+"quux" m * dump
+
+m mdump
+
+5 m add ==mm
+
+mm mdump

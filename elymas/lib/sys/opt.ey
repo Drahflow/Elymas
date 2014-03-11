@@ -435,8 +435,8 @@
               {
                 [ STRINGSTAR ] i logic =[]
               }
-              { "failed to optimize 'execution' of scope typed object" die }
-              { "failed to optimize 'execution' of name table" die }
+              { "failed to optimize 'execution' of float typed object" die }
+              { "objects of type 3 should not appear" die }
               { "failed to optimize 'execution' of extension area" die }
               {
                 # TODO think about handling typed functions
@@ -455,8 +455,8 @@
                 [ ARRAYSTAR ] i logic =[]
               }
               { "failed to optimize 'execution' of function type descriptor" die }
-              { "objects of type 09 should not appear" die }
-              { "objects of type 10 should not appear" die }
+              { } # TODO optimize scope execution one day
+              { "failed to optimize 'execution' of name table" die }
               { "objects of type 11 should not appear" die }
               { "objects of type 12 should not appear" die }
               { "objects of type 13 should not appear" die }
