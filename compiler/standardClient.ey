@@ -380,6 +380,8 @@
   } { enregex * } ? *
 } /regex defq
 
+{ scope keys }' /globals deffd
+
 < # sys extensions
   # TODO: handle EINTR correctly
 
@@ -610,7 +612,7 @@
     } /commonIterationType deff
 
     { ==arr
-      arr sys .typed .type 7 eq { [ arr _ len dearray ] } { arr "#iclone" . } ? *
+      arr sys .typed .type 7 eq { 0 arr len range } { arr "#iclone" . } ? *
     } /cloneForLoop deff
     
     { ==arr ==i
@@ -705,15 +707,39 @@
 
       [ toBeAbstractedTypes { len } each ] any not {
         # no types need to be abstracted, function can be called
-        concreteArgs # _ dump
-                     _ len dearray f
         # "attempting to call function (w.o. abstraction)" dump
-        0 concreteArgs len range { ==i
+        0 ==typeMismatch
+        0 ==mismatchIndex
+        0 concreteArgs len range reverse { ==i
           i concreteArgs * sys .typed .type # _ dump
           i inputs       * sys .typed .type # _ dump
-          neq { "invalid input type at argument index " dump i dump "" die } rep
+          neq typeMismatch not and { 1 =typeMismatch i =mismatchIndex } rep
         } each
-        *
+        typeMismatch {
+          mismatchIndex concreteArgs * ==arg
+          arg sys .typed .type 9 eq { # this is a scope
+            "" ==handlingMember
+            globals { _ ==g | sys .asm .rawAddress f sys .asm .rawAddress eq {
+                mismatchIndex 9 gt { "cannot create member-fallback for argument index " dump mismatchIndex dump "" die } rep
+                arg
+                  concreteArgs len 1 sub mismatchIndex sub [
+                    "#" "#-01 " "#-021 " "#-0321 " "#-04321 " "#-054321 " "#-0654321 " "#-07654312 " "#-087654321 " "#-0987654321 "
+                  ] *
+                  g cat _ ==candidate .? { candidate =handlingMember } rep
+              } rep
+            } each
+            "" handlingMember eq { "a handling member could not be found at argument index " dump mismatchIndex dump "" die } rep
+            0 concreteArgs len range { ==i
+              i mismatchIndex neq { i concreteArgs * } rep
+            } each
+            arg handlingMember .
+          } {
+            "invalid input type at argument index " dump typeMismatch 1 sub dump "" die
+          } ? *
+        } {
+          concreteArgs # _ dump
+                     _ len dearray f *
+        } ? *
       } {
         [ ] ==argTypes # the type stack of the new function
         [ ] ==stageCalls # which functions to call in each stage
