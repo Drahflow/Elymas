@@ -15,7 +15,6 @@
 ] { _ dump include }' each
 
 {
-  sys .argv len not { "Usage: loaded <input.ey>" die } rep
-  0 sys .argv * include
+  sys .argv len { 0 sys .argv * } { "/proc/self/fd/0" } ? * include
   0 sys .exit
 }' "loaded" sys .freeze
