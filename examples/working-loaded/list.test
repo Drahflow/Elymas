@@ -1,0 +1,23 @@
+list ==l
+list ==m
+
+/foo l .append
+/bar l .append
+/quux l .append
+
+l { dump } each
+
+[ /a /b /c ] m .append
+
+m { dump } each
+m len dump
+
+2 m * dump
+
+list _ [ 1 2 3 ] -01 .append
+list _ [ 3 4 5 ] -01 .append
+  add ==a
+
+a dump
+a len dump
+a |dump each

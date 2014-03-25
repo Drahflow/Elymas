@@ -1,0 +1,69 @@
+<
+  [ ] ==:NONE
+
+  { -102 .len -021 ? } "#?" defmd
+  { .len } "#len" defmd
+  { 0 -01 .len range } "#dom" defmd
+  { [ 0 ] } _ "#in" deffd "#out" deffd
+  { ==m ==l
+    l .len {
+      l .start l .len 1 sub { 1 -01 * } rep
+      m .start 1 -102 =[]
+      l .len m .len add l .setLen
+    } {
+      m .start l .setStart m .len l .setLen
+    } ? *
+    m .end l .setEnd
+
+    0 m .setLen
+    NONE m .setStart
+    NONE m .setEnd
+
+    l
+  } "#cat" defmd
+  { ==l =*f
+    l .start ==n
+    l .len { n 2 dearray =n f } rep
+  } "#each" defmd
+  { ==l l .len mod ==i
+    l .start i { 1 -01 * } rep
+    0 -01 *
+  } "#*" defmd
+  { ==l ==i ==v
+    l .len not { "=[] into empty list" die } rep
+    l .start i l .len mod { 1 -01 * } rep
+    v 0 -102 =[]
+  } "#=[]" defmd
+  { ==l
+    list ==m
+    l .len {
+      [ 0 NONE ] _ m .setEnd
+      l .len 1 sub { [ 0 -102 ] } rep
+      m .setStart
+      l .len m .setLen
+    } { } ? *
+    m
+  } "#iclone" defmd
+  { 0 } "#istart" deffd
+  { .len eq } "#iend" defmd
+  { } "#itrans" deffd
+  { 1 add } "#istep" deffd
+
+  { { ==l [ -01 NONE ]
+    l .len {
+       _ 1 l .end =[]
+    } {
+      _ l .setStart
+    } ? *
+    l .setEnd
+    l .len 1 add l .setLen
+  }_ [ 0 ] [ ] '' * } /append defmd
+
+  { <
+    0 ==len { =len } =*setLen
+    NONE ==start { =start } =*setStart
+    NONE ==end { =end } =*setEnd
+  > }
+> -- /list deffd
+
+# vim: syn=elymas
