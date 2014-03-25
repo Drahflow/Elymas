@@ -21,7 +21,7 @@ This should result in various executables. For the remainder of this tutorial, j
 
 as it comes with all libraries preloaded. Start it and enter
 
-   "Hello World!" dump
+    "Hello World!" dump
 
 this should yield the obvious result or a bug report to the author.
 
@@ -75,9 +75,9 @@ Strings can contain some escapes using backslash.
 Function objects
 ----------------
 
-Multiple functions (and constants) can be combined into one by enclosing them in braces.
-The resulting objects reside on the stack just like all other values. The function `*`
-executes such function objects.
+Multiple functions (and constants) can be combined into one function by enclosing them
+in braces. The resulting objects reside on the stack just like all other values.
+The function `*` executes such function objects.
 
     { 5 add } dump
     <function: 00006000005E0360>
@@ -102,7 +102,7 @@ Scopes
 ------
 
 Variables live in scopes which are hierarchically nested. Every scope has a parent scope,
-except the topmost and global scope. If a variable is not found in a scope, it's parent is
+except the topmost (global) scope. If a variable is not found in a scope, its parent is
 queried for it. Every function object execution creates a fresh scope, in effect allowing
 local variables.
 
@@ -161,3 +161,4 @@ Recommended reading order
 -------------------------
 
 * parsing.md - how the input gets interpreted
+* scopes.md - where variables live

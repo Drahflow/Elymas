@@ -2,7 +2,7 @@ Parsing
 =======
 
 Elymas has a very simplistic parser (if at all). Parsing works as follows:
-* Spaces separates things.
+* Spaces separate things.
 * If a `#` is encountered, ignore rest of line. This implements comments.
 * If a sequence of digits is encountered, this is an integer literal and gets
   pushed to the stack.
@@ -23,3 +23,8 @@ Elymas has a very simplistic parser (if at all). Parsing works as follows:
   non-alphanumeric prefix is looked up in the current scope. This is how
   `/abc` becomes `"abc"`: The string is created during parsing and afterwards
   the identity function is applied.
+
+Additionally, the parser has a quote-level counter which is increased by `{`
+and decreased by `}`. If the quote-level is non-zero, i.e. the parser is in
+quote mode, the resolution of names is postponed and a function object doing
+the resolution is pushed instead.
