@@ -15,6 +15,7 @@
   "lib/net/alg/uri.ey"
   "lib/list.ey"
   "lib/map.ey"
+  "lib/sort.ey"
 ] { _ dump include }' each
 
 {

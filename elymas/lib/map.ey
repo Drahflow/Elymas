@@ -1,5 +1,5 @@
 <
-  { .v -01 . } "#*" defmd
+  { { .v -01 . }_ [ 0 ] [ 0 ] '' * } "#*" defmd
   { [ 0 ] } "#in" deffd
   { [ 0 ] } "#out" deffd
   { .v keys } "#dom" defmd

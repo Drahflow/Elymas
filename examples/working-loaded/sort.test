@@ -1,0 +1,11 @@
+"lib/sort.ey" include
+
+[ 99 7 2 3 ] order dump
+map ==m
+
+99 /foo m =[]
+7 /bar m =[]
+2 /quux m =[]
+3 /baz m =[]
+
+m sort dump

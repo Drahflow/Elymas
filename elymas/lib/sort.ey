@@ -1,0 +1,25 @@
+{ _ /a deff dom /d deff
+  { ==e ==s
+    s e eq { [ s d ] } {
+      s e add 2 div ==m
+      s       m mergeSort =*x 0 ==i
+      m 1 add e mergeSort =*y 0 ==j
+      [
+        { i |x len lt j |y len lt and } {
+          i x a j y a lt {
+            i _ x -01 1 add =i
+          } {
+            j _ y -01 1 add =j
+          } ? *
+        } loop
+        { i |x len lt } { i _ x -01 1 add =i } loop
+        { j |y len lt } { j _ y -01 1 add =j } loop
+      ]
+    } ? *
+  } /mergeSort deffst
+  0 |d len 1 sub mergeSort
+} /order deffd
+
+{ _ order -01 { * }_ [ 0 ] [ 0 ] '' * } /sort deffd
+
+# vim: syn=elymas

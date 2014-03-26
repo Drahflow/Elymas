@@ -1,8 +1,8 @@
 ## dynamic member lookup fallback routines
 { -- 0 } "#.?" deffd
-{ keys dump "undefined member in .: " -01 cat die } "#." defmd
-{ keys dump "undefined member in .|: " -01 cat die } "#.|" defmd
-{ keys dump "undefined member in =: " -01 cat die } "#.=" defmd
+{ keys dump "undefined member in .: " dump dump "" die } "#." defmd
+{ keys dump "undefined member in .|: " dump dump "" die } "#.|" defmd
+{ keys dump "undefined member in =: " dump dump "" die } "#.=" defmd
 
 ## regex support
 # ideas taken from http://swtch.com/~rsc/regexp/regexp3.html
