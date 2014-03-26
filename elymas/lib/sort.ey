@@ -4,16 +4,14 @@
       s e add 2 div ==m
       s       m mergeSort =*x 0 ==i
       m 1 add e mergeSort =*y 0 ==j
+      { i _ x -01 1 add =i } ==l
+      { j _ y -01 1 add =j } ==r
       [
         { i |x len lt j |y len lt and } {
-          i x a j y a lt {
-            i _ x -01 1 add =i
-          } {
-            j _ y -01 1 add =j
-          } ? *
+          i x a j y a lt l r ? *
         } loop
-        { i |x len lt } { i _ x -01 1 add =i } loop
-        { j |y len lt } { j _ y -01 1 add =j } loop
+        { i |x len lt } l loop
+        { j |y len lt } r loop
       ]
     } ? *
   } /mergeSort deffst
