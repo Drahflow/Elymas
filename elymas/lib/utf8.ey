@@ -16,7 +16,7 @@
     } /trail deffd
 
     [ # compare Table 3-7 of http://www.unicode.org/versions/Unicode6.3.0/ch03.pdf
-      { _ %00 %7F in }" |emit
+      { _ %7F le     }" |emit
       { _ %C2 %DF in }" { %1F band =accum }' [ { _ %80 %BF in }" ] trail ;
       { _ %E0 eq     }" { %0F band =accum }' [ { _ %80 %BF in }" { _ %A0 %BF in }" ] trail ;
       { _ %E1 %EC in }" { %0F band =accum }' [ { _ %80 %BF in }" _                 ] trail ;
