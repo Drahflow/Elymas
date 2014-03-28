@@ -7,24 +7,23 @@
     { [ -01 ] cat }" =*:emit
     { 0 ==accum one =*next }' =*:init
 
-    { { accum emit one =next }' -01
+    { { accum emit one =next }' -01 reverse
       { =*p =*n { {
-        p {
-          %3F band accum %40 mul add =accum n
-        }' { < { ==c [ %FFFD ] cat init c next }' =*replace > ???enc.utf8.ill-formed }' ? *
+        p { %3F band accum %40 mul add =accum n }'
+          { < { ==c [ %FFFD ] cat init c next }' =*replace > ???enc.utf8.ill-formed }' ? *
       }' =next }' } each
     } /trail deffd
 
     [ # compare Table 3-7 of http://www.unicode.org/versions/Unicode6.3.0/ch03.pdf
       { _ %7F le     }" |emit
       { _ %C2 %DF in }" { %1F band =accum }' [ { _ %80 %BF in }" ] trail ;
-      { _ %E0 eq     }" { %0F band =accum }' [ { _ %80 %BF in }" { _ %A0 %BF in }" ] trail ;
+      { _ %E0 eq     }" { %0F band =accum }' [ { _ %A0 %BF in }" { _ %80 %BF in }" ] trail ;
       { _ %E1 %EC in }" { %0F band =accum }' [ { _ %80 %BF in }" _                 ] trail ;
-      { _ %ED eq     }" { %0F band =accum }' [ { _ %80 %BF in }" { _ %80 %9F in }" ] trail ;
+      { _ %ED eq     }" { %0F band =accum }' [ { _ %80 %9F in }" { _ %80 %BF in }" ] trail ;
       { _ %EE %EF in }" { %0F band =accum }' [ { _ %80 %BF in }" _                 ] trail ;
-      { _ %F0 eq     }" { %07 band =accum }' [ { _ %80 %BF in }" _ { _ %90 %BF in }" ] trail ;
+      { _ %F0 eq     }" { %07 band =accum }' [ { _ %90 %BF in }" { _ %80 %BF in }" _ ] trail ;
       { _ %F1 %F3 in }" { %07 band =accum }' [ { _ %80 %BF in }" _ _                 ] trail ;
-      { _ %F4 eq     }" { %07 band =accum }' [ { _ %80 %BF in }" _ { _ %80 %8F in }" ] trail ;
+      { _ %F4 eq     }" { %07 band =accum }' [ { _ %80 %8F in }" { _ %80 %BF in }" _ ] trail ;
       { -- 1 }" { < { [ %FFFD ] cat init }' =*replace > ???enc.utf8.ill-formed }
     ] ==:C { C conds } ==:one
 
