@@ -1,0 +1,91 @@
+<?xml version="1.1" encoding="utf-8" ?> 
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+  <title>Jens-Wolfhard Schicke - Drahflow - Welcome to my Homepage</title>
+  <link rel="stylesheet" href="/css/default.css" type="text/css" />
+</head><body>
+<div id="menudiv"><ul id="menu"><li><a href="/index.html">Home</a></li>
+<li><a href="/contact.html">Contact</a></li>
+<li><a href="/pirates.html">Pirates</a></li>
+<li><a href="/australia.html">Australia</a></li>
+<li><a href="/programming.html">Programming</a></li>
+<li><a href="/research.html">Research</a></li>
+<li><a href="/dvorak.html">Dvorak</a></li>
+<li><a href="/security.html">Security</a></li>
+<li><a href="/misc.html">Misc</a></li>
+<li><a href="/blog.html">Blog</a></li></ul></div>
+<div id="maintitle"><h1>Welcome to my Homepage</h1></div>
+<p>
+Here I'll try to help anybody who (by what ever accident was necessary)
+found this page, in using Linux and C(++). Feel free to browse whatever
+files you encounter and <a href="mailto:drahflow@gmx.de">mail</a>
+me whenever you have questions. This page does not use much images
+mainly because I'm completely unable to design anything with graphics
+so I stay with text. Additionally this provides you with faster load
+times, although these don't matter much anymore in times of flatrates.
+</p>
+<p>
+As a response to recent fancy ideas of our Government, I now support the
+<a href="http://www.piratenpartei.de">German Pirate Party</a>
+trying to stop the increasing surveillance in our country.
+</p>
+<p>
+<a href='http://www.vim.org/'>
+<img src='img/vim_created.gif' class='fl' alt='VIm Logo' />
+</a>
+This is by far the
+<a href='http://www.vim.org/'>best text-editor</a>
+I ever encountered. Once you read
+all the help files you have thousands of commands just a few keystrokes
+away.
+</p>
+
+<p>
+<a href='http://validator.w3.org/check?uri=http%3A%2F%2Fjens.schicke.hvf-bs.net'>
+<img src='http://www.w3.org/Icons/valid-html401' alt="Valid HTML 4.01!" class='fl' />
+</a>
+The
+<a href='http://validator.w3.org/check?uri=http%3A%2F%2Fjens.schicke.hvf-bs.net'>W3C HTML Validator</a>
+states that this page is valid HTML 4.01, actually not does not mean a
+thing because not all browsers are W3C compliant but at least it looks
+nice, doesn't it?
+</p>
+
+<p>
+<a href='http://jigsaw.w3.org/css-validator/validator?uri=http://jens.schicke.hvf-bs.net'>
+<img src='http://jigsaw.w3.org/css-validator/images/vcss' alt="Valid CSS!" class='fl' />
+</a>
+Another test of W3C, this time it's a
+<a href='http://jigsaw.w3.org/css-validator/validator?uri=http://jens.schicke.hvf-bs.net'>CSS test</a>
+for this page, which also returned this to be a valid page.
+</p>
+
+<p>
+<a href='http://www.kernel.org'>
+<img src='img/linux.png' alt="powered by Linux" class='fl' />
+</a>
+And of course this server runs on
+<a href='http://www.kernel.org/'>Linux</a>
+the best operating system I got used to since now.
+<a href='http://www.bsd.org'>BSD</a> is quite nice, too, but I not yet
+relly dug myself into it.
+</p>
+
+<p>
+<a href='http://www.apache.org'>
+<img src='img/apache_pb.gif' alt="powered by Apache" class='fl' />
+</a>
+This site is powered by
+<a href='http://www.apache.org/'>Apache</a>,
+one of the most often used Linux Webservers around.
+</p>
+
+<p>
+<a href="http://www.uberwach.de/">
+<img src="http://www.uberwach.de/wanze?http%3A//jens.schicke.hvf-bs.net/" alt="Aktion UBERWACH!" width="80" height="15" />
+</a>
+Don't be intimidated. The image referenced will only log accesses by our most beloved government.
+</p>
+
+</body></html>

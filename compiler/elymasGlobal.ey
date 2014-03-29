@@ -1229,7 +1229,7 @@
 
       %40 /dl :testbImmReg
       /patchConstant :jnzLbl8
-      %30 /dl :testbImmReg # TODO separate cases for static and typed
+      %30 /dl :testbImmReg # FIXME separate cases for static and typed
       /patchStatic :jnzLbl32
 
       /rdx /rcx :movqRegReg

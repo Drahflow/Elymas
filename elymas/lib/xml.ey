@@ -1,0 +1,93 @@
+<
+  <
+    txt .consume .|hu "%" defq
+    { "2120" "-" | |le "021" "-" | |ge |and } /in defq
+    { "Unconfigured npeek/take/get/set/noErr/snip" die } -000000 =*npeek =*take =*get =*set =*noErr =*snip
+    { 0 npeek } =*peek
+
+    # parser generator
+    { _ sys .typed .type 1 eq { ==str { 1 ==r str { peek eq r and =r take } each r _ |noErr rep } } { } ? * } /lit deffd
+    { lit =*p { get ==s [ p { ] _ len dearray } { ] -- s set } ? * 1 } } ",?" deffd
+    { lit =*p { get ==s { get =s [ p } { ] _ len dearray } loop ] -- s set 1 } } ",*" deffd
+    { _ ,* ,; } ",+" deffd
+    { lit =*q lit =*p { get ==s [ p { ] _ len dearray 1 } { ] -- s set q } ? * } } ",|" deffd
+    { lit ==q lit =*p { p q { 0 } ? * } } ",;" deffd
+    { [ [ } { ] |lit each ] ",;" | fold } -01 ",[" deffd ",]" deffd
+    { defvst }' =*:defp
+    # FIXME: remove the useless { * }_ once static / typed are correctly discerned by optimizations
+    { ==name "}" | * { ,[ } -01 ; { ,] } ; { * { * }_ _ name defp * }_ name defp } "}==" defq
+    "{" | "(" defq { 1 "}" | * } ")" defq
+
+    { lit =*p lit =*q { get ==s
+      { get =s [ p { ] -- s set [ 0 } { ] -- s set [ q } ? * } { ] _ len dearray } loop ] -- s set 1
+    } } /upto deffd
+    { txt .consume .hu ==h ==l { peek take l h in } } "-%" defq
+
+    # compare http://www.w3.org/TR/2006/REC-xml11-20060816/
+    { peek take _ %41 %5A in -01 %61 %7A in or } "[A-Za-z]" ==
+    { peek take ==c c %30 %39 in } "[0-9]" ==
+    { peek take ==c c %3C neq       c %26 neq and } "[^<&]" ==
+    { peek take ==c c %41 %46 in    c %61 %66 in or     c %30 %39 in or } "[0-9a-fA-F]" ==
+    { peek take ==c c %3C neq       c %26 neq and       c %22 neq and } "[^<&\"]" ==
+    { peek take ==c c %3C neq       c %26 neq and       c %27 neq and } "[^<&']" ==
+    { peek take ==c c %41 %5A in    c %61 %7A in or     c %30 %39 in or
+                    c %2E eq or     c %5F eq or         c %2D eq or } "[A-Za-z0-9._-]" ==
+    { peek take ==c c %20 eq        c %D eq or          c %A eq or          c %3F %5A in or c %61 %7A in or c %21 eq or
+                    c %23 %25 in or c %27 %3B in or     c %3D eq or         c %5F eq or } ==PubidChar
+    { peek take ==c c %1 %2C in     c %2E %D7FF in or   c %E000 %FFFD in or c %10000 %10FFFF in or } ==CharNotMinus
+    { peek take ==c c %1 %D7FF in   c %E000 %FFFD in or c %10000 %10FFFF in or } ==Char
+    [ ":" "_"       %41 -%5A      %61 -%7A      %C0 -%D6      %D8 -%F6      %F8 -%2FF     %370 -%37D
+      %37F -%1FFF   %200C -%200D  %2070 -%218F  %2C00 -%2FEF  %3001 -%D7FF  %F900 -%FDCF  %FDF0 -%FFFD
+      %10000 -%EFFFF ] ",|" | fold ==NameStartChar
+    [ NameStartChar "-" "." %30 -%39  %B7 -%B7  %0300 -%036F  %203F -%2040 ] ",|" | fold ==NameChar
+    { { peek [ %20 %9 %D %A ] eq any take } ,+ }==S
+
+    { "<![CDATA[" Char "]]>" upto "]]>" }==CDSect
+    {  "[^<&]" | "]]>" upto  }==CharData
+    {  CharData ,? ,[ [ element Reference CDSect PI Comment ] ",|" | fold CharData ,? ,] ,* }==content
+    { ,[ "&#" "[0-9]" | ,+ ";" ,] ,[ "&#x" "[0-9a-fA-F]" | ,+ ";" ,] ,| }==CharRef
+    { "&" Name ";" }==EntityRef
+    { EntityRef CharRef ,| }==Reference
+    { ,[ "\"" ( get ) "[^<&\"]" | Reference ,| ,* ( get snip ) "\"" ,]
+      ,[ "'" ( get ) "[^<&']" | Reference ,| ,* ( get snip ) "'" ,] ,| }==AttValue
+    { ( get ) Name ( get snip ) Eq AttValue }==Attribute
+    { "<" ( get ) Name ( get snip [ ) ,[ S Attribute ,] ,* ( ] elem ) S ,? "/>" }==EmptyElemTag # TODO: left-factorize
+    { "<" ( get ) Name ( get snip [ ) ,[ S Attribute ,] ,* ( ] elem ) S ,? ">" }==STag
+    { "</" Name S ,? ">" }==ETag
+    { ,[ "\"" PubidChar ,* "\"" ,] ,[ "'" PubidChar "'" upto "'" ,] ,| }==PubidLiteral
+    { ,[ "\"" { take 1 } "\"" upto "\"" ,] ,[ "'" { take 1 } "'" upto "'" ,] ,| }==SystemLiteral
+    { markupdecl DeclSep ,| ,* }==intSubset
+    { ,[ "SYSTEM" S SystemLiteral ,] ,[ "PUBLIC" S PubidLiteral S SystemLiteral ,] ,| }==ExternalID
+    { NameStartChar NameChar ,* }==Name
+    { Name }==PITarget # TODO: guard against [Xx][Mm][Ll]
+    { "<!--" CharNotMinus ,[ "-" CharNotMinus ,] ,| ,* "-->" }==Comment
+    { "<?" PITarget ,[ S Char "?>" upto ,] ,? "?>" }==PI
+    { Comment PI ,| S ,| }==Misc
+    { S ,? "=" S ,? }==Eq
+    { "1.1" }==VersionNum
+    { "[A-Za-z]" | "[A-Za-z0-9._-]" | ,* }==EncName
+    { S "encoding" Eq ,[ "\"" EncName "\"" ,] ,[ "'" EncName "'" ,] ,| }==EncodingDecl
+    { S "version" Eq ,[ "'" VersionNum "'" ,] ,[ "\"" VersionNum "\"" ,] ,| }==VersionInfo
+    { "<?xml" VersionInfo EncodingDecl ,? SDDecl ,? S ,? "?>" }==XMLDecl
+    { "<!DOCTYPE" S Name ,[ S ExternalID ,] ,? S ,? ,[ "[" intSubset "]" S ,? ,] ,? ">" }==doctypedecl
+    { XMLDecl Misc ,* doctypedecl ,? Misc ,* }==prolog
+    { S "standalone" Eq ,[ "'" "yes" "no" ,| "'" ,] ,[ "\"" "yes" "no" ,| "\"" ,] ,| }==SDDecl
+    { EmptyElemTag ,[ STag ( [ ) content ( ] -101 .setChildren ) ETag ,] ,| }==element
+    { prolog element Misc ,* }==document
+
+    { _ =*s len ==LEN 0 ==i 0 ==last
+      { i add LEN lt { i s } { 1 neg } ? * } =npeek { i 1 add =i } =take { i } =get { =i } =set { i =last } =noErr
+      { |s str .infix } =snip
+      document * {
+        i LEN neq { < last |s str .postfix ==remaining > ???parse.xml.trailing-garbage } rep
+      } { < last |s str .postfix ==remaining > ???parse.xml } ? *
+    }
+
+    { < -01 ==name
+        map ==attr _ len _ ==l dearray l 2 div { -01 attr =[] } rep
+        [ ] ==children { =children } =*setChildren
+    > } /elem deffd
+  > -- /parse deffd
+> /xml defvd
+
+# vim: syn=elymas

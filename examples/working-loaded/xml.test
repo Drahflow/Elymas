@@ -1,0 +1,23 @@
+"lib/xml.ey" include
+
+{ ==indent ==elem
+  indent { " " sys .out .writeall } rep
+  elem .name sys .out .writeall "\n" sys .out .writeall
+  elem .children {
+    indent 2 add dumpTree
+  } each
+} /dumpTree deffst
+
+sys .file ":" via
+  "xml.test.xml" :open
+  65536 :read ==content
+  :close
+
+{
+  content xml .parse 0 dumpTree
+} {
+  "Error during parse: " dump
+  .remaining dump
+} ?!parse
+
+# vim: syn=elymas
