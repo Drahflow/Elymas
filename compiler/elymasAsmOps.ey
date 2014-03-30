@@ -826,6 +826,14 @@ memoryAddressingVariants keys { ==variant memoryAddressingVariants variant . =*p
 } /fsubp deff
 
 { ==reg
+  reg bit64assert
+
+  1 /none /none reg rex
+  %F7
+  /seven reg modrm11
+} /idivqReg deff
+
+{ ==reg
   reg bit8assert
 
   1 /none /none reg rex

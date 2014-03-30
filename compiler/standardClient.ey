@@ -6,7 +6,6 @@
 
 ## regex support
 # ideas taken from http://swtch.com/~rsc/regexp/regexp3.html
-# FIXME: correctly handly */+/? priority
 <
   0 ==:MATCH 1 ==:TERM 2 ==:JUMP 3 ==:SPLIT 4 ==:SAVE 5 ==:FIRST 6 ==:LAST
 
@@ -858,6 +857,7 @@
 } /curry deffd
 
 { | curry } "||" deffd
+
 { ==o
   { "unknown type in **" die } ==:unknown
   { "invalid type in **" die } ==:invalid

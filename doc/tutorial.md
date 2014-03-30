@@ -162,3 +162,5 @@ Recommended reading order
 
 * parsing.md - how the input gets interpreted
 * scopes.md - where variables live
+* global.md - global functions
+* execution.md - executing things

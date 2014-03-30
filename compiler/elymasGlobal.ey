@@ -3349,7 +3349,7 @@
       /rax :pushqReg
       /rdx /rax :movqRegReg
       /rdx /rdx :xorqRegReg
-      /rcx :divqReg
+      /rcx :idivqReg
       /rax /rdx :movqRegReg
       /rax :popqReg
     ] [
@@ -3380,6 +3380,25 @@
       1 /rdx :movqImmReg
       @done
     ]] [[ "or" floatUnsupported ]] 0 makeFullArith /eyor defv
+    [[
+      /rcx /rcx :testqRegReg
+      /first :jnzLbl8
+      # @firstNot
+      /rdx /rdx :testqRegReg
+      /yes :jnzLbl8
+      /rdx /rdx :xorqRegReg
+      /done :jmpLbl8
+
+      @first
+      /rdx /rdx :testqRegReg
+      /yes :jzLbl8
+      /rdx /rdx :xorqRegReg
+      /done :jmpLbl8
+
+      @yes
+      1 /rdx :movqImmReg
+      @done
+    ]] [[ "xor" floatUnsupported ]] 0 makeFullArith /eyxor defv
   > _ =globalT11t1Functions { defv }' ::allocateOffsetStruct
 
   <
