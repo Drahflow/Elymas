@@ -8,6 +8,8 @@
   { .v keys len eq } "#iend" defmd
   { 1 add } "#istep" deffd
   { .v keys * } "#itrans" defmd
+  { .v -01 .?' } /has defmd
+  { .v ==v "#iclone" | * ==n v keys { _ v -01 . -01 n =[] } each n } /clone defmd
   { < < { defv }' > ==v "#=[]" =* > } _ "#iclone" deffd
 > -- /map deffd
 
