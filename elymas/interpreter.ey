@@ -2,6 +2,5 @@
 
 {
   sys .argv len { 0 sys .argv * } { "/proc/self/fd/0" } ? * include
-  0 sys .argv * include
   0 sys .exit
 }' "interpreter" sys .freeze
