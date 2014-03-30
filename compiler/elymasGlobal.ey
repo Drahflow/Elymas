@@ -2457,6 +2457,8 @@
 
       7 /rax /cl :movbMemDisp8Reg
       %F0 /cl :andbImmReg
+      %10 /cl :cmpbImmReg
+      /stringDom :jeLbl8
       %70 /cl :cmpbImmReg
       /arrayDom :jeLbl8
       %90 /cl :cmpbImmReg
@@ -2466,10 +2468,16 @@
       "non-array passed to dom" ::outputError
       :ud2
 
+      @stringDom
+      16 /rax /rdi :movqMemDisp8Reg # load length
+      3 /rdi :shlqImm8Reg # multiply to array cell size
+      /populateDom :jmpLbl8
+
       @arrayDom
       /rax /edi :movlMemReg
       8 /rdi :subqImm8Reg # substract header length
 
+      @populateDom
       ::internalAllocateArray /rax :movqImmReg
       /rax :callqReg
       /rax :pushqReg # result on stack
