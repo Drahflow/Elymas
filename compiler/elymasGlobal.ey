@@ -3026,7 +3026,6 @@
     } _ 1 ::scopingFunctionHeader   ::scopingFunctionFooter   internalCallOptimizeHook -32104* /ey}  defv
       _ 1 ::unscopingFunctionHeader ::unscopingFunctionFooter internalCallOptimizeHook -32104* /ey}' defv
       _ 0 ::unscopingFunctionHeader ::unscopingFunctionFooter internalCallOptimizeHook -32104* /ey}" defv
-      _ 1 ::scopingFunctionHeader   ::scopingFunctionFooter   "ey--" |                 -32104* /ey}~ defv # TODO just to test the optimizer, remove this and optimize the optimizer while optimizing once everything works
       --
   > _ ==globalMacros { defv }' ::allocateOffsetStruct
 
