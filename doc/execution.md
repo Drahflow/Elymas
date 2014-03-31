@@ -37,7 +37,7 @@ do so via execution.
     "b"
 
 
-Arrays indices wrap around.
+Arrays indices start at zero and wrap around.
 
     1 [ /a /b /c ] * dump
     "b"
