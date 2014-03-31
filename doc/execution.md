@@ -206,3 +206,52 @@ epic as it should be.)
 Execution of and with scopes
 ----------------------------
 
+Most global functions can be applied to scopes. When this happens a corresponding member of the scope is resolved instead.
+Usually this member takes the form `#name` for a global function `name`. If the scope is not the first argument to a function
+(but the first scope argument), then the resulting member name is something like `#-021 name` where the digits give the
+stack manipulation of `-` which would be necessary to put the object back to the correct stack position.
+
+
+    <
+      { 5 } "#len" deff
+    > len dump
+    0000000000000005
+    <
+      { 5 add } "#add" deff
+    > ==s
+    2 s add dump
+    0000000000000007
+    <
+      { _ add } "#*" deff
+    > ==s
+    2 s * dump
+    0000000000000004
+    <
+      { 2 add } "#-01 add" deff
+    > 5 add dump
+    0000000000000007
+
+The member function `#*` is used whenever an execution of the scope would be required.
+
+
+To correctly handle the application of a typed function to a scope representing a container data
+type, a few more members are needed. At least these are
+* `#*` - to read elements of the container
+* `#=[]` - to write elements of the container
+* `#in` - to determine the input type of the scope, will usually just be `{ [ 0 ] }`
+* `#out` - to determine the output type of the scope, will usually just be `{ [ 0 ] }`
+But usually, the container will have a finite domain, and a new container needs to be constructed
+for the result. This is handled by
+* `#each` - applies a function to each of the containers values
+* `#dom` - returns the concrete, finite domain
+* `#istart` - returns an object to iterate over the container contents, pointing to the first, usually an integer
+* `#istep` - takes such an iterator object and points it to the next container element
+* `#iend` - takes an iterator object and returns non-zero if it points after the last element, i.e. the end of the container has been reached
+* `#itrans` - takes an iterator object and transforms it into an element of the container's domain. This will often be the identity function.
+* `#iclone` - creates a new container object which can assing via `=[]` elements for the entire original domain.
+
+See elymas/lib/map.ey for an example.
+
+
+(FIXME: Scopes will also be able to define member functions `#.`, `#.|`, `#.?` and `#.=` to handle references to non-existing name slots.
+This does not yet work correctly with the optimizer.)
