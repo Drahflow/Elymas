@@ -2,8 +2,9 @@
   <
     txt .consume .|hu "%" defq
     { "2120" "-" | |le "021" "-" | |ge |and } /in defq
+    map ==defaultEnts [ { "&" /amp } { "<" /lt } { ">" /gt } { "'" /apos } { "\"" /quot } ] { * defaultEnts =[] } each
     { "Unconfigured npeek/take/get/set/noErr/snip" die } -000000 =*npeek =*take =*get =*set =*noErr =*snip
-    { 0 npeek } =*peek
+    { 0 npeek } =*peek map ==ents
 
     # parser generator
     { _ sys .typed .type 1 eq { ==str { 1 ==r str { peek eq r and =r take } each r _ |noErr rep } } { } ? * } /lit deffd
@@ -43,10 +44,11 @@
     { { peek [ %20 %9 %D %A ] eq any take } ,+ }==S
 
     { "<![CDATA[" Char "]]>" upto "]]>" }==CDSect
-    {  "[^<&]" | "]]>" upto  }==CharData
-    {  CharData ,? ,[ [ element Reference CDSect PI Comment ] ",|" | fold CharData ,? ,] ,* }==content
-    { ,[ "&#" "[0-9]" | ,+ ";" ,] ,[ "&#x" "[0-9a-fA-F]" | ,+ ";" ,] ,| }==CharRef
-    { "&" Name ";" }==EntityRef
+    { ( get ) "[^<&]" | "]]>" upto ( get snip text ) }==CharData
+    { CharData ,? ,[ [ element Reference CDSect PI Comment ] ",|" | fold CharData ,? ,] ,* }==content
+    { ,[ "&#" ( get ) "[0-9]" | ,+ ( get snip txt .consume .u [ -01 ] str .fromArray text ) ";" ,]
+      ,[ "&#x" ( get ) "[0-9a-fA-F]" | ,+ ( get snip txt .consume .hu [ -01 ] str .fromArray text ) ";" ,] ,| }==CharRef
+    { "&" ( get ) Name ( get snip ) ";" ( _ ents .has { ents * text } { ??parse.xml.undeclared-entity } ? * ) }==EntityRef
     { EntityRef CharRef ,| }==Reference
     { ,[ "\"" ( get ) "[^<&\"]" | Reference ,| ,* ( get snip ) "\"" ,]
       ,[ "'" ( get ) "[^<&']" | Reference ,| ,* ( get snip ) "'" ,] ,| }==AttValue
@@ -77,12 +79,12 @@
 
     { _ =*s len ==LEN 0 ==i 0 ==last
       { i add LEN lt { i s } { 1 neg } ? * } =npeek { i 1 add =i } =take { i } =get { =i } =set { i =last } =noErr
-      { |s str .infix } =snip
-      document * {
-        i LEN neq { < last |s str .postfix ==remaining > ???parse.xml.trailing-garbage } rep
-      } { < last |s str .postfix ==remaining > ???parse.xml } ? *
+      { |s str .infix } =snip defaultEnts .clone =ents
+      { document * { i LEN neq { ??parse.xml.trailing-garbage } rep } { ??parse.xml } ? * }
+        { -- < last |s str .postfix ==remaining > ??!' } ?!parse.xml
     }
 
+    { < "" ==name ==text > } /text deffd
     { < -01 ==name
         map ==attr _ len _ ==l dearray l 2 div { -01 attr =[] } rep
         [ ] ==children { =children } =*setChildren

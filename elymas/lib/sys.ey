@@ -1,0 +1,23 @@
+# abstract system io layer
+
+{ # ==directory
+  "\0" cat 511 sys .linux .mkdir 0 neq { ??io.dir.mk } rep
+} /mkdir sys .deff
+
+{ # ==directory
+  "\0" cat sys .linux .ORDONLY sys .linux .ODIRECTORY bor 0 sys .linux .open ==fd
+  fd 0 lt { ??io.dir.ls.open } {
+    [ [ { fd sys .linux .getdents64 _ 0 lt { ??io.dir.ls.getdents } rep } { _ len dearray } loop ] { .dname } each ]
+    fd sys .linux .close 0 lt { ??io.dir.ls.close } rep
+  } ? *
+} /readdir sys .deff
+
+{ # ==directory
+  sys .readdir { 0 -01 * 0 "." * neq } grep
+} /ls sys .deff
+
+{
+  "\0" cat -01 "\0" cat -01 sys .linux .rename 0 neq { ??io.rename } rep
+} /rename sys .deff
+
+# vim: syn=elymas

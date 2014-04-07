@@ -1,0 +1,13 @@
+{ ==spec
+  [ spec { ==c
+    [
+      { c 48 ge c 57 le and }' { c 48 sub }
+      { c 46 eq }' { ] [ }
+      { 1 }' { "invalid ' spec: " spec cat die }
+    ] conds
+  } each ] ''
+} "'" deffd
+
+"'" | "*" | ; "'*" deffd
+
+# vim: syn=elymas

@@ -75,7 +75,7 @@
   # 211 ==:GETTHREADAREA
   # 79  ==:GETCWD
   # 78  ==:GETDENTS
-  # 217 ==:GETDENTS64
+  217 ==:GETDENTS64
   # 108 ==:GETEGID
   # 107 ==:GETEUID
   # 104 ==:GETGID
@@ -133,7 +133,7 @@
   # 237 ==:MBIND
   # 256 ==:MIGRATEPAGES
   # 27  ==:MINCORE
-  # 83  ==:MKDIR
+  83  ==:MKDIR
   # 258 ==:MKDIRAT
   # 133 ==:MKNOD
   # 259 ==:MKNODAT
@@ -194,7 +194,7 @@
   # 47  ==:RECVMSG
   # 216 ==:REMAPFILEPAGES
   # 197 ==:REMOVEXATTR
-  # 82  ==:RENAME
+  82  ==:RENAME
   # 264 ==:RENAMEAT
   # 249 ==:REQUESTKEY
   # 219 ==:RESTARTSYSCALL
@@ -339,6 +339,31 @@
 
   { 0 0 0 0 0 0 GETPID } /getpid defStdSyscall
 
+  # 0 -> open directory file descriptor
+  # 0 <- raw return value
+  # 1 <- an array of scopes resembling linux_dirent structures (unless return value zero or less)
+  #      actually only defines members d_ino, d_name, and d_type (because all others just help decoding the result buffer)
+  {
+    8192 str .alloc ==buf
+    buf 8192 0 0 0 GETDENTS64 sys .asm .syscall =errno _ ==ret ==toparse
+    0 ==doff 0 ==dreclen
+    toparse 0 gt { [
+      { toparse 0 gt } {
+        <
+          buf ->u64 ==dino
+              ->u64 =doff # this is essentially garbage (man 2 getdents is just not very clear about this)
+              ->u16 =dreclen
+              ->u8 ==dtype
+              --
+          0 19 dreclen 2 sub buf str .infix "\0" str .split * ==dname 
+          dreclen buf str .postfix =buf
+          toparse dreclen sub =toparse
+        >
+      } loop
+    ] } rep
+    ret
+  } /getdents64 deffd
+
   # 0 <- raw return value
   # 1 <- seconds since 1970
   # 2 <- microseconds since 1970
@@ -440,6 +465,8 @@
 
   { 0 0 0 0 LISTEN } /listen defStdSyscall
 
+  { 0 0 0 0 MKDIR } /mkdir defStdSyscall
+
   1 ==:PROTREAD
   2 ==:PROTWRITE
   4 ==:PROTEXEC
@@ -462,6 +489,8 @@
   # 4 -> length
   # 5 -> address
   { MMAP } /mmap defStdSyscall
+
+  { 0 0 0 0 RENAME } /rename defStdSyscall
 
   1 ==:AFUNIX
   1 ==:AFLOCAL
@@ -504,20 +533,20 @@
   0 ==:ORDONLY
   1 ==:OWRONLY
   2 ==:ORDWR
-  256 ==:OCREAT
-  512 ==:OEXCL
-  1024 ==:ONOCTTY
-  8192 ==:OAPPEND
-  4096 ==:OTRUNC
-  16384 ==:ONONBLOCK
-  131072 ==:OASYNC
-  262144 ==:ODIRECT
-  1048576 ==:OLARGEFILE
-  2097152 ==:ODIRECTORY
-  4194304 ==:ONOFOLLOW
-  16777216 ==:ONOATIME
-  33554432 ==:OCLOEXEC
-  67174400 ==:OSYNC
+  64 ==:OCREAT
+  128 ==:OEXCL
+  256 ==:ONOCTTY
+  512 ==:OTRUNC
+  1024 ==:OAPPEND
+  2048 ==:ONONBLOCK
+  8192 ==:OASYNC
+  16384 ==:ODIRECT
+  32768 ==:OLARGEFILE
+  65536 ==:ODIRECTORY
+  131072 ==:ONOFOLLOW
+  262144 ==:ONOATIME
+  524288 ==:OCLOEXEC
+  1052672 ==:OSYNC
 
   { 0 0 0 OPEN } /open defStdSyscall
 

@@ -1,10 +1,12 @@
 #!/usr/bin/env elymas
 
 [
+  "lib/util.ey"
   "lib/err.ey"
   "lib/bin.ey"
   "lib/sys/linux.ey"
   "lib/sys/so.ey"
+  "lib/sys.ey"
   "lib/net.ey"
   "lib/net/tcp.ey"
   "lib/net/udp.ey"

@@ -2,10 +2,14 @@
 
 { ==indent ==elem
   indent { " " sys .out .writeall } rep
-  elem .name sys .out .writeall "\n" sys .out .writeall
-  elem .children {
-    indent 2 add dumpTree
-  } each
+  elem .name "" eq {
+    elem .text sys .out .writeall "\n" sys .out .writeall
+  } {
+    elem .name sys .out .writeall "\n" sys .out .writeall
+    elem .children {
+      indent 2 add dumpTree
+    } each
+  } ? *
 } /dumpTree deffst
 
 sys .file ":" via
@@ -13,11 +17,15 @@ sys .file ":" via
   65536 :read ==content
   :close
 
+1 ==success
 {
-  content xml .parse 0 dumpTree
+  content xml .parse
 } {
-  "Error during parse: " dump
+  "Error during parse, remaining content: " dump
   .remaining dump
+  0 =success
 } ?!parse
+
+success { 0 dumpTree } rep
 
 # vim: syn=elymas
