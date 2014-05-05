@@ -1,5 +1,5 @@
 Executing things
-----------------
+================
 
 
 Objects are executed on various occasions in a program. The most obvious example is `*`, but similarly

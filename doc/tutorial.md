@@ -164,3 +164,6 @@ Recommended reading order
 * scopes.md - where variables live
 * global.md - global functions
 * execution.md - executing things
+* quoting.md - function definition
+* sys.md - some interfaces to the operating system
+* err.md - error handling
