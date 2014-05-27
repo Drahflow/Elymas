@@ -1,6 +1,0 @@
-"locations.ey" include
-
-/someLabel /someAddr locations .names =[]
-
-/someAddr locations .names * _ dump "someLabel" eq assert
-/someLabel locations .namesReverse * _ dump "someAddr" eq assert
