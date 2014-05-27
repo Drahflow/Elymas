@@ -17,6 +17,7 @@
           0 /strmatched defv { /f deff strmatched { -- } { { 1 =strmatched f } rxparse } ? * } /strparse deff
 
           { "^\\\\\\\\(.*)" regex } { str "\\" cat =str } strparse
+          { "^\\\\e(.*)" regex } { str "\e" cat =str } strparse
           { "^\\\\n(.*)" regex } { str "\n" cat =str } strparse
           { "^\\\\r(.*)" regex } { str "\r" cat =str } strparse
           { "^\\\\0(.*)" regex } { str "\0" cat =str } strparse

@@ -734,6 +734,8 @@ sub tokenize {
         } elsif($line =~ /^\\(.)(.*)/s) {
           if($1 eq '\\') {
             $str .= '\\';
+          } elsif($1 eq 'e') {
+            $str .= "\e";
           } elsif($1 eq 'n') {
             $str .= "\n";
           } elsif($1 eq 'r') {
