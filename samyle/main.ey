@@ -1,0 +1,33 @@
+"utils.ey" include
+"locations.ey" include
+"terminal.ey" include
+"screens.ey" include
+"elf.ey" include
+"decoder.ey" include
+
+# execute a function while setting the terminal to raw
+{ # =*f
+  sys .linux .ioctl "+" via
+  0 +tcgets --
+  _ < _ .lflag +ICANON bnot band
+               +ECHO bnot band
+       ==lflag >'
+  { 0 -01 +tcsets -- } -10*3*20*
+} /withRawTerminal deffd
+
+1 ==running
+
+{
+  { running } {
+    1 sys .in .read ==key
+    key ":" eq {
+      screens .|cmdline screens .enter
+    } {
+      key screens .current
+    } ? *
+  } loop
+} /main deffd
+
+|main withRawTerminal
+
+# vim: syn=elymas

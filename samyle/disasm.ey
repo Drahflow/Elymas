@@ -1,0 +1,115 @@
+<
+  terminal "$" via $styling "$:" via
+  utils "$$" via
+  locations .cursor "<>" via
+  sys .linux "+" via
+  txt .produce "$>" via
+
+  0 ==startAddr
+  0 ==displayRecursion
+
+  <
+    map ==cache
+
+    { # ==addr
+      1 sub 0 ==i
+      { _ $>hu cache .has not i 15 lt and } { 1 sub i 1 add =i } loop
+    } /prev deffd
+
+    { _ ==addr $>hu ==addrTxt
+      addrTxt cache .has { addrTxt cache * } {
+        addr decoder .fromAddress _ addrTxt cache =[]
+      } ? *
+    }
+  > /instructions defvd /instrs deffd
+
+  {
+    startAddr ==addr
+    0 ==cursorOnScreen
+
+    $clear
+    1 ==y
+    { y 20 lt } {
+      addr instrs ==instr
+      <>byte addr eq { y =cursorOnScreen } rep
+
+      1 y $goto
+      addr $>hu _ locations .names .has {
+        { locations .names * $out } $:red
+      } {
+        $out
+      } ? <>byte addr eq <>column 0 eq and $:reverseIf
+      30 y $goto
+      0 instr .length range { ==i
+        { i addr add $$memory $$toHexSave " " cat $out } <>byte addr eq <>column 1 eq and <>elem i eq and $:reverseIf
+      } each
+      60 y $goto
+      <>byte addr eq <>column 2 eq and {
+        <>elem instr .txtPartSelect -012 $out $reverse $out $normal $out
+      } { instr .txt $out } ? *
+
+      instr .length addr add =addr
+      y 1 add =y
+
+      1 24 $goto
+    } loop
+
+    cursorOnScreen not { <>byte =startAddr display } rep
+    cursorOnScreen 16 gt { startAddr _ instrs .length add =startAddr display } rep
+  } /draw deffd
+
+  {
+    displayRecursion 1 add =displayRecursion
+    displayRecursion 4 gt { "Deep recursion in display" $err } |draw ? *
+    displayRecursion 1 sub =displayRecursion
+  } /display deffd
+
+  {
+    "" ==currentInput
+    1 ==running
+    { running } {
+      1 sys .in .read ==k
+      [
+        { 0 k * 10 eq } { 0 =running }
+        { 1 } { currentInput k _ $out cat =currentInput }
+      ] conds
+    } loop
+    currentInput
+  } /lineInput deffd
+
+  { [
+    { <>column 0 eq } { 0 22 $goto <>byte $>hu $out " => " $out lineInput <>byte $>hu locations .names =[] }
+  ] conds } /substituteElement deffd
+
+  { [
+    { <>column 0 eq } { 1 }
+    { <>column 1 eq } { <>byte instrs .length }
+    { <>column 2 eq } { <>byte instrs .partCount }
+    { 1 } { "??? [elemsInColumn]" $err 1 }
+  ] conds } /elemsInColumn deffd
+
+  { ==k
+    { 0 -01 * } ":" deffst
+
+    [
+      { 0 k * :j eq } { <>byte _ instrs .length add <>gotoByte }
+      { 0 k * :k eq } { <>byte instructions .prev <>gotoByte }
+      { 0 k * :l eq } {
+        <>elem 1 add _ elemsInColumn lt { <>gotoElem } {
+          -- <>column 1 add 2 min <>gotoColumn 0 <>gotoElem
+        } ? *
+      }
+      { 0 k * :h eq } {
+        <>elem 1 sub _ 0 ge { <>gotoElem } {
+          -- <>column 1 sub 0 max _ <>gotoColumn elemsInColumn 1 sub <>gotoElem
+        } ? *
+      }
+      { 0 k * :s eq } |substituteElement
+    ] conds
+    display
+  } /handle deffd
+
+  { _ "" eq |display |handle ? * }
+> -- /disasm deffd
+
+# vim: syn=elymas

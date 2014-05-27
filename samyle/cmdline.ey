@@ -1,0 +1,56 @@
+<
+  terminal "$" via
+  sys .linux "+" via
+
+  "" ==input
+
+  { 
+    "" =input
+    display
+  } /init deffd
+
+  { ==k
+    0 10 $goto 0 k * txt .produce .u $out
+    [
+      { 0 k * 10 eq } { input execute init }
+      { 0 k * 127 eq } { 1 neg input str .prefix =input }
+      { 1 } { input k cat =input }
+    ] conds
+    display
+  } /handle deffd
+
+  { _ ==cmd " " str .split =*args
+    [
+      { cmd len 0 eq } { "No command specified." $err }
+      { 0 args "q" eq } { 0 =running }
+      { 0 args "r" eq } {
+        |args len 2 neq { "Use   :r <filename>" $err } {
+          1 args "\0" cat +ORDONLY 0 +open ==fd
+          fd 0 le { "Could not open file" $err } {
+            fd +fstat -- .size ==size
+            0 size +PROTREAD +MAPPRIVATE fd 0 +mmap ==addr
+            "Loaded at address " addr txt .produce .hu cat $info
+
+            addr locations .cursor .gotoByte
+            screens .|hexedit screens .enter
+          } ? *
+        } ? *
+      }
+      { 0 args "e" eq } {
+        |args len 2 neq { "Use   :e <filename.elf>" $err } {
+          1 args elf .load
+          screens .|disasm screens .enter
+        } ? *
+      }
+      { 0 args "d" eq } { screens .|disasm screens .enter }
+    ] conds
+  } /execute deffd
+
+  {
+    0 25 $goto $clearLine ":" $out input $out
+  } /display deffd
+
+  { _ "" eq |init |handle ? * }
+> -- /cmdline deffd
+
+# vim: syn=elymas

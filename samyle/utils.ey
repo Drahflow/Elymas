@@ -1,0 +1,39 @@
+<
+  sys .linux "+" via
+
+  ".crap\0" +OWRONLY +OCREAT bor +OTRUNC bor 342 +open ==CRAPFILE
+
+  { ==addr
+    CRAPFILE addr 1 +write ==err
+
+    err 0 le { # EFAULT -> address not mapped
+      1 neg
+    } {
+      addr sys .asm .peek
+    } ? *
+  } '0.0 /memory deffd
+
+  <
+    { # ==addr
+      0 2 range add memory
+      _ 1 neg eq any { -- ??io.invalid } { 256 math .unbase } ? *
+    } /u16 deffd
+
+    { # ==addr
+      0 4 range add memory
+      _ 1 neg eq any { -- ??io.invalid } { 256 math .unbase } ? *
+    } /u32 deffd
+
+    { # ==addr
+      0 8 range add memory
+      _ 1 neg eq any { -- ??io.invalid } { 256 math .unbase } ? *
+    } /u64 deffd
+  > /readMemory defvd
+
+  # CRAPFILE +close
+
+  { _ 16 div -01 16 mod "0123456789ABCDEF" [ -031*21* ] str .fromArray } '0.0 /toHex deffd
+  { _ 1 neg eq { -- "--" } |toHex ? * } '0.0 /toHexSave deffd
+> /utils defvd
+
+# vim: syn=elymas

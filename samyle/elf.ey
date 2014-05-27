@@ -1,0 +1,117 @@
+<
+  terminal "$" via
+  utils "$$" via $$readMemory "=>" via
+  txt .produce "$>" via
+  sys .linux .ioctl "+" via
+
+  { 1 sub 4096 div 1 add 4096 mul } /roundToPages deffd
+  { 4096 div 4096 mul } /pageStart deffd
+
+  { ==addr
+    [ { addr $$memory _ } { addr 1 add =addr } loop -- ] str .fromArray
+  } /zeroTerminatedString deffd
+
+  {
+    _ dump
+    "\0" cat +ORDONLY 0 +open ==fd
+    fd 0 le { "Could not open file" $err } {
+      fd +fstat -- .size ==size
+      0 size +PROTREAD +MAPPRIVATE fd 0 +mmap ==addr
+
+      1 ==keepMapping
+
+      [
+        addr 0 add $$memory 127 eq
+        addr 1 add $$memory 0 "E" * eq
+        addr 2 add $$memory 0 "L" * eq
+        addr 3 add $$memory 0 "F" * eq
+      ] all not { "Not an ELF file" $err } {
+        addr 16 add =>u16 ==fileType
+        addr 24 add =>u64 ==entryPoint
+        addr 32 add =>u64 ==programHeaderOffset
+        addr 40 add =>u64 ==sectionHeaderOffset
+        addr 56 add =>u16 ==programHeaderCount
+        addr 60 add =>u16 ==sectionHeaderCount
+        addr 62 add =>u16 ==sectionNameStringTableIndex
+
+        1 ==:OBJECT
+        2 ==:EXECUTABLE 
+
+        fileType EXECUTABLE eq {
+          0 =keepMapping
+
+          0 programHeaderCount range { ==i
+            addr programHeaderOffset add i 56 mul add ==headerAddr
+            headerAddr =>u16 ==type
+            type 1 eq {
+              headerAddr 8 add =>u64 ==fileOffset
+              headerAddr 16 add =>u64 ==memoryAddress
+              headerAddr 32 add =>u64 ==sizeInFile
+              headerAddr 40 add =>u64 ==sizeInMemory
+
+                memoryAddress pageStart _ ==mappingStart
+                memoryAddress sizeInMemory add mappingStart sub roundToPages
+                +PROTREAD +MAPPRIVATE +MAPFIXED bor fd fileOffset pageStart
+              +mmap 0 lt { ??io.mmap } rep
+            } rep
+          } each
+        } rep
+
+        addr sectionHeaderOffset add sectionNameStringTableIndex 64 mul add 24 add =>u64 ==sectionNameStringTableOffset
+
+        0 sectionHeaderCount range { ==i
+          addr sectionHeaderOffset add i 64 mul add ==headerAddr
+          headerAddr =>u32 ==nameOffset
+          headerAddr 4 add =>u32 ==type
+          headerAddr 16 add =>u64 ==memoryAddress
+          headerAddr 24 add =>u64 ==fileOffset
+          headerAddr 32 add =>u64 ==size
+          headerAddr 40 add =>u32 ==linkedSection
+
+          fileType EXECUTABLE eq { memoryAddress } { addr fileOffset add } ? * ==sectionAddress
+          sectionAddress 0 neq {
+              addr sectionNameStringTableOffset add nameOffset add zeroTerminatedString
+              sectionAddress $>hu
+            locations .names =[]
+          } rep
+
+          type 11 eq type 2 eq or {
+            addr sectionHeaderOffset add linkedSection 64 mul add 24 add =>u64 ==symbolStringTableOffset
+
+            0 size 24 div range { ==j
+              addr fileOffset add j 24 mul add =>u32 ==symbolNameOffset
+              addr fileOffset add j 24 mul add 8 add =>u64 ==symbolAddress
+              fileType EXECUTABLE neq { addr symbolAddress add =symbolAddress } rep
+
+                addr symbolStringTableOffset add symbolNameOffset add zeroTerminatedString
+                symbolAddress $>hu
+              locations .names =[]
+            } each
+          } rep
+        } each
+
+        fileType EXECUTABLE eq {
+          "Loaded "
+          programHeaderCount txt .produce .u cat
+          " segments. Entry point at " cat
+          entryPoint txt .produce .hu cat
+          "." cat
+        } {
+          "Loaded "
+          sectionHeaderCount txt .produce .u cat
+          " sections." cat
+        } ? * $info
+
+        [
+          { fileType EXECUTABLE eq } { entryPoint }
+          { ".text" locations .namesReverse .has } { ".text" locations .namesReverse * txt .consume .hu }
+          { 1 } { 0 }
+        ] conds locations .cursor .gotoByte
+      } ? *
+
+      keepMapping not { addr size +munmap -- } rep
+    } ? *
+  } /load deffd
+> /elf defvd
+
+# vim: syn=elymas

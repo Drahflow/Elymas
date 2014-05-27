@@ -1,0 +1,34 @@
+<
+  terminal "$" via $styling "$:" via
+  utils "$$" via
+  locations .cursor "<>" via
+
+  1 neg ==CRAPFILE
+
+  {
+    locations .cursor .byte _ ==addr 16 div 16 mul 128 sub ==base
+
+    $clear
+    0 16 range { ==y
+      0 16 range { ==x
+        x 3 mul 1 add y 1 add $goto
+
+        { $$memory $$toHexSave $out } base y 16 mul add x add _ addr eq $:reverseIf
+      } each
+    } each
+  } /display deffd
+
+  { ==k
+    [
+      { 0 k * 106 eq } { <>byte 16 add <>gotoByte }
+      { 0 k * 107 eq } { <>byte 16 sub <>gotoByte }
+      { 0 k * 108 eq } { <>byte  1 add <>gotoByte }
+      { 0 k * 104 eq } { <>byte  1 sub <>gotoByte }
+    ] conds
+    display
+  } /handle deffd
+
+  { _ "" eq |display |handle ? * }
+> -- /hexedit deffd
+
+# vim: syn=elymas

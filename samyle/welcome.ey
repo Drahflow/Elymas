@@ -1,0 +1,16 @@
+<
+  terminal "$" via
+
+  { $clear 0 0 $goto [
+    "Welcome to samyle - the elymas reversing tool\n"
+    "\n"
+    "Many things should work similar to VIm, try :r for example\n"
+  ] $out } /greet deffd
+
+  {
+    --
+    greet
+  }
+> -- /welcome deffd
+
+# vim: syn=elymas
