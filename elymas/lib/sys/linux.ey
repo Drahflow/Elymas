@@ -109,7 +109,7 @@
   # 208 ==:IOGETEVENTS
   # 206 ==:IOSETUP
   # 209 ==:IOSUBMIT
-  # 16  ==:IOCTL
+  16  ==:IOCTL
   # 173 ==:IOPERM
   # 172 ==:IOPL
   # 252 ==:IOPRIOGET
@@ -461,6 +461,59 @@
     buf parseStatStruct -02
   } /fstat deffd
 
+  <
+    { IOCTL sys .asm .syscall =errno } /raw deffd
+
+    2 ==:ICANON
+    8 ==:ECHO
+
+    21505 ==:TCGETS
+    21506 ==:TCSETS
+
+    # 0 -> file descriptor
+    # 0 <- raw return value
+    # 1 <- current attributes
+    { # ==fd
+      TCGETS
+      60 str .alloc _ ==buf
+      0 0 0 raw
+      buf
+      <
+        ->u32 ==iflag
+        ->u32 ==oflag
+        ->u32 ==cflag
+        ->u32 ==lflag
+        ->u8 ==line
+        _ 32 -01 str .prefix ==cc
+          32 -01 str .postfix
+        ->u8 --
+        ->u8 --
+        ->u8 --
+        ->u32 ==ispeed
+        ->u32 ==ospeed
+      > -02
+    } /tcgets deffd
+
+    # 0 -> new attributes
+    # 1 -> file descriptor
+    # 0 <- raw return value
+    { ":" via # ==fd
+      TCSETS
+      ""
+        :iflag <-u32
+        :oflag <-u32
+        :cflag <-u32
+        :lflag <-u32
+        :line <-u8
+        :cc cat
+        0 <-u8
+        0 <-u8
+        0 <-u8
+        :ispeed <-u32
+        :ospeed <-u32
+      0 0 0 raw } /tcsets deffd
+  > /ioctl defvd
+
   { 0 0 0 0 KILL } /kill defStdSyscall
 
   { 0 0 0 0 LISTEN } /listen defStdSyscall
@@ -489,6 +542,10 @@
   # 4 -> length
   # 5 -> address
   { MMAP } /mmap defStdSyscall
+
+  # 0 -> addr
+  # 1 -> length
+  { 0 0 0 0 MUNMAP } /munmap defStdSyscall
 
   { 0 0 0 0 RENAME } /rename defStdSyscall
 
