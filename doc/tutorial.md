@@ -167,3 +167,4 @@ Recommended reading order
 * quoting.md - function definition
 * sys.md - some interfaces to the operating system
 * err.md - error handling
+* ffi.md - foreign function interface
