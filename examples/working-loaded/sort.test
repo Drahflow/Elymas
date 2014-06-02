@@ -1,6 +1,6 @@
 "lib/sort.ey" include
 
-[ 99 7 2 3 ] order dump
+[ 99 7 2 3 ] |lt order dump
 map ==m
 
 99 /foo m =[]
