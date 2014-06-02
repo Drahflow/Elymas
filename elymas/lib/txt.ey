@@ -33,6 +33,12 @@
     {
       _ { [ -01 16 math .base reverse "0123456789ABCDEF" each ] str .fromArray } { -- "0" } ? *
     } [ 0 ] [ 0 ] '' /hu deffd
+
+    # 0 -> integer
+    # 0 <- decimal representation as string
+    {
+      _ 0 lt { neg u "-" -01 cat } |u ? *
+    } [ 0 ] [ 0 ] '' /i deffd
   > /produce defvd
 > /txt defvd
 
