@@ -49,7 +49,7 @@
   { } "#itrans" deffd
   { 1 add } "#istep" deffd
 
-  { { ==l [ -01 NONE ]
+  { ==l [ -01 NONE ]
     l .len {
        _ 1 l .end =[]
     } {
@@ -57,7 +57,9 @@
     } ? *
     l .setEnd
     l .len 1 add l .setLen
-  }_ [ 0 ] [ ] '' * } /append defmd
+  } /append1 defmd
+
+  { { .append1 }_ [ 0 ] [ ] '' * } /append defmd
 
   { <
     0 ==len { =len } =*setLen
