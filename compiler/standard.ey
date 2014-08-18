@@ -28,8 +28,8 @@
   [ 1 -1202 1 add range { -110 sub a -01 }' each -- ] # TODO: rethink this one, seems overly complicated
 } /reverse deffd
 
-{ |or fold } /any deffd
-{ |and fold } /all deffd
+{ _ len { |or fold  } { 0 } ? * } /any deffd
+{ _ len { |and fold } { 1 } ? * } /all deffd
 
 { =*p {
   [ -01 { _ p { } { -- } ? * } each ]
