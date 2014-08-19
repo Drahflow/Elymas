@@ -25,3 +25,15 @@ list _ [ 3 4 5 ] -01 .append
 a dump
 a len dump
 a |dump each
+
+a .pop
+
+a dump
+a len dump
+a |dump each
+
+42 a .append
+
+a dump
+a len dump
+a |dump each

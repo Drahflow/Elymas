@@ -59,7 +59,21 @@
     l .len 1 add l .setLen
   } /append1 defmd
 
-  { { .append1 }_ [ 0 ] [ ] '' * } /append defmd
+  { ==l
+    l .len 2 ge {
+      l .start
+      l .len _ 1 sub l .setLen
+               2 sub { 1 -01 * } rep
+      _ l .setEnd
+        NONE 1 -102 =[]
+    } {
+      0 l .setLen
+      NONE l .setStart
+      NONE l .setEnd
+    } ? *
+  } /pop defmd
+
+  { { .append1 }_ '0. * } /append defmd
 
   { <
     0 ==len { =len } =*setLen
