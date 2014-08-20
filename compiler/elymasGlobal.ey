@@ -19,6 +19,12 @@
   2 ==QUOTEMARKER
 
   <
+    [
+      %08 %00 %00 %00 %00 %00 %00 %70
+    ] /emptyArray defv
+  > { defv }' ::allocateOffsetStruct
+
+  <
     # do nothing
     [
       :retn
@@ -671,6 +677,7 @@
 
       /rdi /rcx :movqRegReg
       /rsp /rdi :subqRegReg
+      /empty :jzLbl8
       /rcx :pushqReg
 
       # rdi == size of array
@@ -683,16 +690,20 @@
       /rax /ecx :movlMemReg
       3 /rcx :shrqImm8Reg
       /rcx :decqReg # rcx == number of array elements
-      /rcx /rcx :testqRegReg
-      /empty :jzLbl8
 
       8 /rcx /rax /rax :leaqMemIndexScaleReg # rax == address of last cell
       @copy
       /rax :popqMem
       8 /rax :subqImm8Reg
       /copy :loopLbl8
+      /r15 :pushqMem
+      8 /r15 :addqImm8Reg
+      :retn
 
       @empty
+      emptyArray /rax :movqImmReg
+      /rax /rcx :movqRegMem # store array pointer instead of begin marker
+
       /r15 :pushqMem
       8 /r15 :addqImm8Reg
       :retn
