@@ -7,10 +7,18 @@
     { 4 uw } /u32 deffd
     { 2 uw } /u16 deffd
     { 1 uw } /u8 deffd
+    { 8 sw } /s64 deffd
+    { 4 sw } /s32 deffd
+    { 2 sw } /s16 deffd
+    { 1 sw } /s8 deffd
     { 8 unw } /un64 deffd
     { 4 unw } /un32 deffd
     { 2 unw } /un16 deffd
     { 1 unw } /un8 deffd
+    { 8 snw } /sn64 deffd
+    { 4 snw } /sn32 deffd
+    { 2 snw } /sn16 deffd
+    { 1 snw } /sn8 deffd
   }" /defBitVariants deffd
 
   <
@@ -28,6 +36,8 @@
       w s str .postfix
       [ 0 w range reverse s each ] 256 math .unbase
     } /unw deffst
+
+    # TODO: signed parsing missing
 
     defBitVariants
   > /scan defvd
@@ -50,6 +60,12 @@
       i 256 math .base _ dom { -101*0 w 1 sub -01 sub s =[] }" each --
       s
     } /unw deffst
+
+    # signed integers
+    { ==w _ 0 lt { 1 w { 256 mul } rep add } rep
+            w
+    } _ |uw  ; /sw deffst
+        |unw ; /snw deffst
     
     defBitVariants
   > /produce defvd
@@ -57,6 +73,8 @@
   <
     { produce .uw cat } /uw deffst
     { produce .unw cat } /unw deffst
+    { produce .sw cat } /sw deffst
+    { produce .snw cat } /snw deffst
     defBitVariants
   > /print defvd
 > /bin defvd
