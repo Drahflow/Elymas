@@ -390,6 +390,7 @@
       bor bor ==:RWMASK
 
   64 ==:OCREAT
+  512 ==:OTRUNC
   1024 ==:OAPPEND
 
   1 ==:PROTREAD
@@ -419,6 +420,8 @@
       { flags RWMASK bnot band RDWR bor =flags } /readwrite deff
       { flags OCREAT bor =flags } /creating deff
       { flags OAPPEND bor =flags } /appending deff
+      { flags OTRUNC bor =flags } /truncating deff
+
       { ==path
         fd 0 ge { "file already open" die } rep 
         path "\0" cat flags mode 0 0 0 OPEN sys .asm .syscall -- _ =fd
