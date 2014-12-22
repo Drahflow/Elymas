@@ -1,0 +1,11 @@
+* abstract data types (trees)
+* negative array index access (also fix lists) (maybe introduce imod?)
+  * afterwards fix the 'l len 1 sub' into '1 neg' in tree.ey again
+* lt/gt/le/ge on strings
+* hashed nametables
+* utf8
+* glob
+
+* stack underflow protection
+* input prompt
+* better interactive error handling when interpreting from stdin

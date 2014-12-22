@@ -1,0 +1,26 @@
+tree ==t
+10 10 t =[]
+5 5 t =[]
+4 4 t =[]
+3 3 t =[]
+2 2 t =[]
+
+t .dump
+t dom dump
+
+5 t * dump
+
+5 t .has dump
+7 t .has dump
+
+t .clone .dump
+
+t { dump } each
+
+1 t add .dump
+2 t add .dump
+t t mul .dump
+
+t .dump
+4 t * dump
+t .dump

@@ -1,0 +1,127 @@
+<
+  < > _ ==:NONE sys .asm .rawAddress ==:NONEADDR
+  { sys .asm .rawAddress NONEADDR eq } /isNone deffd
+  { -01 .set } "=." deffd
+
+  { [ 0 ] } _ "#in" deffd "#out" deffd
+
+  { dom < =*keys 0 ==i { i 1 add =i } =*step > } "#istart" defmd
+  { _ .i -01 .keys } "#itrans" deffd
+  { _ .i -01 .|keys len lt not } "#iend" deffd
+  { _ .step } "#istep" deffd
+
+  { ==k =*get # ==keyGreater ==keySmaller ==keyEquals ==noNode
+    [ 
+      { get isNone } { k get .k eq } { k get .k lt } { k get .k gt } -438271605
+      { 1 } { "k: " dump k dump "get .k" dump get .k dump "tree key domain broken, key neither smaller, larger nor equal" die }
+    ] conds
+  } /treeconds deffd
+
+  { ==k ==v =*get =*set
+      { v k node set 0 }
+      { v get =.v 0 }
+      { get .L v k insertAndSplay 4 mul 1 add |set |get splayPath }
+      { get .R v k insertAndSplay 4 mul 2 add |set |get splayPath }
+    |get k treeconds
+  } /insertAndSplay deffd
+
+  { ==k =*get =*set
+      { NONE 1 neg }
+      { get .v 0 }
+      { get .L k findAndSplay 4 mul 1 add |set |get splayPath }
+      { get .R k findAndSplay 4 mul 2 add |set |get splayPath }
+    |get k treeconds
+  } /findAndSplay deffd
+
+  { =*get =*set ==path
+    [
+      { path  0 lt } { 1 neg } 
+      { path  5 eq } { |set |get -1010 right right 0 }
+      { path  6 eq } { get .R right |set |get left 0 }
+      { path  9 eq } { get .L left |set |get right 0 }
+      { path 10 eq } { |set |get -1010 left left 0 }
+      { 1 }          { path }
+    ] conds
+  } /splayPath deffd
+
+  { =*f ==n n isNone not { n .l |f eachNode n f n .r |f eachNode } rep } /eachNode deffd
+
+  { ==t [ t .root { .k } eachNode ] } "#dom" defmd
+  { ==t =*f t .root { .v f } eachNode } "#each" defmd
+
+  { .ROOT -1032 insertAndSplay -- } "#=[]" defmd
+
+  { ==tree # ==k
+    tree .ROOT -102 findAndSplay ==path # ==v (returned)
+    [
+      { path 0 eq } { 1 }
+      { path 1 eq } { tree .ROOT right 1 }
+      { path 2 eq } { tree .ROOT left 1 }
+      { 1 } { -- 0 }
+    ] conds
+  } /fetch deffd
+
+  { fetch not { "unknown key requested" die } rep } "#*" defmd
+  { fetch _ { -- -- 1 } rep } /has defmd
+
+  { ==indent ==n
+    n isNone {
+      "" indent { " " cat } rep sys .err .writeall
+      "<none>" dump
+    } {
+      "" indent { " " cat } rep "k: " cat sys .err .writeall n .k dump
+      "" indent { " " cat } rep "v: " cat sys .err .writeall n .v dump
+      n .l indent 2 add dumpIndented
+      n .r indent 2 add dumpIndented
+    } ? *
+  } /dumpIndented deffd
+
+  { < ==k ==v NONE _ ==l ==r { = } =*set > } /node deffd
+
+  { _ { =.root }_ -01 { .root }_ } /ROOT defmd
+  { _ { =.l }_ -01 { .l }_ } /L defmd
+  { _ { =.r }_ -01 { .r }_ } /R defmd
+
+  { * _ .R * _ .L -0*3*41*25* } /left deffd
+  { * _ .L * _ .R -0*3*41*25* } /right deffd
+
+  { ==t tree ==n t dom { ==k k t * k n =[] } each n } /clone defmd
+
+  <
+    { .root 0 dumpIndented } /dump defmd
+
+    { < { = } =*set NONE ==root > }
+  > -- _ "#iclone" deffd
+> -- /tree deffd
+
+# longer versions of L+R
+
+#   { =*get =*set
+#     get ==p
+#     p .r ==x
+#     x .l p =.r
+#     p x =.l
+#     x set
+#   } /left deffd
+# 
+  # { # =*get =*set
+  #   * _ .R * _ .L
+  #   # p { p =.r } x { x =.l } { x .l }
+  #   -0*3*41*25*
+  # } /left deffd
+
+#  { =*get =*set
+#    get ==p
+#    p .l ==x
+#    x .r p =.l
+#    p x =.r
+#    x set
+#  } /right deffd
+
+  # { # =*get =*set
+  #   * _ .L * _ .R
+  #   # p { p =.l } x { x =.r } { x .r }
+  #   -0*3*41*25*
+  # } /right deffd
+
+# vim: syn=elymas
