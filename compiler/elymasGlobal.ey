@@ -467,7 +467,13 @@
       :ud2
 
       @nonEmpty
-      /rcx :divqReg
+      :cqo
+      /rcx :idivqReg
+      0 /rdx :cmpqImm8Reg
+      /positiveArrayIndex :jgeLbl8
+
+      /rcx /rdx :addqRegReg
+      @positiveArrayIndex
 
       # rsi == array object on heap
       # rdx == correct array index
@@ -583,7 +589,13 @@
       :ud2
 
       @nonEmptyString
-      /rcx :divqReg
+      :cqo
+      /rcx :idivqReg
+      0 /rdx :cmpqImm8Reg
+      /positiveStringIndex :jgeLbl8
+
+      /rcx /rdx :addqRegReg
+      @positiveStringIndex
 
       # rsi == array object on heap
       # rdx == correct string index
@@ -738,10 +750,14 @@
       3 /rcx :shrqImm8Reg # divide by object pointer size
       /rcx :decqReg # rcx == number of elements in array
 
-      /rdx /rdx :xorqRegReg
-
       # TODO: think about skipping this if index fits
-      /rcx :divqReg
+      :cqo
+      /rcx :idivqReg
+      0 /rdx :cmpqImm8Reg
+      /positiveArrayIndex :jgeLbl8
+
+      /rcx /rdx :addqRegReg
+      @positiveArrayIndex
 
       # rbx == array object on heap
       # rdx == correct array index
@@ -757,8 +773,13 @@
       /rax ::unboxInteger
 
       16 /rbx /rcx :movqMemDisp8Reg # load string length
-      /rdx /rdx :xorqRegReg
-      /rcx :divqReg
+      :cqo
+      /rcx :idivqReg
+      0 /rdx :cmpqImm8Reg
+      /positiveStringIndex :jgeLbl8
+
+      /rcx /rdx :addqRegReg
+      @positiveStringIndex
 
       # rbx == string object on heap
       # rdx == correct string offset
@@ -3349,13 +3370,19 @@
     ] [
       :fmulp
     ] 0 makeFullArith /eymul defv
-    [
+    [[
       /rax :pushqReg
       /rdx /rax :movqRegReg
-      /rdx /rdx :xorqRegReg
-      /rcx :divqReg
+      :cqo
+      /rcx :idivqReg
+      0 /rdx :cmpqImm8Reg
+      /positive :jgeLbl8
+
+      /rcx /rdx :addqRegReg
+      @positive
+
       /rax :popqReg
-    ] [[ "mod" floatUnsupported ]] 0 makeFullArith /eymod defv
+    ]] [[ "mod" floatUnsupported ]] 0 makeFullArith /eymod defv
     [
       /rax :pushqReg
       /rdx /rax :movqRegReg
