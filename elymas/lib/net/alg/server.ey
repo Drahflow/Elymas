@@ -41,6 +41,9 @@
         {
           listenFd +:acceptFd +??io.net.accept ==fd
 
+          noHandler ==eventHandler
+          ++EPOLLIN ++EPOLLERR bor ==initialFlags
+
           <
             {
               epoll ++EPOLLCTLDEL fd 0 0 ++ctl +??io.net.epoll --
@@ -58,11 +61,15 @@
                 |close < =*close > +???io.net.con.write
             } /write deff
             { ==flags
-              epoll ++EPOLLCTLMOD fd flags eventHandler +!rawAddress ++ctl +??io.net.epoll --
+              eventHandler +!rawAddress noHandler +!rawAddress eq {
+                flags =initialFlags
+              } {
+                epoll ++EPOLLCTLMOD fd flags eventHandler +!rawAddress ++ctl +??io.net.epoll --
+              } ? *
             } /ctl deffst
-          > ::accept ==eventHandler
+          > ::accept =eventHandler
 
-          epoll ++EPOLLCTLADD fd ++EPOLLIN ++EPOLLERR bor eventHandler +!rawAddress ++ctl +??io.net.epoll --
+          epoll ++EPOLLCTLADD fd initialFlags eventHandler +!rawAddress ++ctl +??io.net.epoll --
           eventHandler fd protectGC
         } =*in
         { "unexpected output capability on listening socket" die } =*out
