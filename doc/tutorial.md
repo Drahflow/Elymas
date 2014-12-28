@@ -165,6 +165,7 @@ Recommended reading order
 * global.md - global functions
 * execution.md - executing things
 * quoting.md - function definition
+* container.md - containers other than arrays
 * sys.md - some interfaces to the operating system
 * err.md - error handling
 * ffi.md - foreign function interface
