@@ -99,6 +99,8 @@ end closes the connection.
      } +accept
      +run
 
+FIXME: Fix the bug which produces two "Bye..." messages.
+
 `net .alg .bufferedEpollServer` takes the same options as `net .alg .epollServer`
 and additionally provides `outputBufferLimit` which takes a function which
 returns the maximum number of output buffer bytes you are willing to keep
