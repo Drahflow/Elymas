@@ -19,6 +19,7 @@
     0 <-un64
   } /sockaddrIpv4 deffd
 
+  # TODO: use this in the code below (and test)
   # 0 <- new tcp socket fd
   {
     +AFINET +SOCKSTREAM +IPPROTOTCP +socket +??io.net.socket
