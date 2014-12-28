@@ -122,3 +122,8 @@ Features
   * more readable than APL though
   * unless you don't want it to be
 * trivial to build DSLs
+
+Documentation
+-------------
+
+Please see doc/tutorial.md for an introduction and further documentation.
