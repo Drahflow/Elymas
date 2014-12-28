@@ -3,6 +3,7 @@
 * utf8
 * glob
 
+* document ALL THE LIBRARIES
 * stack underflow protection
 * input prompt
 * better interactive error handling when interpreting from stdin
