@@ -168,4 +168,5 @@ Recommended reading order
 * container.md - containers other than arrays
 * sys.md - some interfaces to the operating system
 * err.md - error handling
+* server.md - ready-made TCP/IP server templates
 * ffi.md - foreign function interface
