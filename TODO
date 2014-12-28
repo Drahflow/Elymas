@@ -3,6 +3,7 @@
 * utf8
 * glob
 
+* eliminate all FIXMEs
 * document ALL THE LIBRARIES
 * stack underflow protection
 * input prompt
