@@ -4,11 +4,16 @@
   { ==err ==actions _ 0 lt { actions err ??? } rep } "+???" deffd
 
   { <
+    sys .linux "+" via +epoll "++" via
+    sys .asm "+!" via
+    net .tcp "+:" via
+
     <
       { 1 } /running deffst
       { 1000000 } /interval deffst
       { "unconfigured accept (of epollServer)" die } /accept deffst
       { "unconfigured port (of epollServer)" die } /port deffst
+      { 1 -01 +setsockopt .reuseAddr +??io.net.setsockopt -- } /reuseAddr deffst
 
       { = }' /set deffst
       { scope keys }' /setters deffst
@@ -19,14 +24,12 @@
 
     { deffst }' ::installSetters
 
-    sys .linux "+" via +epoll "++" via
-    sys .asm "+!" via
-    net .tcp "+:" via
-
     < > ==:noHandler
 
     {
-      ::port +:listenFd ==listenFd
+      ::port { # ==s
+        ::reuseAddr
+      } +:listenOptFd ==listenFd
 
       [ ] ==allEventHandlers
       { ==fd ==handler

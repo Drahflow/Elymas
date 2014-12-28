@@ -19,6 +19,12 @@
     0 <-un64
   } /sockaddrIpv4 deffd
 
+  # 0 <- new tcp socket fd
+  {
+    +AFINET +SOCKSTREAM +IPPROTOTCP +socket +??io.net.socket
+  } _ /socketFd deffd
+      /socket   deffd
+
   # 0 -> "host:port"
   # 0 <- connected socket fd
   { "^([^:]+):(\\d+)$" regex not { "host:port expected" die } rep
@@ -36,16 +42,23 @@
     connectFd sys .fdToFile
   } /connect deffd
 
-  # 0 -> port
+  # 0 -> function to execute before bind ({ ==socket ... })
+  # 1 -> port
   # 0 <- listening socket fd
-  { # ==port
+  { =*opts # ==port
     0 <=un32 -01 sockaddrIpv4
-    +AFINET +SOCKSTREAM +IPPROTOTCP +socket +??io.net.socket _ ==s
+    +AFINET +SOCKSTREAM +IPPROTOTCP +socket +??io.net.socket -000 ==s
+    opts
     -01 +bind +??io.net.bind --
     s 256 +listen +??io.net.listen --
     s
-  } _ /listenFd deffd
-      /listen   deffd
+  } _ /listenOptFd deffd
+      /listenOpt   deffd
+
+  # 0 -> port
+  # 0 <- listening socket fd
+  { { } listenOptFd } _ /listenFd deffd
+                        /listen   deffd
 
   # 0 -> listening socket fd
   # 0 <- newly accepted connection fd

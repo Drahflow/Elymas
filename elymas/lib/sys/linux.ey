@@ -245,7 +245,7 @@
   # 113 ==:SETREUID
   # 160 ==:SETRLIMIT
   # 112 ==:SETSID
-  # 54  ==:SETSOCKOPT
+  54  ==:SETSOCKOPT
   # 164 ==:SETTIMEOFDAY
   # 105 ==:SETUID
   # 188 ==:SETXATTR
@@ -661,6 +661,20 @@
   > /ptrace defvd
 
   { 0 0 0 READ } /read defStdSyscall
+
+  <
+    1 ==:SOLSOCKET
+
+    # TODO: support more options
+    2 ==:SOREUSEADDR
+  
+    # 0 -> socket fd
+    # 1 -> turn it on (1) or off (0)
+    # 0 <- raw return value
+    { ==fd ==value
+      fd SOLSOCKET SOREUSEADDR "" value <-u32 4 0 SETSOCKOPT sys .asm .syscall =errno
+    } /reuseAddr deffd
+  > /setsockopt defvd
 
   # 0 <- raw return value
   # 1 <- returned status
