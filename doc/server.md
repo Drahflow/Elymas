@@ -43,7 +43,7 @@ bytes to read and returns a string of the actually read bytes or the empty strin
 if the connection ended. The member `write` takes a string and writes it to the
 connection - returning the number of bytes written. `close` immediately closes
 the connection and `ctl` takes a new set of flags `bor`'ed together from
-`sys .linux .epoll .EPOLLIN`, `.EPOLLOUT`, and `.EPOLLERR` respectively.
+`sys .linux .epoll .EPOLLIN`, `.EPOLLOUT`, and `.EPOLLERR`.
 
 `interval`: Takes a function which provides the number of microseconds to sleep
 during the next epoll_wait(2) syscall.
@@ -80,6 +80,24 @@ handler gets the current input buffer and is expected to return whatever can not
 yet be handled (i.e. pars whatever prefix you like and return the rest), `err` is
 called when an error occurs on the connection and `end` is called when the remote
 end closes the connection.
+
+    net .alg .bufferedEpollServer "+" via
+     { 8000 } +port
+     { ":" via
+       # available methods are :read, :write, :close, :finish
+    
+       "Welcome to server\n" :write
+    
+       <
+         { ==s
+           { s len 4 ge } { "4 chars by you: " 4 s str .prefix cat "\n" cat :write 4 s str .postfix =s } loop
+           s
+         } =*in
+         { "Bye..." :write :finish } =*end
+         { "Error" die } =*err
+       >
+     } +accept
+     +run
 
 `net .alg .bufferedEpollServer` takes the same options as `net .alg .epollServer`
 and additionally provides `outputBufferLimit` which takes a function which
