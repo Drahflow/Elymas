@@ -243,6 +243,27 @@ with the specified input and output types, executing the original function objec
       0000000000000004
     ]
 
+`'`
+---
+
+Like `''`, but instead of full specifications, just takes a string consisting of digits, a `.` and more
+digits. The earlier digits specify scalar input types, the later digits specify scalar output types.
+
+    [ /a /ab /abc /abcd ] len dump
+    0000000000000003
+    [ /a /ab /abc /abcd ] |len '0.0 * dump
+    [
+      0000000000000001
+      0000000000000002
+      0000000000000003
+      0000000000000004
+    ]
+    
+`'*`
+----
+
+A shortcut for `'<string> *`.
+
 `;`
 ---
 
