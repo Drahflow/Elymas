@@ -2,6 +2,12 @@
 * hashed nametables
 * utf8
 * glob
+* make a nice sys .exec function family
+  * wait for child
+  * use the shell
+  * handle pipe creation
+* txt .consume .u sollte nicht negative Zahlen liefern
+  * evtl. BigNums bauen und die Int-Funktionen entsprechend machen
 
 * eliminate all FIXMEs
 * document ALL THE LIBRARIES
