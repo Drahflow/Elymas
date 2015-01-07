@@ -453,8 +453,8 @@
       } /writeall deff
       { =*f "" ==buffer
         {
-          buffer 4096 read cat =buffer
-          buffer "" eq not
+          buffer 4096 read -010 cat =buffer
+                                "" eq not
         } {
           buffer "\n" str .split ==lines
           0 lines len 1 sub range {
@@ -462,6 +462,10 @@
           } each
           lines len 1 sub lines * =buffer
         } loop
+
+        buffer "" eq not {
+          buffer "\n" str .split |f each
+        } rep
       } /eachLine deff
   > > -- } /makefile deff
 
