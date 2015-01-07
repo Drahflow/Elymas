@@ -333,7 +333,17 @@
 
   { 0 0 0 0 DUP2 } /dup2 defStdSyscall
   
-  { 0 0 0 0 0 EXECVE } /exec defStdSyscall
+  # { 0 0 0 0 0 EXECVE } /exec defStdSyscall
+
+  # 0 -> an array of strings determining the environment
+  # 1 -> an array of strings determining argv
+  # 2 -> path to executable
+  # 0 <- raw return value (if it returns at all, naturally)
+  { ==env ==arg # ==path
+    [ arg { sys .asm .rawAddress 24 add bin .produce .u64 } each "\0\0\0\0\0\0\0\0" ] |cat fold
+    [ env { sys .asm .rawAddress 24 add bin .produce .u64 } each "\0\0\0\0\0\0\0\0" ] |cat fold
+    0 0 0 EXECVE
+  } /execve defStdSyscall
 
   { 0 0 0 0 0 0 FORK } /fork defStdSyscall
 
