@@ -328,7 +328,7 @@ EOPERL
       $member = $member->[0];
 
       die "not a struct during member dereference in " . Dumper($struct) unless ref($struct->[1]) eq 'ARRAY' and $struct->[1]->[0] eq 'struct';
-      die Dumper($struct, [sort keys $struct->[0]], $member) . "Cannot resolve requested member $member" unless exists $struct->[0]->{$member};
+      die Dumper($struct, [sort keys %{$struct->[0]}], $member) . "Cannot resolve requested member $member" unless exists $struct->[0]->{$member};
       die "Resolved member $member was incorrectly stored as something non-arrayish" unless ref($struct->[0]->{$member}) eq 'ARRAY';
 
       if($struct->[0]->{$member}->[2] eq 'active') {
