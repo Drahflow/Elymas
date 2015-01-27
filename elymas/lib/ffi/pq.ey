@@ -3,7 +3,7 @@
 <
   sys .so ":" via
 
-  "/usr/lib/libpq.so" :dlopen --
+  "libpq.so" :dlopen --
 
   { "PQ" -01 cat -021 -210 :resolveFunction }' "=>" deffd
   { _ "PQ" -01 cat -1032 :resolveFunction -01 deffd }' "->" deffd
