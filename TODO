@@ -1,4 +1,3 @@
-* lt/gt/le/ge on strings
 * hashed nametables
 * utf8
 * glob
@@ -10,7 +9,7 @@
   * evtl. BigNums bauen und die Int-Funktionen entsprechend machen
 
 * eliminate all FIXMEs
-* document ALL THE LIBRARIES
 * stack underflow protection
 * input prompt
 * better interactive error handling when interpreting from stdin
+* document ALL THE LIBRARIES

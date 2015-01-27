@@ -3096,10 +3096,11 @@
     # ] /taat1 defv
   > _ =globalTypes { defv }' ::allocateOffsetStruct
 
-  # 0 -> integer or float
-  # 1 -> integer or float
-  # 0 <- result of the arithmetic operation
-  { ==comparisonResult ==floatOpcodes ==intOpcodes
+  # creates a function with the following effects
+  # 0 -> integer or float or string
+  # 1 -> integer or float or string
+  # 0 <- result of the arithmetic operation or comparison
+  { ==comparisonResult ==stringOpcodes ==floatOpcodes ==intOpcodes
     [[
       /rbx :popqReg
 
@@ -3110,16 +3111,30 @@
       /rcxInteger :jcLbl8
       7 /rcx /al :movbMemDisp8Reg
       %F0 /al :andbImmReg
+      /rcxInteger :jzLbl8
       %20 /al :cmpbImmReg
-      /floatCase :jzLbl8
+      /floatCase :jzLbl32
+      %10 /al :cmpbImmReg
+      /stringCase :jzLbl32
+
+      # TODO: this should handle #<op> on scopes
+      "invalid operand types for arithmetic (1)" ::outputError
+      :ud2
+
       @rcxInteger
 
       63 /rdx :btqImm8Reg
       /rdxInteger :jcLbl8
       7 /rdx /al :movbMemDisp8Reg
       %F0 /al :andbImmReg
+      /rdxInteger :jzLbl8
       %20 /al :cmpbImmReg
-      /floatCase :jzLbl8
+      /floatCase :jzLbl32
+
+      # TODO: this should handle #<op> on scopes
+      "invalid operand types for arithmetic (2)" ::outputError
+      :ud2
+
       @rdxInteger
 
       @intCase
@@ -3204,6 +3219,8 @@
 
       floatOpcodes _ len dearray
       
+      @produceResult
+
       comparisonResult {
         63 /rdx :btsqImm8Reg
         /rdx :pushqReg
@@ -3217,8 +3234,75 @@
 
       /rbx :pushqReg
       :retn
+
+      @stringCase
+      63 /rdx :btqImm8Reg
+      /stringAndIntCase :jcLbl8
+      7 /rdx /al :movbMemDisp8Reg
+      %F0 /al :andbImmReg
+      %10 /al :cmpbImmReg
+      /bothStringsCase :jzLbl8
+
+      @stringAndIntCase
+      "invalid operand types for arithmetic (3)" ::outputError
+      :ud2
+
+      @bothStringsCase
+
+      stringOpcodes _ len dearray
+
+      /produceResult :jmpLbl32
     ]]
+  } /makeFullScalar deff
+
+  { ==comparisonResult # ==floatOpcodes ==intOpcodes
+    [[
+      "arithmetic operation not defined on strings" ::outputError
+      :ud2
+    ]]
+    comparisonResult makeFullScalar
   } /makeFullArith deff
+
+  { ==greater ==equal ==smaller
+    [[
+      24 /rdx /rsi :leaqMemDisp8Reg
+      24 /rcx /rdi :leaqMemDisp8Reg
+      16 /rdx /rdx :movqMemDisp8Reg
+      16 /rcx /rcx :movqMemDisp8Reg
+
+      @loop
+      /rdx /rdx :andqRegReg
+      /leftEmpty :jzLbl8
+
+      /rcx /rcx :andqRegReg
+      /leftLarger :jzLbl8
+
+      :cmpsb
+      /rightLarger :jbLbl8
+      /leftLarger :jaLbl8
+
+      /rcx :decqReg
+      /rdx :decqReg
+      /loop :jmpLbl8
+      
+      @leftEmpty
+      /rcx /rcx :andqRegReg
+      /bothEqual :jzLbl8
+
+      @leftLarger
+      greater /rdx :movqImmReg
+      /done :jmpLbl8
+
+      @rightLarger
+      smaller /rdx :movqImmReg
+      /done :jmpLbl8
+
+      @bothEqual
+      equal /rdx :movqImmReg
+
+      @done
+    ]]
+  } /createStringOpcodes deff
 
   { ==name
     name " not available on floats" cat ::outputError
@@ -3310,34 +3394,6 @@
       1 /rsi :movqImmReg
       /rdx /rcx :cmpqRegReg 
       /rsi /rdx :movqRegReg
-      /rdi /rdx :cmovgeqRegReg
-    ] [
-      1 /rdi :movqImmReg
-      /rdx /rdx :xorqRegReg
-      :fcomip
-      :fstp
-      /rdi /rdx :cmovbqRegReg
-    ] 1 makeFullArith /eygt defv
-
-    [
-      /rdi /rdi :xorqRegReg
-      1 /rsi :movqImmReg
-      /rdx /rcx :cmpqRegReg 
-      /rsi /rdx :movqRegReg
-      /rdi /rdx :cmovgqRegReg
-    ] [
-      1 /rdi :movqImmReg
-      /rdx /rdx :xorqRegReg
-      :fcomip
-      :fstp
-      /rdi /rdx :cmovbeqRegReg
-    ] 1 makeFullArith /eyge defv
-
-    [
-      /rdi /rdi :xorqRegReg
-      1 /rsi :movqImmReg
-      /rdx /rcx :cmpqRegReg 
-      /rsi /rdx :movqRegReg
       /rdi /rdx :cmovngqRegReg
     ] [
       1 /rdi :movqImmReg
@@ -3345,7 +3401,9 @@
       :fcomip
       :fstp
       /rdi /rdx :cmovaqRegReg
-    ] 1 makeFullArith /eylt defv
+    ] 0 0 1 createStringOpcodes
+      -210210                                            1 makeFullScalar /eylt defv
+              { [ 1 /rdx :xorqImm8Reg ] cat } -30*20*10* 1 makeFullScalar /eyge defv
 
     [
       /rdi /rdi :xorqRegReg
@@ -3359,7 +3417,9 @@
       :fcomip
       :fstp
       /rdi /rdx :cmovaeqRegReg
-    ] 1 makeFullArith /eyle defv
+    ] 0 1 1 createStringOpcodes
+      -210210                                            1 makeFullScalar /eyle defv
+              { [ 1 /rdx :xorqImm8Reg ] cat } -30*20*10* 1 makeFullScalar /eygt defv
 
     [
       /rax :pushqReg
