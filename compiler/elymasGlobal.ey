@@ -3289,12 +3289,12 @@
       /rcx /rcx :andqRegReg
       /bothEqual :jzLbl8
 
-      @leftLarger
-      greater /rdx :movqImmReg
-      /done :jmpLbl8
-
       @rightLarger
       smaller /rdx :movqImmReg
+      /done :jmpLbl8
+
+      @leftLarger
+      greater /rdx :movqImmReg
       /done :jmpLbl8
 
       @bothEqual
@@ -3401,7 +3401,7 @@
       :fcomip
       :fstp
       /rdi /rdx :cmovaqRegReg
-    ] 0 0 1 createStringOpcodes
+    ] 1 0 0 createStringOpcodes
       -210210                                            1 makeFullScalar /eylt defv
               { [ 1 /rdx :xorqImm8Reg ] cat } -30*20*10* 1 makeFullScalar /eyge defv
 
@@ -3417,7 +3417,7 @@
       :fcomip
       :fstp
       /rdi /rdx :cmovaeqRegReg
-    ] 0 1 1 createStringOpcodes
+    ] 1 1 0 createStringOpcodes
       -210210                                            1 makeFullScalar /eyle defv
               { [ 1 /rdx :xorqImm8Reg ] cat } -30*20*10* 1 makeFullScalar /eygt defv
 
