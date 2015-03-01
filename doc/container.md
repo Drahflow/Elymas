@@ -1,6 +1,8 @@
 Container Types
 ===============
 
+Apart from arrays and scopes, a few other container types are provided in the standard library.
+
 Lists
 -----
 
