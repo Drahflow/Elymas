@@ -104,7 +104,36 @@ done via `has`.
 Trees
 -----
 
-Trees provide mapping from integers (FIXME: will allow strings soon) to arbitrary objects,
-keeping the keys in `le` ascending order. Otherwise they should work just as maps.
+Trees provide mapping from keys to arbitrary objects,
+keeping the keys in `lt`/`eq`/`gt` ascending order. Otherwise they should work just as maps.
 
-FIXME: Example will be provided once string-keys are supported.
+    tree ==t
+    1 /foo t =[]
+    2 /bar t =[]
+    t dump
+    <scope: 0000600000533210>
+    t dom dump
+    [
+      "bar"
+      "foo"
+    ]
+    t |dump each
+    0000000000000002
+    0000000000000001
+    /foo t * dump
+    0000000000000001
+    /foo t .has dump
+    0000000000000001
+    /FOO t .has dump
+    0000000000000000
+    t 2 mul ==t2
+    t2 dom dump
+    [
+      "bar"
+      "foo"
+    ]
+    t2 |dump each
+    0000000000000004
+    0000000000000002
+    /foo t2 * dump
+    0000000000000002
