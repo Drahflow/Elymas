@@ -33,17 +33,23 @@ Takes a string and raises an error of the specified kind.
 Takes a string and a scope and raises an error of the kind specified by the string. The scope members
 are possible ways to react to the error provided to upper layers of the application.
 
-    < { "ignored" dump } =*ignore { "oops" die } =*terminate > ???fatal.testError
+    <
+      { "ignored" dump } =*ignore
+      { "oops" die } =*terminate
+    > ???fatal.testError
 
 
 `?!`
 ----
 
-Specifies behavior if an error occurs. Takes to function objects. The first is executed. If an error occurs
+Specifies behavior if an error occurs. Takes two function objects. The first is executed. If an error occurs
 during its execution, the second is invoked with the error handling scope provided on the stack.
 
     {
-      < { "ignored" dump } =*ignore { "oops" die } =*terminate > ???fatal.testError
+      <
+        { "ignored" dump } =*ignore
+        { "oops" die } =*terminate
+      > ???fatal.testError
     } /maybeFailFunction deff
     |maybeFailFunction { .terminate } !?fatal # handle all fatal.* errors by the .terminate action
 
@@ -97,4 +103,4 @@ instruction pointer to an earlier state.
       currentConfig configFiles len lt {
         checkpoint 0 !                    # rewind execution back to checkpoint
       } rep                               # ... if candidates remain
-    } ?!io                                # apply above rules to any io.* errors
+    } ?!io                                # do this on any io.* errors
