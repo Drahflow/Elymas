@@ -1,0 +1,15 @@
+"lib/ffi.ey" include
+"lib/ffi/pq.ey" include
+
+{
+  "dbname=template1" ffi .pq .functional ">>" deffd
+  "2015-01-01" >>SELECT * FROM pg_stat_activity WHERE backend_start > $1 { ==row
+    row keys { ==k
+      k ": " cat row k . cat dump
+    } each
+  } each
+} {
+  "Something went wrong with PostgresSQL: " -01 .msg cat die
+} ?!io.ffi.pq
+
+# vim: syn=elymas

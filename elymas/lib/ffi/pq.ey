@@ -171,6 +171,37 @@
       > } ; -01 deffst
     }' each
   > } ; /connect deffd
+
+  {
+    connect ==con
+    con .status { <
+      con .errorMessage ==msg
+    > ???io.ffi.pq } rep
+
+    { # ==nsQuery
+      "" ==spaceQuery
+      { _ "([^ ]*) (.*)" regex } { -102 --
+        spaceQuery -01 cat " " cat =spaceQuery
+      } loop spaceQuery -01 cat =spaceQuery
+      spaceQuery ==parameterCountTmp
+      0 ==maxParameter
+      { parameterCountTmp "^(.*)\\$(\\d+)(.*)$" regex } { ==a ==p ==b
+        a b cat =parameterCountTmp
+        p txt .consume .u maxParameter max =maxParameter
+      } loop
+
+      maxParameter {
+        maxParameter spaceQuery con .execParams
+      } {
+        spaceQuery con .exec
+      } ? * ":-" via
+      [
+        { :-status |COMMAND_OK eq }' { :-clear }'
+        { :-status |TUPLES_OK eq }' { :-all :-clear }'
+        { 1 }' { < :-error ==msg > ???io.ffi.pq }
+      ] conds
+    }
+  } /functional deffd
 > /pq ffi .defv
 
 # vim: syn=elymas
