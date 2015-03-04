@@ -9,7 +9,7 @@
     } each
   } each
 } {
-  "Something went wrong with PostgresSQL: " -01 .msg cat die
+  "Something went wrong with PostgreSQL: " -01 .msg cat die
 } ?!io.ffi.pq
 
 # vim: syn=elymas
