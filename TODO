@@ -10,6 +10,11 @@
 
 * consider polymorphic call-site caches instead of deffs_t_ / deffs?
 
+* DEBUG:
+  { 1 ==i { 1 } { "here" dump i -01 * "AB" dump i 2 mul =i } loop } !! 
+  { ==seq 10 { "DE" dump seq * -- dump "FG" dump } rep } *
+  objects of type 12 should not appearzsh: illegal hardware instruction  ./loaded
+
 * eliminate all FIXMEs
 * stack underflow protection
 * input prompt
