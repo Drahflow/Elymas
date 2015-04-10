@@ -891,8 +891,11 @@
             /rsi /ecx :movlMemReg
             3 /rcx :shrqImm8Reg
             /rcx :decqReg
-            /rdx /rdx :xorqRegReg # FIXME: Is this correct?
-            /rcx :divqReg
+            :cqo
+            /rcx :idivqReg
+            0 /rdx :cmpqImm8Reg
+            [ /rcx /rdx :addqRegReg ] len :jgeRel8
+            /rcx /rdx :addqRegReg
             8 8 /rdx /rsi :pushqMemIndexScaleDisp8
           ] emitOpcodes
         }
@@ -905,8 +908,11 @@
             [ 8 /rax /rax :movqMemDisp8Reg ] len :jcRel8
             8 /rax /rax :movqMemDisp8Reg
             16 /rsi /rcx :movqMemDisp8Reg
-            /rdx /rdx :xorqRegReg
-            /rcx :divqReg # FIXME: Is this correct?
+            :cqo
+            /rcx :idivqReg
+            0 /rdx :cmpqImm8Reg
+            [ /rcx /rdx :addqRegReg ] len :jgeRel8
+            /rcx /rdx :addqRegReg
             24 1 /rdx /rsi /rbx :movzxMem8IndexScaleDisp8Reg64
             63 /rbx :btsqImm8Reg
             /rbx :pushqReg
