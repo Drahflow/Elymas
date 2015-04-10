@@ -593,12 +593,51 @@ Multiplies two integers or floats.
 `div`
 -----
 
-Divides two integers or floats. The integer version truncates the result towards zero.
+Divides two (signed) integers or floats. The integer version truncates the result towards zero.
 
     5 2 div dump
     0000000000000002
     5 2 neg div dump
-    FFFFFFFFFFFFFFFE
+    -0000000000000002
+
+
+`mod`
+-----
+
+Computes the remainder of a signed integer division. The result is always positive.
+
+    5 2 mod dump
+    0000000000000001
+    5 neg 2 mod dump
+    0000000000000001
+
+
+`udiv`
+-----
+
+Divides two unsigned integers. Truncates the result towards zero. Use this only
+if you need full 64bit unsigned integer arithmetic.
+
+    5 2 udiv dump
+    0000000000000002
+    5 2 neg udiv dump
+    0000000000000000
+    5 neg 2 udiv dump
+    7FFFFFFFFFFFFFFD
+
+
+`umod`
+-----
+
+Computes the remainder of an unsigned integer division. The result is always
+positive. Use this only if you need full 64bit unsigned integer arithmetic.
+
+    5 2 umod dump
+    0000000000000001
+    5 neg 3 mod dump
+    0000000000000001
+    5 neg 3 umod dump
+    0000000000000002
 
 
 `and`

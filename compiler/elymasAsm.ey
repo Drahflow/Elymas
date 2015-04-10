@@ -113,7 +113,7 @@
                     .base ==:quoteEncodingBufferObjects
 
   { ==opcodes
-    opcodes len 1 sub PAGESIZE div 1 add PAGESIZE mul alloc /codearea defv
+    opcodes len 1 sub PAGESIZE udiv 1 add PAGESIZE mul alloc /codearea defv
     sys .asm .|poke =*poke
     codearea .base opcodes { -101 poke 1 add } each --
     codearea

@@ -119,10 +119,10 @@
   %07 base regno band add
 } /sib deff
 
-{                                               8 { _ 256 mod -01 256 div } rep -- } /imm64 deff # div / mod unsigned
-{ _ 0 lt { 4294967296 add } rep 4294967295 band 4 { _ 256 mod -01 256 div } rep -- } /imm32 deff
-{ _ 0 lt { 65536 add } rep 65535 band           2 { _ 256 mod -01 256 div } rep -- } /imm16 deff
-{ _ 0 lt { 256 add } rep 255 band                                                  } /imm8  deff
+{                                               8 { _ 256 umod -01 256 udiv } rep -- } /imm64 deff # div / mod unsigned
+{ _ 0 lt { 4294967296 add } rep 4294967295 band 4 { _ 256 umod -01 256 udiv } rep -- } /imm32 deff
+{ _ 0 lt { 65536 add } rep 65535 band           2 { _ 256 umod -01 256 udiv } rep -- } /imm16 deff
+{ _ 0 lt { 256 add } rep 255 band                                                    } /imm8  deff
 
 { %66 } /width16 deff
 
@@ -795,6 +795,15 @@ memoryAddressingVariants keys { ==variant memoryAddressingVariants variant . =*p
     %DF
     /five mem .encode
   } /fildq variant defOp
+} each
+
+memoryAddressingVariants keys { ==variant memoryAddressingVariants variant . =*parse
+  { parse ==mem
+    mem .base regno %07 gt mem .idx regno %07 gt or
+      { 0 /none mem .idx mem .base rex } rep
+    %DF
+    /seven mem .encode
+  } /fistp64 variant defOp
 } each
 
 memoryAddressingVariants keys { ==variant memoryAddressingVariants variant . =*parse

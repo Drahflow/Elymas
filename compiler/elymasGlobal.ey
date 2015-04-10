@@ -3446,13 +3446,28 @@
     [
       /rax :pushqReg
       /rdx /rax :movqRegReg
-      /rdx /rdx :xorqRegReg
+      :cqo
       /rcx :idivqReg
       /rax /rdx :movqRegReg
       /rax :popqReg
     ] [
       :fdivp
     ] 0 makeFullArith /eydiv defv
+    [[
+      /rax :pushqReg
+      /rdx /rax :movqRegReg
+      /rdx /rdx :xorqRegReg
+      /rcx :divqReg
+      /rax :popqReg
+    ]] [[ "umod" floatUnsupported ]] 0 makeFullArith /eyumod defv
+    [
+      /rax :pushqReg
+      /rdx /rax :movqRegReg
+      /rdx /rdx :xorqRegReg
+      /rcx :divqReg
+      /rax /rdx :movqRegReg
+      /rax :popqReg
+    ]] [[ "udiv" floatUnsupported ]] 0 makeFullArith /eyudiv defv
 
     [[
       /rcx /rcx :testqRegReg

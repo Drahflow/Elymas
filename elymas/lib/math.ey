@@ -24,4 +24,26 @@
   } /base deff
 > /math defv
 
+# FIXME: INTEGRATE
+# # 0 -> float
+# # 0 <- the int portion of the float, rounded towards zero
+# [[
+#   /rbx :popqReg
+# 
+#   # allocate result int
+#   ::internalAllocateInteger /rax :movqImmReg
+#   /rax :callqReg
+# 
+#   # actual conversion
+#   /rcx :popqReg
+#   8 /rcx :fld64MemDisp8
+#   8 /rax :fistp64MemDisp8
+# 
+#   # push int on program stack
+#   /rax :pushqReg
+# 
+#   /rbx :pushqReg
+#   :retn
+# ]] /eytrunc defv
+
 # vim: syn=elymas

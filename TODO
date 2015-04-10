@@ -7,6 +7,7 @@
   * handle pipe creation
 * txt .consume .u sollte nicht negative Zahlen liefern
   * evtl. BigNums bauen und die Int-Funktionen entsprechend machen
+* trigonometrics
 
 * consider polymorphic call-site caches instead of deffs_t_ / deffs?
 

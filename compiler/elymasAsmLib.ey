@@ -26,7 +26,7 @@
     struct values |cat fold ==data
     constantAllocEnd constantAllocBegin sub ==constantAllocFree
     data len constantAllocFree gt {
-      data len 1 sub :PAGESIZE div 1 add :PAGESIZE mul :alloc ==area
+      data len 1 sub :PAGESIZE udiv 1 add :PAGESIZE mul :alloc ==area
       area :globalAllocations .register
       area .base _ constantAllocEnd neq { area .base =constantAllocBegin } rep
                  area .size add =constantAllocEnd
@@ -43,7 +43,7 @@
       %00 %00 %00 %00 %00 %00 %00 %00
       str len :imm64
     ] str strToUTF8Bytes cat
-    [ 8 str len 8 mod sub %00 rep ] cat
+    [ 8 str len 8 umod sub %00 rep ] cat
   } /toConstString deff
 
   [ ] ==stringHoles
@@ -110,8 +110,8 @@
   > { defv }' allocateOffsetStruct
 
   { ==register
-    { _ =*array len _ 4 div ==largeMoves
-                      4 mod ==smallMoves
+    { _ =*array len _ 4 udiv ==largeMoves
+                      4 umod ==smallMoves
       0 ==i
       largeMoves {
         i _ 4 add =i
@@ -382,7 +382,7 @@
       0 /rsi :cmpqImm8Mem
       /quoteEncodingBufferUnused :jzLbl8
 
-      :STACKSIZE 8 sub 8 div /rcx :movqImmReg
+      :STACKSIZE 8 sub 8 udiv /rcx :movqImmReg
       @loopThroughEncodingBuffer
       /rsi /rdi :movqMemReg
       /markObject :callqLbl32
@@ -775,7 +775,7 @@
       heapSize /rax :movqImmReg
       /rax /rdi :movqMemReg
       7 /rdi :shrqImm8Reg
-      ALLOCCHUNKSIZE 128 div /rsi :movqImmReg
+      ALLOCCHUNKSIZE 128 udiv /rsi :movqImmReg
       /rsi /rdi :subqRegReg
       /rax :movqImmOOBReg BLOCKBASE
       /rax /rdi :addqRegReg
@@ -784,7 +784,7 @@
       heapSize /rax :movqImmReg
       /rax /rdi :movqMemReg
       7 /rdi :shrqImm8Reg
-      ALLOCCHUNKSIZE 128 div /rsi :movqImmReg
+      ALLOCCHUNKSIZE 128 udiv /rsi :movqImmReg
       /rsi /rdi :subqRegReg
       /rax :movqImmOOBReg MARKBASE
       /rax /rdi :addqRegReg
@@ -1304,7 +1304,7 @@
   ] /unscopingFunctionFooter defv
 
   { strToUTF8Bytes _ =*v len _ ==exactLength
-    1 sub 8 div 4 add 8 mul ==memoryLength
+    1 sub 8 udiv 4 add 8 mul ==memoryLength
 
     memoryLength 2147483648 lt not { "constant string too long" die } rep
 
@@ -1333,7 +1333,7 @@
 
       exactLength 0 neq {
         # load string contents
-        0 exactLength 1 sub 8 div 1 add range { 8 mul ==i
+        0 exactLength 1 sub 8 udiv 1 add range { 8 mul ==i
           8 /rax :addqImm8Reg
           /rdx :movqImmOOBReg i _ 8 add range v 8 dearray
           /rdx /rax :movqRegMem

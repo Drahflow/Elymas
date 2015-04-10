@@ -778,6 +778,8 @@ installGlobal2IntFunction('sub', '$a - $b');
 installGlobal2IntFunction('mul', '$a * $b');
 installGlobal2IntFunction('div', 'int($a / $b)');
 installGlobal2IntFunction('mod', '$a % $b');
+installGlobal2IntFunction('udiv', 'int($a / $b)'); # cheap compatibility hack
+installGlobal2IntFunction('umod', '$a % $b'); # cheap compatibility hack
 
 installGlobal2IntFunction('and', '($a and $b)? 1: 0');
 installGlobal2IntFunction('nand', '($a and $b)? 0: 1');
