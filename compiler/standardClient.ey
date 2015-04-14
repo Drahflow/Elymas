@@ -783,7 +783,7 @@
                 [ type ] argTypes cat =argTypes
                 [ 1 neg ] loops cat =loops
               } ? *
-            stageCalls [ stageCalls2 ] cat =stageCalls
+            [ stageCalls2 ] stageCalls cat =stageCalls
           } loop
         } each
 
