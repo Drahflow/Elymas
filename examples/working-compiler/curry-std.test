@@ -1,4 +1,4 @@
 3 3 ||add ||add mul * * dump
 ||add ||add mul { ** }_ =*m
 
-3 3 m dump
+3 3 m dump # should be 00024
