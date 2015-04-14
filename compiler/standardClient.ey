@@ -651,8 +651,11 @@
     #     Run from right (stacktop) argument to left (stacklow) argument:
     #       Take topmost type, check whether it can be found in other stacks (from top)
     #         Eliminate all matching types via function or loop creation
-    { _ ==f _ sys .typed .inputs ==inputs
-              sys .typed .outputs ==outputs
+    { ==f
+      f sys .typed .type 7 eq { f { * }_ [ 0 ] [ 0 ] '' =f } rep
+
+      f sys .typed .inputs ==inputs
+      f sys .typed .outputs ==outputs
 
       outputs len 1 gt { "multi-output function in auto-loop" die } rep
 

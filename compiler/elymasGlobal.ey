@@ -442,8 +442,28 @@
       %00 /cl :cmpbImmReg
       /arrayIntArgumentBoxed :jeLbl8
 
-      "FIXME: typed array application" ::outputError
-      :ud2
+      # escape this to compiled high-level code
+      /rbx :pushqReg
+      /rdx :pushqReg
+
+      /rax :movqImmOOBReg "sys" ::string
+      /rax :pushqReg
+      /rax :movqImmOOBReg "ey*" "ey|" ::linkAbs64
+      /rax :callqReg
+
+      /rax :movqImmOOBReg "typed" ::string
+      /rax :pushqReg
+      /rax :movqImmOOBReg "ey*" "ey." ::linkAbs64
+      /rax :callqReg
+
+      /rax :movqImmOOBReg "execute" ::string
+      /rax :pushqReg
+      /rax :movqImmOOBReg "ey*" "ey." ::linkAbs64
+      /rax :callqReg
+
+      /r15 :pushqMem
+      8 /r15 :addqImm8Reg
+      :retn
 
       @arrayIntArgumentBoxed
       8 /rbx /rax :movqMemDisp8Reg # rax == requested index
