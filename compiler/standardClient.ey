@@ -600,6 +600,10 @@
         { 0 earlierType * sys .typed .type 0 neq }
         { 0 }
 
+        # General integers co-iterate only if equal
+        { 0 earlierType * 0 laterType * neq }
+        { 0 }
+
         # Who came first determines iteration range
         { 2 earlierType * 1 neg neq }
         { earlierType 1 }
@@ -608,12 +612,9 @@
         { 2 laterType * 1 neg neq }
         { laterType 1 }
 
-        # General integers co-iterate iff equal
-        { 0 earlierType * 0 laterType * eq }
-        { earlierType 1 }
-
+        # If none defines a range, take the first
         { 1 }
-        { 0 }
+        { earlierType 1 }
       ] conds
     } /commonIterationType deff
 
