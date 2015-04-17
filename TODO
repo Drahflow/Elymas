@@ -1,4 +1,5 @@
 * hashed nametables
+* make '' applicable to arrays, too, i.e. save input type
 * utf8
 * glob
 * make a nice sys .exec function family
@@ -8,6 +9,8 @@
 * txt .consume .u sollte nicht negative Zahlen liefern
   * evtl. BigNums bauen und die Int-Funktionen entsprechend machen
 * trigonometrics
+
+* testsuite (incl. coverage test)
 
 * consider polymorphic call-site caches instead of deffs_t_ / deffs?
 
