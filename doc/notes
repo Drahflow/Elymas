@@ -271,16 +271,17 @@ Overhead: 1/32.
 * data
   [ <reference> ]*
 
-=== Name Table ===
-( TODO: create a hash-table based implementation here )
+=== Name Table (hashed implementation) ===
 * Length in bytes (including header)
   bit 63-60: 1 0 1 0
   bit 59: reserved for GC
-* End of fill in bytes (i.e. if this field == length, table is full)
-* data
-  [ <string reference>, <execution mode> ]*
-  ( TODO: Oh, the performance... )
-  The 0th string maps to 0 and so on.
+* Number of keys (also next scope entry index to assign)
+* Hash buckets (16 bytes each)
+  [
+    <string reference>  (8 bytes)
+    <execution mode>    (4 bytes)
+    <scope entry index> (4 bytes)
+  ]*
 
 === Stack ===
 * Length in bytes (including header)
@@ -396,6 +397,53 @@ eq [ sys .typed .SCALAR _ ] [ Int ] ''
 
 eq [ sys .typed .var _ ] [ Int ] ''
 { 1 eq } { "foo" eq } and # [ $X $Y ] [ Int ] # 1 eq -01 "foo" eq and
+
+== Variant: Scalar Argument-Selector ==
+
+=== Obvious Case 1 ===
+1 [ 1 2 3 ] add => [ 2 3 4 ]
+[ 1 2 3 ] 1 add => [ 2 3 4 ]
+Because:
+[ 1 1 1 ] [ 1 2 3 ] add => [ 2 3 4 ]
+
+=== Obvious Case 2 ===
+If f, g unrelated:
+|f |g h => { f ==x g ==y y x h } *
+
+|add |sub mul => { ==x ==y x y add x y sub mul } *
+
+WTF??? Hence:
+Say f, g have a type which specifies which stack position they'd like to consume, like so:
+|f type => [ 2 0 ] . [ 0 ]
+|g type => [ 1 0 ] . [ 0 ]
+then
+|f |g h => { ==z ==y ==x y x g ==G z x f ==F F G h } *
+
+=== Obvious Case 3 ===
+{ -- { -- { 1 } } } =*f (i.e. the constant function from two arguments to 1)
+|f |f add => { -- { -- { 2 } } } (i.e. the constant function from two arguments to 2)
+
+With the above:
+|f type => [ 0 ] . [ [ 0 ] . 0 ]
+
+=== Case 4 ===
+{ _ } =*dup (clearly with type [ 0 ] . [ 0 0 ])
+
+|dup |add ; => { _ add }
+X |dup add => { ==y y dup ==D1 ==D2 X D2 add D1 }
+|dup X add => { ==y y dup ==D1 ==D2 D2 X add D1 }
+
+=== Case 5 ===
+
+
+
+f: A->B->X
+   |  |
+   v  v
+   a0 b0
+   |
+   v
+   a1
 
 = Musings about function composition operator =
 

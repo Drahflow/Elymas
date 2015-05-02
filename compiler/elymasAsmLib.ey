@@ -136,6 +136,7 @@
   } /unboxInteger deff
 
   # internal functions, ABI follows SysV standards
+  # except that r8-r15 are also callee-saved
 
   <
     # dump string to stderr for internal error reporting
@@ -149,24 +150,185 @@
       :retn
     ] /internalDumpErrorString defv
 
-    # compare two strings
-    # rdi -> address of first string
-    # rsi -> address of second string
-    # rax <- 1 if both strings are equal, 0 otherwise
-    [
-      /rax /rax :xorqRegReg
-      :cmpsq # ignore memory length header
-      :cmpsq # ignore hash
-      /rsi /rdx :movqMemReg # load exact length
-      :cmpsq # same exact length
-      /fail :jnzLbl8
-      /rdx /rcx :movqRegReg
-      :repz :cmpsb
-      /fail :jnzLbl8
-      /rax :incqReg
-      @fail
+    # rdi -> string to hash
+    # rax <- hash value
+    # This is (or should be) MurmurHash3_x64_128
+    [[
+      /rbx :pushqReg
+      /r8 :pushqReg
+      /r9 :pushqReg
+      /r10 :pushqReg
+      /r11 :pushqReg
+      /r12 :pushqReg
+      /r13 :pushqReg
+
+      # const uint8_t * data = (const uint8_t*)key;
+      24 /rdi /rsi :leaqMemDisp8Reg
+
+      # uint64_t h1 = seed;
+      /r12 /r12 :xorqRegReg
+      # uint64_t h2 = seed;
+      /r13 /r13 :xorqRegReg
+
+      # const uint64_t c1 = BIG_CONSTANT(0x87c37b91114253d5);
+      /r8 :movqImmOOBReg [ %87 %C3 %7B %91 %11 %42 %53 %D5 ] reverse 8 dearray
+      # const uint64_t c2 = BIG_CONSTANT(0x4cf5ad432745937f);
+      /r9 :movqImmOOBReg [ %4C %F5 %AD %43 %27 %45 %93 %7F ] reverse 8 dearray
+
+      # const int nblocks = len / 16;
+      16 /rdi /rcx :movqMemDisp8Reg
+      16 /rcx :subqImm8Reg
+      /blockLoopFinished :jbLbl8
+
+      # //---------- body
+
+      # const uint64_t * blocks = (const uint64_t *)(data);
+
+      # for(int i = 0; i < nblocks; i++) {
+
+      @blockLoop
+
+      /rsi /rax :movqMemReg # uint64_t k1 = getblock64(blocks,i*2+0);
+      /r8 :mulqReg          # k1 *= c1;
+      31 /rax :rolqImm8Reg  # k1  = ROTL64(k1,31);
+      /r9 :mulqReg          # k1 *= c2;
+
+      /rax /r12 :xorqRegReg # h1 ^= k1;
+      27 /r12 :rolqImm8Reg  # h1 = ROTL64(h1,27);
+      /r13 /r12 :addqRegReg # h1 += h2;
+      %52DCE729 4 /r12 /r12 /r12 :leaqMemIndexScaleDisp32Reg # h1 = h1*5+0x52dce729;
+
+      8 /rsi /rax :movqMemDisp8Reg # uint64_t k2 = getblock64(blocks,i*2+1);
+      /r9 :mulqReg                 # k2 *= c2;
+      33 /rax :rolqImm8Reg         # k2  = ROTL64(k2,33);
+      /r8 :mulqReg                 # k2 *= c1;
+      /rax /r13 :xorqRegReg        # h2 ^= k2;
+
+      31 /r13 :rolqImm8Reg  # h2 = ROTL64(h2,31);
+      /r12 /r13 :addqRegReg # h2 += h1;
+      %38495AB5 4 /r13 /r13 /r13 :leaqMemIndexScaleDisp32Reg #   h2 = h2*5+0x38495ab5;
+
+      16 /rsi :addqImm8Reg
+      16 /rcx :subqImm8Reg
+      /blockLoop :jaeLbl8
+      # }
+
+      @blockLoopFinished
+      16 /rcx :addqImm8Reg
+      /finalize :jzLbl8
+
+      # //---------- tail
+
+      /rcx /rbp :movqRegReg
+
+      # const uint8_t * tail = (const uint8_t*)(data + nblocks*16);
+
+      # switch(len & 15)
+      # {
+      # case  8: k1 ^= ((uint64_t)tail[ 7]) << 56;
+      # case  7: k1 ^= ((uint64_t)tail[ 6]) << 48;
+      # case  6: k1 ^= ((uint64_t)tail[ 5]) << 40;
+      # case  5: k1 ^= ((uint64_t)tail[ 4]) << 32;
+      # case  4: k1 ^= ((uint64_t)tail[ 3]) << 24;
+      # case  3: k1 ^= ((uint64_t)tail[ 2]) << 16;
+      # case  2: k1 ^= ((uint64_t)tail[ 1]) << 8;
+      # case  1: k1 ^= ((uint64_t)tail[ 0]) << 0;
+      1 /rax :movqImmReg
+      2 /rcx :shlqImm8Reg
+      /rax :shlqClReg
+      /rax :shlqClReg # support 64bit shift
+      /rax :decqReg # rax == bitmask for selection
+      /rsi /rax :andqMemReg
+
+      /r8 :mulqReg # k1 *= c1;
+      31 /rax :rolqImm8Reg # k1  = ROTL64(k1,31);
+      /r9 :mulqReg # k1 *= c2;
+      /rax /r12 :xorqRegReg # h1 ^= k1;
+
+      8 /rbp :subqImm8Reg
+      /finalize :jbeLbl8
+      8 /rsi :addqImm8Reg
+
+      # case 15: k2 ^= ((uint64_t)tail[14]) << 48;
+      # case 14: k2 ^= ((uint64_t)tail[13]) << 40;
+      # case 13: k2 ^= ((uint64_t)tail[12]) << 32;
+      # case 12: k2 ^= ((uint64_t)tail[11]) << 24;
+      # case 11: k2 ^= ((uint64_t)tail[10]) << 16;
+      # case 10: k2 ^= ((uint64_t)tail[ 9]) << 8;
+      # case  9: k2 ^= ((uint64_t)tail[ 8]) << 0;
+      /rbp /rcx :movqRegReg
+      1 /rax :movqImmReg
+      3 /rcx :shlqImm8Reg
+      /rax :shlqImm8Reg
+      /rax :decqReg # rax == bitmask for selection
+      /rsi /rax :andqMemReg
+
+      /r9 :mulqReg # k2 *= c2;
+      33 /rax :rolqImm8Reg         # k2  = ROTL64(k2,33);
+      /r8 :mulqReg # k2 *= c1;
+      /rax /r13 :xorqRegReg # h2 ^= k2;
+
+      # };
+
+      # //---------- finalization
+      @finalize
+
+      16 /rdi /r12 :xorqMemDisp8Reg # h1 ^= len;
+      16 /rdi /r13 :xorqMemDisp8Reg # h2 ^= len;
+
+      /r13 /r12 :addqRegReg # h1 += h2;
+      /r12 /r13 :addqRegReg # h2 += h1;
+
+      %85EBCA6B /r8 :movqImmReg
+      %C2B2AE35 /r9 :movqImmReg
+      # h1 = fmix64(h1);
+      /r12 /rax :movqRegReg
+      16 /r12 :shrqImm8Reg
+      /r12 /rax :xorqRegReg
+      #   h ^= h >> 16;
+      /r8 :mulqReg # h *= 0x85ebca6b;
+      /rax /r12 :movqRegReg
+      13 /r12 :shrqImm8Reg
+      /r12 /rax :xorqRegReg
+      # h ^= h >> 13;
+      /r9 :mulqReg # h *= 0xc2b2ae35;
+      /rax /r12 :movqRegReg
+      16 /r12 :shrqImm8Reg
+      /rax /r12 :xorqRegReg
+      # h ^= h >> 16;
+
+      # h2 = fmix64(h2);
+      /r13 /rax :movqRegReg
+      16 /r13 :shrqImm8Reg
+      /r13 /rax :xorqRegReg
+      #   h ^= h >> 16;
+      /r8 :mulqReg # h *= 0x85ebca6b;
+      /rax /r13 :movqRegReg
+      13 /r13 :shrqImm8Reg
+      /r13 /rax :xorqRegReg
+      # h ^= h >> 13;
+      /r9 :mulqReg # h *= 0xc2b2ae35;
+      /rax /r13 :movqRegReg
+      16 /r13 :shrqImm8Reg
+      /rax /r13 :xorqRegReg
+      # h ^= h >> 16;
+
+      /r13 /r12 :addqRegReg # h1 += h2;
+      /r12 /r13 :addqRegReg # h2 += h1;
+
+      # ((uint64_t*)out)[0] = h1;
+      /r12 /rax :movqRegReg
+      # ((uint64_t*)out)[1] = h2;
+
+      /r13 :popqReg
+      /r12 :popqReg
+      /r11 :popqReg
+      /r10 :popqReg
+      /r9 :popqReg
+      /r8 :popqReg
+      /rbx :popqReg
       :retn
-    ] /internalStringEquals defv
+    ]] /internalHashString defv
   > { defv }' allocateOffsetStruct
 
   { ==str
@@ -540,20 +702,24 @@
       "unknown object type during mark phase" outputError
       :ud2
       
+      0 /rax :movqImmReg # dead code for disambiguation in debugging
       @markInteger
       # "integer marked\n" outputError
       :retn
 
+      1 /rax :movqImmReg # dead code for disambiguation in debugging
       @markString
       # internalDumpErrorString /rax :movqImmReg
       # /rax :callqReg
       # " string marked\n" outputError
       :retn
 
+      2 /rax :movqImmReg # dead code for disambiguation in debugging
       @markFloat
       # "float marked\n" outputError
       :retn
 
+      4 /rax :movqImmReg # dead code for disambiguation in debugging
       @markExtensionArea
       # /rdi :pushqReg
       # "extension area marked\n" outputError
@@ -573,6 +739,7 @@
       /rcx :popqReg
       :retn
 
+      5 /rax :movqImmReg # dead code for disambiguation in debugging
       @markFunction
       # /rdi :pushqReg
       # "function marked\n" outputError
@@ -592,6 +759,7 @@
       /rdi /rdi :movqMemReg
       /markObject :jmpLbl32
 
+      6 /rax :movqImmReg # dead code for disambiguation in debugging
       @markFunctionCode
       # /rdi :pushqReg
       # "function code marked\n" outputError
@@ -636,6 +804,7 @@
       16 /rdi :subqImm8Reg
       /markObject :jmpLbl32
 
+      7 /rax :movqImmReg # dead code for disambiguation in debugging
       @markArray
       # /rdi :pushqReg
       # "array marked\n" outputError
@@ -657,6 +826,7 @@
       /rcx :popqReg
       :retn
 
+      8 /rax :movqImmReg # dead code for disambiguation in debugging
       @markFunctionType
       # /rdi :pushqReg
       # "function type marked\n" outputError
@@ -676,6 +846,7 @@
       /rcx :popqReg
       :retn
 
+      9 /rax :movqImmReg # dead code for disambiguation in debugging
       @markScope
       # /rdi :pushqReg
       # "scope marked\n" outputError
@@ -695,6 +866,7 @@
       /rcx :popqReg
       :retn
 
+      10 /rax :movqImmReg # dead code for disambiguation in debugging
       @markNameTable
       # /rdi :pushqReg
       # "name table marked\n" outputError
@@ -702,7 +874,7 @@
 
       /rcx :pushqReg
       /rsi :pushqReg
-      8 /rdi /ecx :movlMemDisp8Reg
+      /rdi /ecx :movlMemReg
       /rdi /rsi :movqRegReg
       16 /rcx :subqImm8Reg
       /markNameTableEmpty :jzLbl8
@@ -716,6 +888,7 @@
       /rcx :popqReg
       :retn
 
+      11 /rax :movqImmReg # dead code for disambiguation in debugging
       @markStack
       # /rdi :pushqReg
       # "stack marked\n" outputError
@@ -742,6 +915,7 @@
       /rsi :popqReg
       :retn
 
+      12 /rax :movqImmReg # dead code for disambiguation in debugging
       @markCoroutine
       # /rdi :pushqReg
       # "coroutine marked\n" outputError
@@ -823,6 +997,62 @@
   > { defv }' allocateOffsetStruct
 
   <
+    # rdi -> first string
+    # rsi -> second string
+    # rax <- 1 if both strings are equal, 0 otherwise
+    [[
+      # compare lengths
+      16 /rdi /rax :movqMemDisp8Reg
+      16 /rsi /rax :cmpqMemDisp8Reg
+      /different :jnzLbl8
+
+      # compute hashes
+      0 8 /rdi :cmpqImm8MemDisp8
+      /firstStringHashed :jnzLbl8
+      /rdi :pushqReg
+      /rsi :pushqReg
+      internalHashString /rax :movqImmReg
+      /rax :callqReg
+      /rsi :popqReg
+      /rdi :popqReg
+
+      @firstStringHashed
+
+      0 8 /rsi :cmpqImm8MemDisp8
+      /secondStringHashed :jnzLbl8
+      /rdi :pushqReg
+      /rsi :pushqReg
+      /rsi /rdi :movqRegReg
+      internalHashString /rax :movqImmReg
+      /rax :callqReg
+      /rsi :popqReg
+      /rdi :popqReg
+
+      @secondStringHashed
+
+      # compare hashes
+      8 /rdi /rax :movqMemDisp8Reg
+      8 /rsi /rax :cmpqMemDisp8Reg
+      /different :jnzLbl8
+
+      # compare contents
+      16 /rdi /rcx :movqMemDisp8Reg
+      24 /rdi /rdi :leaqMemDisp8Reg
+      24 /rsi /rsi :leaqMemDisp8Reg
+
+      :repz :cmpsb
+      /different :jneLbl8
+
+      1 /rax :movqImmReg
+      :retn
+
+      @different
+      /rax /rax :xorqRegReg
+      :retn
+    ]] /internalCompareString defv
+  > { defv }' allocateOffsetStruct
+
+  <
     # allocate a chunk of memory and zero it
     # rdi -> size of chunk in bytes
     # rax <- address of allocated chunk
@@ -883,31 +1113,69 @@
       @isScope
       # ENDCHECK
 
+      8 /rsi /rcx :movqMemDisp8Reg
+      /rcx /rcx :testqRegReg
+      /hashComputed :jnzLbl8
+
+      /rsi /rdi :movqRegReg
+      internalHashString /rax :movqImmReg
+      /rax :callqReg
+      /rax /rcx :movqRegReg
+
+      0 /rsp /rsi :movqMemDisp8Reg
+      /rax 8 /rsi :movqRegMemDisp8 # cache hash value in string
+      8 /rsp /rdi :movqMemDisp8Reg
+
+      @hashComputed
+
       8 /rdi /rbp :movqMemDisp8Reg # load name table
       /rbp /rbp :testqRegReg
-      /end :jzLbl8 # no name table present - empty scope
-      
-      16 /rbp /rdx :leaqMemDisp8Reg # rdx will iterate over entries
-      8 /rbp /rbp :addqMemDisp8Reg # compute name table effective end
-      /rsi /rax :movqRegReg
+      /end :jzLbl32 # no name table present - empty scope
 
-      /rdx /rbp :cmpqRegReg
-      /end :jbeLbl8
+      <
+        {
+          # rcx == hash value of key to resolve
+          # rbp == nametable to resolve in
+          # 0 /rsp == key to find
 
-      @loop
-      /rdx /rdi :movqMemReg
-      16 /rax /rcx :movqMemDisp8Reg # load exact length
-      16 /rdi /rdi :leaqMemDisp8Reg
-      16 /rax /rsi :leaqMemDisp8Reg
-      :cmpsq # same exact length
-      /fail :jnzLbl8
-      :repz :cmpsb
-      /found :jzLbl8
+          /ecx /eax :movlRegReg
+          0 /rbp /esi :movlMemDisp8Reg # load table length
+          16 /rsi :subqImm8Reg # substract header length
+          4 /rsi :shrqImm8Reg # divide by slot length
+          /rdx /rdx :xorqRegReg
+          /rsi :divqReg
 
-      @fail
-      16 /rdx :addqImm8Reg
-      /rdx /rbp :cmpqRegReg
-      /loop :jaLbl8
+          # rdx == remainder, i.e. slot index
+          4 /rdx :shlqImm8Reg # multiply by slot length
+          16 1 /rbp /rdx /rax :leaqMemIndexScaleDisp8Reg # load key from bucket
+          0 /rax :cmpqImm8Mem
+          /end :jzLbl32 # empty slot found, key is not present
+
+          0 /rsp /rdi :movqMemDisp8Reg
+          /rax /rsi :movqMemReg
+          /rax :pushqReg
+          /rcx :pushqReg
+          /rbp :pushqReg
+          internalCompareString /rax :movqImmReg
+          /rax :callqReg
+          /rbp :popqReg
+          /rcx :popqReg
+          /rax /rax :testqRegReg
+          /found :jnzLbl32
+
+          /rax :popqReg
+        } /trySlot deff
+
+        :HASHPOSITIONS 1 sub {
+          trySlot
+
+          /rcx /rax :movqRegReg
+          32 /rax :shrqImm8Reg
+          /rax /rcx :addqRegReg # derive a new hash value
+        } rep
+
+        trySlot
+      > --
 
       @end
       # not found at all, retry with parent
@@ -922,7 +1190,7 @@
       /rax :pushqReg
       /rdi :pushqReg
       /rsi :pushqReg
-      /retryWithParent :jnzLbl8
+      /retryWithParent :jnzLbl32
 
       @failed
       /rsi :popqReg
@@ -933,16 +1201,16 @@
       :retn
 
       @found
+      /rdx :popqReg # rdx == hash bucket where we found the key
       /rsi :popqReg # rsi == name to resolve
       /rdi :popqReg # rdi == scope we are resolving in
-      # top of stack -> number of parent pointers followed
 
-      8 /rdx /rax :movqMemDisp8Reg # load default activation
-      8 /rdi /rdx :subqMemDisp8Reg # substract name table start
-      16 /rdx :subqImm8Reg # substract name table header size
-      /rdx :shrq1Reg # divide by 2 to get offset within scope
+      # 0 /rsp -> number of parent pointers followed
 
-      /rdx /rcx :movqRegReg
+      8 /rdx /eax :movlMemDisp8Reg # load default activation
+      12 /rdx /ecx :movlMemDisp8Reg # load index in scope
+      3 /rcx :shlqImm8Reg
+
       # rcx == entry index * 8 in scope
       # rax == entry default activation
       /rcx /rsi :movqRegReg # save into target register for return value
@@ -1086,6 +1354,110 @@
 
       :retn
     ] /internalAllocateScope defv
+
+    # allocate nametable
+    # rdi -> expected number of entries
+    # rax <- address of nametable on the heap
+    [
+      4 /rdi :shlqImm8Reg
+      32 /rdi :addqImm8Reg
+      internalAllocateAndZero /rax :movqImmReg
+      /rax :callqReg
+
+      # set type
+      %A0 7 /rax :orbImmMemDisp8
+      :retn
+    ] /internalAllocateNametable defv
+
+    # insert string into nametable
+    # rdi -> string to insert
+    # rsi -> nametable to insert within
+    # rax <- address of 16 byte hash slot, or zero if no free bucket was found
+    # rdx <- zero if new entry, one if same key was already present
+    [[
+      /rdi :pushqReg
+      /rsi :pushqReg
+
+      8 /rdi /rcx :movqMemDisp8Reg # load cached hash value
+      /rcx /rcx :testqRegReg
+      /hashComputed :jnzLbl8
+
+      internalHashString /rax :movqImmReg
+      /rax :callqReg
+      /rax /rcx :movqRegReg
+
+      8 /rsp /rdi :movqMemDisp8Reg
+      /rax 8 /rdi :movqRegMemDisp8 # cache hash value in string
+      0 /rsp /rsi :movqMemDisp8Reg
+
+      @hashComputed
+
+      <
+        {
+          # rcx == hash value
+          # rsi == nametable to insert into
+          # rdi == string to insert
+
+          /ecx /eax :movlRegReg
+          /rsi /esi :movlMemReg # load table length
+          16 /rsi :subqImm8Reg # substract header length
+          4 /rsi :shrqImm8Reg # divide by slot length
+          /rdx /rdx :xorqRegReg
+          /rsi :divqReg
+
+          # rdx == remainder of division
+
+          0 /rsp /rsi :movqMemDisp8Reg
+          4 /rdx :shlqImm8Reg # multiply by slot length
+          16 1 /rdx /rsi /rax :leaqMemIndexScaleDisp8Reg # rax == slot address
+          0 /rax :cmpqImm8Mem
+          /emptySlotFound :jzLbl32
+
+          /rax /rsi :movqMemReg
+          /rax :pushqReg
+          /rcx :pushqReg
+          internalCompareString /rax :movqImmReg
+          /rax :callqReg
+          /rcx :popqReg
+          /rax /rax :testqRegReg
+          /equalSlotFound :jnzLbl32
+
+          /rax :popqReg
+          8 /rsp /rdi :movqMemDisp8Reg
+          0 /rsp /rsi :movqMemDisp8Reg
+        } /trySlot deff
+
+        :HASHPOSITIONS 1 sub {
+          trySlot
+
+          /rcx /rax :movqRegReg
+          32 /rax :shrqImm8Reg
+          /rax /rcx :addqRegReg # derive a new hash value
+        } rep
+
+        trySlot
+      > --
+
+      /rax /rax :xorqRegReg # no slot found
+      /rdx /rdx :xorqRegReg
+      16 /rsp :addqImm8Reg
+      :retn
+
+      @emptySlotFound
+      # rax == slot address
+      /rsi :popqReg
+
+      /rax :popqMem # save string into slot
+      /rdx /rdx :xorqRegReg
+      :retn
+
+      @equalSlotFound
+      /rax :popqReg
+      16 /rsp :addqImm8Reg
+
+      1 /rdx :movqImmReg
+      :retn
+    ]] /internalInsertToNametable defv
 
     # allocate function
     # rdi -> code pointer
@@ -1270,6 +1642,71 @@
 
       :retn
     ]] /internalAllocateCodeFromEncodingBuffer defv
+
+    # rdi -> nametable to enlarge
+    # rsi -> number of entries to have in the new hashtable
+    # rax <- new, larger nametable
+    [[
+      /rdi :pushqReg
+
+      @retry
+
+      /rsi /rdi :movqRegReg
+      internalAllocateNametable /rax :movqImmReg
+      /rax :callqReg
+      /rax :pushqReg
+
+      8 /rsp /rsi :movqMemDisp8Reg
+
+      8 /rsi /rdx :movqMemDisp8Reg
+      /rdx 8 /rax :movqRegMemDisp8 # transfer entry count
+
+      /rsi /ecx :movlMemReg
+      16 /rcx :subqImm8Reg # substract header size
+      4 /rcx :shrqImm8Reg # divide by 16 to get number of buckets
+
+      # rcx == number of entries to rehash
+
+      @rehashEntry
+      16 /rsi :addqImm8Reg
+
+      # rsi == hash bucket to rehash
+
+      0 /rsi :cmpqImm8Mem
+      /entryIsEmpty :jzLbl8
+
+      /rcx :pushqReg
+      /rsi :pushqReg
+
+      /rsi /rdi :movqMemReg
+      16 /rsp /rsi :movqMemDisp8Reg
+      internalInsertToNametable /rax :movqImmReg
+      /rax :callqReg
+      /rax /rax :testqRegReg
+      /rehashFailed :jzLbl8
+
+      /rsi :popqReg
+      /rcx :popqReg
+
+      8 /rsi /rdx :movqMemDisp8Reg
+      /rdx 8 /rax :movqRegMemDisp8 # transfer entry data
+
+      @entryIsEmpty
+      
+      /rehashEntry :loopLbl8
+
+      /rax :popqReg
+      8 /rsp :addqImm8Reg
+      :retn
+
+      @rehashFailed
+      16 /rsp :addqImm8Reg
+      /rax :popqReg
+      /rax /esi :movlMemReg
+      3 /rsi :shrqImm8Reg
+
+      /retry :jmpLbl8
+    ]] /internalGrowNametable defv
   > { defv }' allocateOffsetStruct
 
   [

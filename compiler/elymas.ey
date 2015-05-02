@@ -1,6 +1,9 @@
 #!/home/drahflow/elymas/interpreter/elymas
 
 "standard.ey" include
+
+1 ==ASSERTIONS
+
 "elymasGlobal.ey" include
 "elymasTokenize.ey" include
 "elymasLexer.ey" include

@@ -1,4 +1,3 @@
-* hashed nametables
 * make '' applicable to arrays, too, i.e. save input type
 * utf8
 * glob

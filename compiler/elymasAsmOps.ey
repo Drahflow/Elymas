@@ -1294,6 +1294,16 @@ memoryAddressingVariants keys { ==variant memoryAddressingVariants variant . =*p
   /zero reg modrm11
 } /rolqClReg deff
 
+{ ==reg ==i
+  reg bit64assert
+  i 64 lt not { "Shift immediate too large" die } rep
+
+  1 /none /none reg rex
+  %C1
+  /zero reg modrm11
+  i imm8
+} /rolqImm8Reg deff
+
 {
   %AE
 } /scasb deff
