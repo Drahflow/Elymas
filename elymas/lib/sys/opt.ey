@@ -458,7 +458,7 @@
               { } # TODO optimize scope execution one day
               { "failed to optimize 'execution' of name table" die }
               { "objects of type 11 should not appear" die }
-              { "objects of type 12 should not appear" die }
+              { } # TODO optimize coroutine execution one day
               { "objects of type 13 should not appear" die }
               { "objects of type 14 should not appear" die }
               { "objects of type 15 should not appear" die }
