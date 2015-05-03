@@ -258,8 +258,9 @@
       # case  9: k2 ^= ((uint64_t)tail[ 8]) << 0;
       /rbp /rcx :movqRegReg
       1 /rax :movqImmReg
-      3 /rcx :shlqImm8Reg
-      /rax :shlqImm8Reg
+      2 /rcx :shlqImm8Reg
+      /rax :shlqClReg
+      /rax :shlqClReg
       /rax :decqReg # rax == bitmask for selection
       /rsi /rax :andqMemReg
 
