@@ -685,6 +685,8 @@
     } /reuseAddr deffd
   > /setsockopt defvd
 
+  # 0 -> options
+  # 1 -> pid to wait for
   # 0 <- raw return value
   # 1 <- returned status
   { ==options ==pid

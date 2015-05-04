@@ -1,23 +1,72 @@
-# abstract system io layer
+# abstract system layer
 
-{ # ==directory
-  "\0" cat 511 sys .linux .mkdir 0 neq { ??io.dir.mk } rep
-} /mkdir sys .deff
+<
+  sys .linux "+" via
 
-{ # ==directory
-  "\0" cat sys .linux .ORDONLY sys .linux .ODIRECTORY bor 0 sys .linux .open ==fd
-  fd 0 lt { ??io.dir.ls.open } {
-    [ [ { fd sys .linux .getdents64 _ 0 lt { ??io.dir.ls.getdents } rep } { _ len dearray } loop ] { .dname } each ]
-    fd sys .linux .close 0 lt { ??io.dir.ls.close } rep
-  } ? *
-} /readdir sys .deff
+  { # ==directory
+    "\0" cat 511 +mkdir 0 neq { ??io.dir.mk } rep
+  } /mkdir sys .deff
 
-{ # ==directory
-  sys .readdir { 0 -01 * 0 "." * neq } grep
-} /ls sys .deff
+  { # ==directory
+    "\0" cat +ORDONLY +ODIRECTORY bor 0 +open ==fd
+    fd 0 lt { ??io.dir.ls.open } {
+      [ [ { fd +getdents64 _ 0 lt { ??io.dir.ls.getdents } rep } { _ len dearray } loop ] { .dname } each ]
+      fd +close 0 lt { ??io.dir.ls.close } rep
+    } ? *
+  } /readdir sys .deff
 
-{
-  "\0" cat -01 "\0" cat -01 sys .linux .rename 0 neq { ??io.rename } rep
-} /rename sys .deff
+  { # ==directory
+    sys .readdir { 0 -01 * 0 "." * neq } grep
+  } /ls sys .deff
+
+  {
+    "\0" cat -01 "\0" cat -01 +rename 0 neq { ??io.rename } rep
+  } /rename sys .deff
+
+  # 0 -> an array of strings determining argv
+  # 1 -> path to executable
+  {
+    -01 "\0" cat -01 [ ] +execve ??proc.exec
+  } /exec sys .deff
+
+  # 0 -> a shell command
+  { ==cmd
+    "/bin/sh" [ "sh" "-c" cmd "\0" cat ] [ ] +execve ??proc.exec
+  } /shell sys .deff
+
+  # 0 -> function to execute in the child
+  # 0 <- scope describing child, available members:
+  #      .pid
+  #      .wait (will return some status code) # TODO decompose this according to man 2 waitpid
+  #      <SIG> .kill
+  #      .in - child stdin
+  #      .out - child stdout
+  #      .err - child stderr (maybe inject some polling on this one per default)
+  #
+  # Example:
+  # { "wget 'http://drahflow.name/' -O -" sys .shell } sys .spawn _ |dump -01 .out .eachLine .wait --
+  { =*f
+    +pipe 0 neq { ??proc.spawn.pipe } rep ==readA ==writeA
+    +pipe 0 neq { ??proc.spawn.pipe } rep ==readB ==writeB
+    +pipe 0 neq { ??proc.spawn.pipe } rep ==readC ==writeC
+    +fork _ ==child not {
+      [ writeA readB readC 0 1 2 ] { +close } '*0.0 --
+      [ readA writeB writeC ] [ 0 1 2 ] { +dup2 } '*00.0 --
+      f 0 sys .exit
+    } rep
+    child 1 neg eq { ??proc.spawn.fork } {
+      readA +close { ??proc.spawn.close } rep
+      writeB +close { ??proc.spawn.close } rep
+      writeC +close { ??proc.spawn.close } rep
+      child < ==pid
+        { pid 0 +waitpid -- } =*wait
+        { pid -01 +kill -- } =*kill
+        writeA sys .fdToFile _ .writeonly ==in
+        readB sys .fdToFile _ .readonly ==out
+        readC sys .fdToFile _ .readonly ==err
+      >
+    } ? *
+  } /spawn sys .deff
+> --
 
 # vim: syn=elymas
