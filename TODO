@@ -1,6 +1,8 @@
 * make '' applicable to arrays, too, i.e. save input type
 * utf8
-* glob
+* regex substitution
+* asm-based regex engine
+* [,] must be escapable in regex
 * txt .consume .u sollte nicht negative Zahlen liefern
   * evtl. BigNums bauen und die Int-Funktionen entsprechend machen
 * trigonometrics

@@ -19,6 +19,24 @@
     sys .readdir { 0 -01 * 0 "." * neq } grep
   } /ls sys .deff
 
+  { _ ==pattern
+    "^(.*)/([^/]*)$" regex {
+      ==dir =pattern
+    }" {
+      "." ==dir
+    }" ? *
+    [ pattern { ==c
+      [
+        # FIXME: [, ] escapes in regexes
+        { c 0 "." * eq } { "\\." { } each }
+        { c 0 "*" * eq } { ".*" { } each }
+        { c 0 "?" * eq } { "." { } each }
+        { 1 } { c }
+      ] conds
+    } each ] str .fromArray ==rx
+    dir sys .readdir { rx regex } grep
+  } /glob sys .deff
+
   {
     "\0" cat -01 "\0" cat -01 +rename 0 neq { ??io.rename } rep
   } /rename sys .deff
