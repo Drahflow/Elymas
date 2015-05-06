@@ -49,7 +49,7 @@
 
   # 0 -> a shell command
   { ==cmd
-    "/bin/sh" [ "sh" "-c" cmd "\0" cat ] [ ] +execve ??proc.exec
+    "/bin/sh" [ "sh" "-c" cmd ] { "\0" cat } '*0.0 [ ] +execve ??proc.exec
   } /shell sys .deff
 
   # 0 -> function to execute in the child
@@ -79,9 +79,9 @@
       child < ==pid
         { pid 0 +waitpid -- } =*wait
         { pid -01 +kill -- } =*kill
-        writeA sys .fdToFile _ .writeonly ==in
-        readB sys .fdToFile _ .readonly ==out
-        readC sys .fdToFile _ .readonly ==err
+        writeA _ ==inFd sys .fdToFile _ .writeonly ==in
+        readB _ ==outFd sys .fdToFile _ .readonly ==out
+        readC _ ==errFd sys .fdToFile _ .readonly ==err
       >
     } ? *
   } /spawn sys .deff
