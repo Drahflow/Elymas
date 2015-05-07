@@ -966,8 +966,8 @@
       invalid # function type
       { "<scope: " o sys .asm .rawAddress base16encode64 cat ">" cat sys .err .writeall }
       invalid # name table
-      unknown
-      unknown
+      invalid # stack
+      { "<coroutine: " o sys .asm .rawAddress base16encode64 cat ">" cat sys .err .writeall }
       unknown
       unknown
       unknown
