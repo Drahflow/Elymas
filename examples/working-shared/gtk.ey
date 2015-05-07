@@ -1,0 +1,48 @@
+"lib/ffi.ey" include
+"lib/ffi/gtk.ey" include
+
+{ γbutton_new_with_label } "β" deffd
+{ -2201 0 0 0 γsignal_connect_data } "<-" deffd
+
+ffi .gtk "γ" via
+"org.gtk.example" 0 γapplication_new ==app
+app "activate" {
+  app γapplication_window_new ==win
+  win "Window" γwindow_set_title
+  win 200 200 γwindow_set_default_size
+
+  γORIENTATION_HORIZONTAL γbutton_box_new ==box
+  win 10 γcontainer_set_border_width
+
+  γgrid_new ==grid
+  win grid γcontainer_add
+
+  βHello World! 
+    { "Hello World!" dump } <-clicked
+  grid -01 0 0 1 1 γgrid_attach
+
+  βFinish
+    { win γwidget_destroy } <-clicked
+  grid -01 1 0 1 1 γgrid_attach
+
+  γtext_view_new ==txt
+  txt 0 γtext_view_set_editable
+  txt 0 γtext_view_set_cursor_visible
+  txt γtext_view_get_buffer
+    sys .file "φ" via "gtk.ey" φopen 65536 φread φclose 
+    γtext_buffer_set_text
+
+  0 0 γscrolled_window_new ==scroll
+  scroll txt γcontainer_add
+  scroll 1 γwidget_set_hexpand
+  scroll 1 γwidget_set_vexpand
+  grid scroll 0 1 2 1 γgrid_attach
+
+  win γwidget_show_all
+} 0 0 0 γsignal_connect_data
+app 0 "" γapplication_run
+app γobject_unref
+
+"Killing threads with fire" die
+
+# vim: syn=elymas

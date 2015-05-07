@@ -1,0 +1,65 @@
+# GTK+ support
+
+<
+  sys .so ":" via
+
+  "libgtk-3.so" :dlopen --
+  "libgdk-3.so" :dlopen --
+  "libatk-1.0.so" :dlopen --
+  "libgio-2.0.so" :dlopen --
+  "libpangocairo-1.0.so" :dlopen --
+  "libgdk_pixbuf-2.0.so" :dlopen --
+  "libcairo-gobject.so" :dlopen --
+  "libpango-1.0" :dlopen --
+  "libcairo.so" :dlopen --
+  "libgobject-2.0.so" :dlopen --
+  "libglib-2.0.so" :dlopen --
+
+  { _ "g_" -01 cat -1032 :resolveFunction -01 deffd }' "-->" deffd
+  { _ "gtk_" -01 cat -1032 :resolveFunction -01 deffd }' "->" deffd
+  
+  # GC protection for callbacks
+  map ==references
+  { _ _ sys .asm .rawAddress txt .produce .u references =[] } /reference deffd
+
+  "si" "p" ->application_new
+  "p" "p" ->application_window_new
+
+  "pip" "i64" -->application_run
+  "p" "" -->application_quit
+  "p" "" -->object_unref
+   { -2103 "pp" "" :wrapCallback reference -0321 } "g_signal_connect_data" "pscppi" "" :resolveFunction ; /signal_connect_data deffd
+
+  "pp" "" ->container_add
+  "pi" "" ->container_set_border_width
+
+  "p" "" ->widget_show_all
+  "p" "" ->widget_destroy
+  "pi" "" ->widget_set_hexpand
+  "pi" "" ->widget_set_vexpand
+
+  "" "p" ->grid_new
+  "ppiiii" "" ->grid_attach
+
+  "pp" "p" ->scrolled_window_new
+
+  "ps" "" ->window_set_title
+  "pii" "" ->window_set_default_size
+
+  "i" "p" ->button_box_new
+  "s" "p" ->button_new_with_label
+
+  "" "p" ->text_view_new
+  "pi" "" ->text_view_set_editable
+  "pi" "" ->text_view_set_cursor_visible
+  "p" "p" ->text_view_get_buffer
+
+  { _ len } "gtk_text_buffer_set_text" "psi" "" :resolveFunction ; /text_buffer_set_text deffd
+
+  0 ==:ORIENTATION_HORIZONTAL
+  1 ==:ORIENTATION_VERTICAL
+
+  2 ==:CONNECT_SWAPPED
+> /gtk ffi .defv
+
+# vim: syn=elymas
