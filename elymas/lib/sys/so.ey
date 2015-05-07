@@ -1,5 +1,7 @@
 # Freeze into ELF binary which requires libc (for dlsym and dlopen).
 
+# FIXME: also have r13 backup, because coroutines
+
 <
   sys .linux "+" via
   sys .asm "::" via
@@ -156,6 +158,7 @@
   # 1 -> argument specification string
   #      "iis" == foo(int, int, char *)
   #      p: pointer argument
+  #      c: callback argument (create suitable callbacks using wrapCallback)
   #      i: integer argument (of any width)
   #      f: float argument
   #      d: double argument
@@ -222,6 +225,16 @@
               63 reg :btrqImm8Reg
               [ 8 reg reg :movqMemDisp8Reg ] len :jcRel8
               8 reg reg :movqMemDisp8Reg
+              nextIntegerStorage
+            ]
+          }
+          { t 0 "c" * eq }' {
+            [
+              useIntegerStorage ==reg
+              8 /r15 :subqImm8Reg
+              reg /r15 :movqRegMem # keep the GC away
+              24 reg reg :movqMemDisp8Reg
+              16 reg :addqImm8Reg
               nextIntegerStorage
             ]
           }
@@ -481,6 +494,41 @@
       :retn
     ] [ ] ::createFunction
   } /wrapFunction deffd
+
+  { ==rets ==args ==func
+    [
+      /rbx :pushqReg
+      /rbp :pushqReg
+      /r12 :pushqReg
+      /r13 :pushqReg
+      /r14 :pushqReg
+      /r15 :pushqReg
+
+      r15backup rawContentAddress /rax :movqImmReg
+      /rax /r15 :movqMemReg
+
+      func ::rawAddress /rax :movqImmReg
+      /rax :pushqReg
+      # FIXME: push arguments on stack
+      
+      "*" | ::rawCodeAddress /rax :movqImmReg
+      /rax :callqReg
+
+      # FIXME: grab return values from stack
+
+      r15backup rawContentAddress /rax :movqImmReg
+      /r15 /rax :movqRegMem
+
+      /r15 :popqReg
+      /r14 :popqReg
+      /r13 :popqReg
+      /r12 :popqReg
+      /rbp :popqReg
+      /rbx :popqReg
+
+      :retn
+    ] [ func ::rawAddress ] ::createFunction
+  } /wrapCallback deffd
 
   { "\0" cat } [
     /rbx :popqReg
