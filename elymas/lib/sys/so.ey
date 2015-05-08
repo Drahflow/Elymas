@@ -18,6 +18,11 @@
     0 -01 { 48 sub [ 0 1 2 3 4 5 6 7 8 9  0 0 0 0 0 0 0  10 11 12 13 14 15 ] * -01 16 mul -01 add } each
   } "%" defq
 
+  [ /rdi /rsi /rdx /rcx /r8 /r9 ] _ =*:availableIntegerRegisters
+                                    len ==:INTREGISTERS
+  [ /xmm0 /xmm1 /xmm2 /xmm3 /xmm4 /xmm5 /xmm6 /xmm7 ] _ =*:availableFloatRegisters
+                                                        len ==:FLOATREGISTERS
+
   <
     {
       { 8 uw } /u64 deffd
@@ -140,6 +145,111 @@
                                [ -01 ] saveFromGC -01 cat =saveFromGC
   } /defineFunction deffst
 
+  <
+    {
+      ::internalAllocateFloat /rax :movqImmReg
+      /rax :callqReg
+
+      /xmm0 8 /rax :movqXmmMemDisp8
+      /rax :pushqReg
+    } /wrapFloat deffd
+
+    {
+      /rax /rdx :movqRegReg
+      32 /rdx :shrqImm8Reg
+      
+      [
+        63 /rax :btsqImm8Reg
+        0 :jmpRel8
+      ] len :jnzRel8
+
+      63 /rax :btsqImm8Reg
+
+      [
+        /rax :pushqReg
+        ::internalAllocateInteger /rax :movqImmReg
+        /rax :callqReg
+        8 /rax :popqMemDisp8
+      ] len :jmpRel8
+
+      /rax :pushqReg
+      ::internalAllocateInteger /rax :movqImmReg
+      /rax :callqReg
+      8 /rax :popqMemDisp8
+      /rax :pushqReg
+    } /wrapInteger deffd
+
+    { ==type
+      [
+        { type "" eq }' { }
+        { type "s" eq }' {
+          /rax :pushqReg
+          /rcx /rcx :xorqRegReg
+          /rax /rdi :movqRegReg
+          /rax /rax :xorqRegReg
+          /rcx :decqReg
+          :repnz :scasb
+          /rcx :negqReg
+          2 /rcx :subqImm8Reg
+          /rcx /rdi :movqRegReg
+          ::internalAllocateString /rax :movqImmReg
+          /rax :callqReg
+          /rsi :popqReg
+          /rax :pushqReg
+          24 /rax /rdi :leaqMemDisp8Reg
+          :repnz :movsb
+        }
+        { type "i64" eq }' {
+          wrapInteger
+        }
+        { type "i32" eq }' {
+          /eax /rax :movsxlqRegReg # sign extend result
+          wrapInteger
+        }
+        { type "i16" eq }' {
+          /ax /rax :movsxwqRegReg # sign extend result
+          wrapInteger
+        }
+        { type "i8" eq }' {
+          /al /rax :movsxbqRegReg # sign extend result
+          wrapInteger
+        }
+        { type "u64" eq }' {
+          wrapInteger
+        }
+        { type "u32" eq }' {
+          /eax /eax :movlRegReg # zero extend result
+          63 /rax :btsqImm8Reg
+          /rax :pushqReg
+        }
+        { type "u16" eq }' {
+          /ax /rax :movzxwqRegReg # zero extend result
+          63 /rax :btsqImm8Reg
+          /rax :pushqReg
+        }
+        { type "u8" eq }' {
+          /al /rax :movzxbqRegReg # zero extend result
+          63 /rax :btsqImm8Reg
+          /rax :pushqReg
+        }
+        { type "p" eq }' {
+          wrapInteger
+        }
+        { type "d" eq }' {
+          wrapFloat
+        }
+        { type "f" eq }' {
+          /xmm0 /xmm0 :cvtss2sdXmmXmm
+          wrapFloat
+        }
+        { 1 }' {
+          type dump
+          "unknown return type specification" die
+        }
+      ] conds
+    } =*returnWrapper
+  > /helpers defvd
+
   # wrap a C function
   # 0 -> return value specification string
   #      v: no return value
@@ -167,10 +277,6 @@
   # 2 -> address of function
   # the resulting function will take as many arguments as specified and return a single value
   { ==rets ==args ==func
-    [ /rdi /rsi /rdx /rcx /r8 /r9 ] _ =*:availableIntegerRegisters
-                                      len ==:INTREGISTERS
-    [ /xmm0 /xmm1 /xmm2 /xmm3 /xmm4 /xmm5 /xmm6 /xmm7 ] _ =*:availableFloatRegisters
-                                                          len ==:FLOATREGISTERS
     0 ==nextIntegerRegister
     0 ==nextFloatRegister
     
@@ -355,109 +461,6 @@
       } each
     ] ==argumentLoaders
     
-    {
-      ::internalAllocateFloat /rax :movqImmReg
-      /rax :callqReg
-
-      /xmm0 8 /rax :movqXmmMemDisp8
-      /rax :pushqReg
-    } /wrapFloat deffd
-
-    {
-      /rax /rdx :movqRegReg
-      32 /rdx :shrqImm8Reg
-      
-      [
-        63 /rax :btsqImm8Reg
-        0 :jmpRel8
-      ] len :jnzRel8
-
-      63 /rax :btsqImm8Reg
-
-      [
-        /rax :pushqReg
-        ::internalAllocateInteger /rax :movqImmReg
-        /rax :callqReg
-        8 /rax :popqMemDisp8
-      ] len :jmpRel8
-
-      /rax :pushqReg
-      ::internalAllocateInteger /rax :movqImmReg
-      /rax :callqReg
-      8 /rax :popqMemDisp8
-      /rax :pushqReg
-    } /wrapInteger deffd
-
-    {
-      [
-        { rets "" eq }' { }
-        { rets "s" eq }' {
-          /rax :pushqReg
-          /rcx /rcx :xorqRegReg
-          /rax /rdi :movqRegReg
-          /rax /rax :xorqRegReg
-          /rcx :decqReg
-          :repnz :scasb
-          /rcx :negqReg
-          2 /rcx :subqImm8Reg
-          /rcx /rdi :movqRegReg
-          ::internalAllocateString /rax :movqImmReg
-          /rax :callqReg
-          /rsi :popqReg
-          /rax :pushqReg
-          24 /rax /rdi :leaqMemDisp8Reg
-          :repnz :movsb
-        }
-        { rets "i64" eq }' {
-          wrapInteger
-        }
-        { rets "i32" eq }' {
-          /eax /rax :movsxlqRegReg # sign extend result
-          wrapInteger
-        }
-        { rets "i16" eq }' {
-          /ax /rax :movsxwqRegReg # sign extend result
-          wrapInteger
-        }
-        { rets "i8" eq }' {
-          /al /rax :movsxbqRegReg # sign extend result
-          wrapInteger
-        }
-        { rets "u64" eq }' {
-          wrapInteger
-        }
-        { rets "u32" eq }' {
-          /eax /eax :movlRegReg # zero extend result
-          63 /rax :btsqImm8Reg
-          /rax :pushqReg
-        }
-        { rets "u16" eq }' {
-          /ax /rax :movzxwqRegReg # zero extend result
-          63 /rax :btsqImm8Reg
-          /rax :pushqReg
-        }
-        { rets "u8" eq }' {
-          /al /rax :movzxbqRegReg # zero extend result
-          63 /rax :btsqImm8Reg
-          /rax :pushqReg
-        }
-        { rets "p" eq }' {
-          wrapInteger
-        }
-        { rets "d" eq }' {
-          wrapFloat
-        }
-        { rets "f" eq }' {
-          /xmm0 /xmm0 :cvtss2sdXmmXmm
-          wrapFloat
-        }
-        { 1 }' {
-          rets dump
-          "unknown return type specification" die
-        }
-      ] conds
-    } =*returnWrapper
-
     [
       /rbx :popqReg
 
@@ -485,7 +488,7 @@
         args len INTREGISTERS sub 8 mul /rsp :addqImm8Reg
       } rep
 
-      returnWrapper
+      rets helpers .returnWrapper
 
       r15backup rawContentAddress /rax :movqImmReg
       /rax /r15 :movqMemReg
@@ -496,6 +499,9 @@
   } /wrapFunction deffd
 
   { ==rets ==args ==func
+    0 ==nextIntegerRegister
+    0 ==nextFloatRegister
+    
     [
       /rbx :pushqReg
       /rbp :pushqReg
@@ -507,10 +513,35 @@
       r15backup rawContentAddress /rax :movqImmReg
       /rax /r15 :movqMemReg
 
+      # FIXME: push arguments on stack
+      { args "^(s|p|i64|i32|i16|i8|u64|u32|u16|u8|p|d|f)(.*)" regex } { ==type =args
+        [
+          { type "f" eq } {
+            /not_enough_registers ==reg
+            nextFloatRegister FLOATREGISTERS lt {
+              nextFloatRegister _ availableFloatRegisters =reg
+                                  1 add =nextFloatRegister
+            } rep
+            reg /xmm0 :movqXmmXmm
+            type helpers .returnWrapper
+          }
+          { 1 } {
+            /not_enough_registers ==reg
+            nextIntegerRegister INTREGISTERS lt {
+              nextIntegerRegister _ availableIntegerRegisters =reg
+                                  1 add =nextIntegerRegister
+            } rep
+            reg /rax :movqRegReg
+            type helpers .returnWrapper
+          }
+        ] conds
+      } loop
+
+      args "" neq { "Invalid type spec for wrapCallback: " args cat die } rep
+      
       func ::rawAddress /rax :movqImmReg
       /rax :pushqReg
-      # FIXME: push arguments on stack
-      
+
       "*" | ::rawCodeAddress /rax :movqImmReg
       /rax :callqReg
 

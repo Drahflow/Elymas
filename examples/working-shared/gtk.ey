@@ -6,7 +6,7 @@
 
 ffi .gtk "γ" via
 "org.gtk.example" 0 γapplication_new ==app
-app "activate" {
+app "activate" { dump dump
   app γapplication_window_new ==win
   win "Window" γwindow_set_title
   win 200 200 γwindow_set_default_size
@@ -18,11 +18,11 @@ app "activate" {
   win grid γcontainer_add
 
   βHello World! 
-    { "Hello World!" dump } <-clicked
+    { dump dump "Hello World!" dump } <-clicked
   grid -01 0 0 1 1 γgrid_attach
 
   βFinish
-    { win γwidget_destroy } <-clicked
+    { dump dump win γwidget_destroy } <-clicked
   grid -01 1 0 1 1 γgrid_attach
 
   γtext_view_new ==txt
