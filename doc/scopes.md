@@ -40,10 +40,10 @@ Some of these functions are aliased, because they appear particularly useful:
 
 * `==?` aliases `defv`, i.e. value definition without optimization guarantees
 * `==` aliases `defvst`, i.e. value definition with static and type constness
-* `==:` aliases `defvd`, i.e. value definition with deep constness
+* `==:` aliases `defvc`, i.e. value definition with constness
 * `=*?` aliases `deff`, i.e. executable definition without optimization guarantees
 * `=*` aliases `deffst`, i.e. executable definition with static and type constness
-* `=*:` aliases `deffd`, i.e. executable definition with deep constness
+* `=*:` aliases `deffc`, i.e. executable definition with constness
 
 The value associated with a name can be updated using the `=` function. It takes a name to update and the new value from the stack.
 
