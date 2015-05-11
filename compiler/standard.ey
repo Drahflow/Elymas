@@ -11,7 +11,7 @@
   } quoted { } { * } ? *
 } "}_" defq
 
-{ { -01 < ==o { o -01 . } > -12 } } {
+{ { -01 < ==o { o -01 }' "." | ; > -12 } } {
   quoted { }" { * }" ? *
   quoted { |deffst } { deffst }" ? *
 }" ; /via defq
