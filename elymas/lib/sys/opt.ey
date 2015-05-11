@@ -144,6 +144,7 @@
   /STATICWRITE ==:STATICWRITE
   /STATICDOT ==:STATICDOT
   /NATIVE ==:NATIVE
+  /NATIVENOSCOPE ==:NATIVENOSCOPE
   /ARRAYSTAR ==:ARRAYSTAR
   /UNTYPEDSCOPEDSTAR ==:UNTYPEDSCOPEDSTAR
   /UNTYPEDUNSCOPEDSTAR ==:UNTYPEDUNSCOPEDSTAR
@@ -163,7 +164,6 @@
 
   { ==o ==executingScope
     0 ==containsScopeModifications
-
     { _ ==logic
       logic { ==entry 0 entry * ==action
         [
@@ -181,6 +181,31 @@
         ] conds
       } each
     } /testScopeModifications deffst
+
+    0 ==allocatedScopeMightEscape
+    { _ ==logic
+      logic { ==entry 0 entry * ==action
+        [
+          { action NOP eq }' { }
+          { action PUSH eq }' { }
+          { action CALLSCOPED eq }' { }
+          { action STATIC eq }' { }
+          { action STATICTYPED eq }' { }
+          { action STATICWRITE eq }' { }
+          { action STATICDOT eq }' { }
+          { action ARRAYSTAR eq }' { }
+          { action UNTYPEDSCOPEDSTAR eq }' { }
+          { action STRINGSTAR eq }' { }
+          { action NATIVENOSCOPE eq }' { }
+
+          # TODO handle known-harmless unscoped global functions
+          { 1 }' {
+            1 =allocatedScopeMightEscape
+            entry dump
+          }
+        ] conds
+      } each
+    } /testAllocatedScopeEscape deffst
 
     { ==logic
       [ NOP ] ==last
@@ -302,7 +327,7 @@
               { 1 secondLast * 128 lt }' andif
             }' {
               1 secondLast * ==value
-              [ NATIVE [
+              [ NATIVENOSCOPE [
                 /rdx :popqReg
                 63 /rdx :btrqImm8Reg
                 [ 8 /rdx /rdx :movqMemDisp8Reg ] len :jcRel8
@@ -341,7 +366,7 @@
             }
 
             { 1 last * |add ::rawAddress eq }' {
-              [ NATIVE [
+              [ NATIVENOSCOPE [
                 /rcx :popqReg
                 63 /rcx :btrqImm8Reg
                 [ 8 /rcx /rcx :movqMemDisp8Reg ] len :jcRel8
@@ -385,7 +410,7 @@
 
             { ==negatedOpcodeName ==functionName
               { 1 last * functionName | ::rawAddress eq }' {
-                [ NATIVE [
+                [ NATIVENOSCOPE [
                   /rcx :popqReg
                   63 /rcx :btrqImm8Reg
                   [ 8 /rcx /rcx :movqMemDisp8Reg ] len :jcRel8
@@ -500,7 +525,7 @@
       [ logic { ==entry 0 entry * ==action
         [
           { action CALL eq { 1 entry * "?" | ::rawCodeAddress eq }' andif }' {
-            [ NATIVE [
+            [ NATIVENOSCOPE [
               /rcx :popqReg
               /rdx :popqReg
               /rax :popqReg
@@ -513,12 +538,12 @@
             ] ] =entry
           }
           { action CALL eq { 1 entry * "_" | ::rawCodeAddress eq }' andif }' {
-            [ NATIVE [
+            [ NATIVENOSCOPE [
               0 /rsp :pushqMemDisp8
             ] ] =entry
           }
           { action CALL eq { 1 entry * "--" | ::rawCodeAddress eq }' andif }' {
-            [ NATIVE [
+            [ NATIVENOSCOPE [
               8 /rsp :addqImm8Reg
             ] ] =entry
           }
@@ -541,7 +566,7 @@
               largestNumber |availableRegisters len gt {
                 # TODO maybe implement this one day
               } {
-                [ NATIVE [
+                [ NATIVENOSCOPE [
                   0 largestNumber 1 add range {
                     availableRegisters :popqReg
                   } each
@@ -721,24 +746,6 @@
 
     # [ :ud2 ] emitOpcodes # enable for further development
 
-    isScoping {
-      [
-        8 /r15 :subqImm8Reg
-        /r15 :popqMem
-        8 /r15 :subqImm8Reg
-        /r14 /r15 :movqRegMem
-        /r14 /rsi :movqRegReg
-        2 /rdi :movqImmReg # FIXME: this should use INITIALSCOPESIZE
-        ::internalAllocateScope /rax :movqImmReg
-        /rax :callqReg
-        /rax /r14 :movqRegReg
-      ] emitOpcodes
-    }" {
-      [
-        8 /r15 :subqImm8Reg
-        /r15 :popqMem
-      ] emitOpcodes
-    }" ? *
 
     newLogic
     testScopeModifications
@@ -751,6 +758,53 @@
     rewriteConstantQuestionStar
     rewriteArithmetics
     rewriteSimpleFunctions
+    testAllocatedScopeEscape
+
+    "allocatedScopeMightEscape: " dump
+    allocatedScopeMightEscape dump
+
+    isScoping {
+      allocatedScopeMightEscape {
+        [
+          8 /r15 :subqImm8Reg
+          /r15 :popqMem
+          8 /r15 :subqImm8Reg
+          /r14 /r15 :movqRegMem
+          /r14 /rsi :movqRegReg
+          2 /rdi :movqImmReg # FIXME: this should use INITIALSCOPESIZE
+          ::internalAllocateScope /rax :movqImmReg
+          /rax :callqReg
+          /rax /r14 :movqRegReg
+        ] emitOpcodes
+      }" {
+        # allocate scope directly on the call stack
+        # this works even though we cannot GC the scope object anymore, because
+        # the stack contents are tracked anyway
+        [
+          8 /r15 :subqImm8Reg
+          /r15 :popqMem
+          8 /r15 :subqImm8Reg
+          /r14 /r15 :movqRegMem
+          48 /r15 :subqImm8Reg # FIXME: this should use INITIALSCOPESIZE
+          /rax /rax :xorqRegReg
+          /rax 0 /r15 :andqRegMemDisp8
+          /rax 8 /r15 :andqRegMemDisp8
+          /r14 16 /r15 :movqRegMemDisp8 # save parent scope
+          /rax 24 /r15 :andqRegMemDisp8
+          /rax 32 /r15 :andqRegMemDisp8 # FIXME also use INITIALSCOPESIZE
+          /rax 40 /r15 :andqRegMemDisp8
+          48 /r15 :orbImmMem # set length
+          %96 7 /r15 :orbImmMemDisp8 # set type and existence of all pointers
+          /r15 /r14 :movqRegReg
+        ] emitOpcodes
+      }" ? *
+    }" {
+      [
+        8 /r15 :subqImm8Reg
+        /r15 :popqMem
+      ] emitOpcodes
+    }" ? *
+
     { =*entry 0 entry ==action
       [
         { action PUSH eq }' {
@@ -919,7 +973,7 @@
           ] emitOpcodes
         }
 
-        { action NATIVE eq }' {
+        { action [ NATIVE NATIVENOSCOPE ] eq any }' {
           1 entry emitOpcodes
         }
 
@@ -934,18 +988,26 @@
     } each
 
     isScoping {
-      [
-        /r15 /r14 :movqMemReg
-        16 /r15 :addqImm8Reg
-        8 neg /r15 :jmpqMemDisp8
-      ] emitOpcodes
-    }' {
+      allocatedScopeMightEscape {
+        [
+          /r15 /r14 :movqMemReg
+          16 /r15 :addqImm8Reg
+          8 neg /r15 :jmpqMemDisp8
+        ] emitOpcodes
+      }" {
+        [
+          48 /r15 /r14 :movqMemDisp8Reg
+          64 /r15 :addqImm8Reg # FIXME also use INITIALSCOPESIZE
+          8 neg /r15 :jmpqMemDisp8
+        ] emitOpcodes
+      }" ? *
+    }" {
       [
         /r15 :pushqMem
         8 /r15 :addqImm8Reg
         :retn
       ] emitOpcodes
-    }' ? *
+    }" ? *
 
     newOpcodes newReferences o ::replace
     1 executingScope # return something different from o to signal successful optimization
