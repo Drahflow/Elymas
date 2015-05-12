@@ -162,6 +162,14 @@
     ] any
   } /holdsInt deffd
 
+  [
+    "|" "=" "/" "?" "[" "]" "dearray" "def" "die" "len"
+    "quoted" "range" "''" ".?" ".?'" ".|" ";"
+    /defv /deff /defq /defm /defvs /deffs /defms /defvt
+    /defft /defmt /defvst /deffst /defmst /defvc /deffc
+    /defmc /defvd /deffd /defmd
+  ] { | ::rawCodeAddress } [ 0 ] [ 0 ] '' * ==:SCOPEFRIENDLYFUNCTIONS
+
   { ==o ==executingScope
     0 ==containsScopeModifications
     { _ ==logic
@@ -198,10 +206,11 @@
           { action STRINGSTAR eq }' { }
           { action NATIVENOSCOPE eq }' { }
 
-          # TODO handle known-harmless unscoped global functions
+          { action CALL eq { 1 entry * SCOPEFRIENDLYFUNCTIONS eq any } andif }' { }
+
+          # TODO handle more known-harmless unscoped global functions
           { 1 }' {
             1 =allocatedScopeMightEscape
-            entry dump
           }
         ] conds
       } each
@@ -595,9 +604,9 @@
       get ==j
       pattern { _ j ops -01 { eq not { 0 =found }' rep }" { -- -- }" ? * j 1 add =j }' each
       found _ { j set }' { }" ? *
-    } /generalMatch deff
+    } /generalMatch deffst
 
-    { { i }' { =i }' peek generalMatch }' /match deff
+    { { i }' { =i }' peek generalMatch }' /match deffst
 
     generalHeaderPattern match not { "failure while matching generalHeaderPattern" die }" rep
     scopingHeaderPattern match ==isScoping
@@ -622,7 +631,7 @@
         { callConstantPattern match }' {
           [ s 2 add _ 8 add range peek each ] 256 math .unbase ==calledAddress
           calledAddress ==j
-          { { j }' { =j }' peek generalMatch }' /callTargetMatch deff
+          { { j }' { =j }' peek generalMatch }' /callTargetMatch deffst
           [
             { calledAddress 105553116266496 lt }' { # HEAPBASE # FIXME: should use global constant
               [ CALL calledAddress ] emitLogic
@@ -760,6 +769,9 @@
     rewriteSimpleFunctions
     testAllocatedScopeEscape
 
+    allocatedScopeMightEscape {
+      _ dump
+    } rep
     "allocatedScopeMightEscape: " dump
     allocatedScopeMightEscape dump
 
