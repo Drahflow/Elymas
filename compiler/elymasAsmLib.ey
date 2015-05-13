@@ -374,6 +374,10 @@
       /rbx :popqReg
       :retn
 
+      # free lists are accumulated during searchForFreeBlock when small blocks are skipped
+      # they always point downwards in the heap and are terminated by a null pointer
+      # only cells below unusedHeapStart may be present in the free lists
+
       @takeFromFreelist
       /rdi /rax :movqRegReg
       /rax :decqReg
