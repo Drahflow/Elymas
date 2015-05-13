@@ -163,12 +163,14 @@
   } /holdsInt deffd
 
   [
-    "|" "=" "/" "?" "[" "]" "dearray" "def" "die" "len"
-    "quoted" "range" "''" ".?" ".?'" ".|" ";"
+    "|" "=" "/" "?" "[" "]" /cat /dearray /def /die /len
+    /quoted /range "''" ".?" ".?'" ".|" ";"
     /defv /deff /defq /defm /defvs /deffs /defms /defvt
     /defft /defmt /defvst /deffst /defmst /defvc /deffc
     /defmc /defvd /deffd /defmd
-  ] { | ::rawCodeAddress } [ 0 ] [ 0 ] '' * ==:SCOPEFRIENDLYFUNCTIONS
+    /keys /dom /add /and /band /bor /bxor /div /eq /ge /gt /le /lt
+    /mod /mul /neq /or /sub /udiv /umod /xor /bnot /neg /not
+  ] { | ::rawCodeAddress } [ 0 ] [ 0 ] '' * ==:SCOPETIGHTFUNCTIONS
 
   { ==o ==executingScope
     0 ==containsScopeModifications
@@ -206,7 +208,7 @@
           { action STRINGSTAR eq }' { }
           { action NATIVENOSCOPE eq }' { }
 
-          { action CALL eq { 1 entry * SCOPEFRIENDLYFUNCTIONS eq any } andif }' { }
+          { action CALL eq { 1 entry * SCOPETIGHTFUNCTIONS eq any } andif }' { }
 
           # TODO handle more known-harmless unscoped global functions
           { 1 }' {
@@ -768,12 +770,6 @@
     rewriteArithmetics
     rewriteSimpleFunctions
     testAllocatedScopeEscape
-
-    allocatedScopeMightEscape {
-      _ dump
-    } rep
-    "allocatedScopeMightEscape: " dump
-    allocatedScopeMightEscape dump
 
     isScoping {
       allocatedScopeMightEscape {
