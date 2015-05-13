@@ -234,9 +234,9 @@
           keyAddr {
             entryAddr 8 add peeku32 %10 band not {
               0 =templatable
-              "NOT templatable because" dump
-              nameTableAddress dump
-              keyAddr ::rawObject dump
+              # "NOT templatable because" dump
+              # nameTableAddress dump
+              # keyAddr ::rawObject dump
             } rep
           } { } ? *
         } each
@@ -246,8 +246,6 @@
 
       templatable {
         nameTableAddress =templateNametable
-        "Setting template bit on " dump
-        nameTableAddress dump
         nameTableAddress 7 add _ sys .asm .peek %04 bor -01 sys .asm .poke # set template bit
       } rep
     } /testNametableTemplatability deffst
@@ -255,7 +253,6 @@
     { ==logic
       [ logic { ==entry 0 entry * ==action
         action CALL eq { 1 entry * "/" | ::rawCodeAddress eq }' andif {
-          "dropped call to /" dump
           # drop call to /
         } {
           entry
@@ -327,8 +324,6 @@
                   [ STATICWRITE offsetInScope parentCount inExtensionArea ] =last
                   [ NOP ] =entry
                 } { } ? *
-
-                "Rewrote def* of " dump constant dump
               } rep
             } {
               executingScope dump
