@@ -391,25 +391,44 @@
       /rax /rdx :movqMemReg # load next entry of free list
       /rdx /rcx :movqRegMem # and save into global freelist starts
 
+      # rdi == requested size
+      # rax == start of free block on heap
+
+      # prepare block length and GC header (-> light grey)
+      /rdi /rdx :movqRegReg
+      59 /rdx :btsqImm8Reg
+      /rdx /rax :movqRegMem
+
       heapSize /rbp :movqImmReg
       0 /rbp /rbp :movqMemDisp8Reg
       # rbp now holds number of bytes in heap
       4 /rbp :shrqImm8Reg
       # rbp now holds number of 16 byte cells in heap
 
-      /r8 :pushqReg
-      /r9 :pushqReg
-
-      /r8 :movqImmOOBReg BLOCKBASE
-      /r9 :movqImmOOBReg MARKBASE
-
       /rcx :movqImmOOBReg HEAPBASE
-      /rcx /rax :subqRegReg
-      /rdi /rax :addqRegReg
-      8 /rax :addqImm8Reg # adjust 8-byte chunks upwards
-      /rax /rbx :movqRegReg
-      4 /rbx :shrqImm8Reg # rbx == cell number of last cell of block to allocate
-      /freeListAllocation :jmpLbl32 # continue as normal allocation
+      /rdx :movqImmOOBReg BLOCKBASE
+      /rsi :movqImmOOBReg MARKBASE
+
+      /rcx :negqReg
+      /rax /rcx :addqRegReg
+      /rcx /rbx :movqRegReg
+      4 /rbx :shrqImm8Reg
+
+      # mark block as used (-> white)
+      /rbx /rdx :btsqRegMem # set block bit
+      /rbx /rsi :btrqRegMem # reset mark bit
+
+      8 1 /rdi /rcx /rbx :leaqMemIndexScaleDisp8Reg # compute end of block, adjust 8-byte chunks upwards
+      4 /rbx :shrqImm8Reg # rbx == cell number of first cell of next block
+      /rbx /rbp :cmpqRegReg
+      /dontSplitAfterFreelist :jbeLbl8
+
+      /rbx /rdx :btqRegMem # the next block already starts here?
+      /dontSplitAfterFreelist :jcLbl8 # yes
+      /rbx /rsi :btsqRegMem # set mark bit if block bit was zero
+
+      @dontSplitAfterFreelist
+      :retn
 
       # run through block bitmap until sufficiently many zeroes are found
       # if yes, allocate block
@@ -499,7 +518,6 @@
 
       # split block if necessary
       /rbx :incqReg
-      @freeListAllocation
       /rbx /rbp :cmpqRegReg
       /dontSplit :jbeLbl8
 
