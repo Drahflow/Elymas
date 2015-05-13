@@ -1809,12 +1809,12 @@
       %30 -101* /eydefvst defv
       %31 -101* /eydeffst defv
       %33 -101* /eydefmst defv
-      %50 -101* /eydefvc defv
-      %51 -101* /eydeffc defv
-      %53 -101* /eydefmc defv
-      %D0 -101* /eydefvd defv
-      %D1 -101* /eydeffd defv
-      %D3 -101* /eydefmd defv
+      %40 -101* /eydefvc defv
+      %41 -101* /eydeffc defv
+      %43 -101* /eydefmc defv
+      %C0 -101* /eydefvd defv
+      %C1 -101* /eydeffd defv
+      %C3 -101* /eydefmd defv
       --
 
     # retype a function

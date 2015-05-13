@@ -173,6 +173,9 @@
     /keys /dom /add /and /band /bor /bxor /div /eq /ge /gt /le /lt
     /mod /mul /neq /or /sub /udiv /umod /xor /bnot /neg /not
   ] { | ::rawCodeAddress } [ 0 ] [ 0 ] '' * ==:SCOPETIGHTFUNCTIONS
+  [
+    /defvs /deffs /defms /defvst /deffst /defmst
+  ] { | ::rawCodeAddress } [ 0 ] [ 0 ] '' * ==:STATICDEFININGFUNCTIONS
 
   { ==o ==executingScope
     0 ==containsScopeModifications
@@ -250,6 +253,17 @@
     } /testNametableTemplatability deffst
 
     { ==logic
+      [ logic { ==entry 0 entry * ==action
+        action CALL eq { 1 entry * "/" | ::rawCodeAddress eq }' andif {
+          "dropped call to /" dump
+          # drop call to /
+        } {
+          entry
+        } ? *
+      } each ]
+    } /rewriteSlash deffst
+
+    { ==logic
       [ NOP ] ==last
       [ logic { ==entry 0 entry * ==action
         [
@@ -300,12 +314,35 @@
               "resolution failed" die
             } ? *
           }
+          { templateNametable { action CALL eq }' andif { 1 entry * STATICDEFININGFUNCTIONS eq any }' andif
+              { 0 last * PUSH eq }' andif }' {
+            1 last * ::rawObject ==constant
+
+            constant executingScope sys .resolveInfo {
+              ==mode -- ==parentCount 32 add ==offsetInScope ==inExtensionArea
+              inExtensionArea { offsetInScope 8 add =offsetInScope } rep
+
+              inExtensionArea not { # FIXME: implement the extension area case
+                mode 16 div 1 band {
+                  [ STATICWRITE offsetInScope parentCount inExtensionArea ] =last
+                  [ NOP ] =entry
+                } { } ? *
+
+                "Rewrote def* of " dump constant dump
+              } rep
+            } {
+              executingScope dump
+              executingScope keys dump
+              constant dump
+              "resolution failed" die
+            } ? *
+          }
         ] conds
 
         last
         entry =last
       } each last ]
-    } /rewriteConstantEquals deffst
+    } /rewriteConstantAssignment deffst
 
     { _ ==logic
       2 logic len range { ==i i logic * ==entry 0 entry * ==action i 1 sub logic * ==last i 2 sub logic * ==secondLast
@@ -791,9 +828,10 @@
     newLogic
     testNametableTemplatability
     testScopeModifications
+    rewriteSlash
     containsScopeModifications not {
       rewriteConstantPipe
-      rewriteConstantEquals
+      rewriteConstantAssignment
     } rep
     rewriteConstantDot
     rewriteConstantStar

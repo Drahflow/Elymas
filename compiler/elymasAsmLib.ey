@@ -938,8 +938,17 @@
       @allocateFromSystem
       heapSize /rax :movqImmReg
       /rax /rdi :movqMemReg
-      ALLOCCHUNKSIZE /rsi :movqImmReg # size of new block
+      ALLOCCHUNKSIZE /rax :movqImmReg # minimum size of new block
+      /rdi /rcx :movqRegReg
+      24 /rcx :shrqImm8Reg
+      /rcx :incqReg
+      /rdx /rdx :xorqRegReg
+      /rcx :mulqReg # allocate more if heap is already large
+      /rax /rsi :movqRegReg
+      /rsi :pushqReg
+
       /rsi /rdi :addqRegReg
+      heapSize /rax :movqImmReg
       /rdi /rax :movqRegMem
       /rsi /rdi :subqRegReg
       /rax :movqImmOOBReg HEAPBASE
@@ -950,7 +959,11 @@
       heapSize /rax :movqImmReg
       /rax /rdi :movqMemReg
       7 /rdi :shrqImm8Reg
-      ALLOCCHUNKSIZE 128 udiv /rsi :movqImmReg
+
+      /rsi :popqReg
+      7 /rsi :shrqImm8Reg
+      /rsi :pushqReg
+
       /rsi /rdi :subqRegReg
       /rax :movqImmOOBReg BLOCKBASE
       /rax /rdi :addqRegReg
@@ -959,7 +972,7 @@
       heapSize /rax :movqImmReg
       /rax /rdi :movqMemReg
       7 /rdi :shrqImm8Reg
-      ALLOCCHUNKSIZE 128 udiv /rsi :movqImmReg
+      /rsi :popqReg
       /rsi /rdi :subqRegReg
       /rax :movqImmOOBReg MARKBASE
       /rax /rdi :addqRegReg
