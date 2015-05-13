@@ -19,6 +19,8 @@
   } ":" defq
   sys .asm "::" via
   sys .asm .|peek ==:peek
+  { [ -01 _ 4 add range peek each ] 256 math .unbase } =*:peeku32
+  { [ -01 _ 8 add range peek each ] 256 math .unbase } =*:peeku64
 
   [
     8 /r15 :subqImm8Reg
@@ -217,6 +219,35 @@
         ] conds
       } each
     } /testAllocatedScopeEscape deffst
+
+    0 ==templateNametable
+    {
+      1 ==templatable
+      executingScope ::rawAddress 8 add peeku64 ==nameTableAddress
+      nameTableAddress {
+        nameTableAddress peeku32 ==nameTableLength
+        0 nameTableLength 16 sub 16 div range 16 mul nameTableAddress 16 add add { ==entryAddr
+          entryAddr peeku64 ==keyAddr
+          keyAddr {
+            entryAddr 8 add peeku32 %10 band not {
+              0 =templatable
+              "NOT templatable because" dump
+              nameTableAddress dump
+              keyAddr ::rawObject dump
+            } rep
+          } { } ? *
+        } each
+      } {
+        0 =templatable
+      } ? *
+
+      templatable {
+        nameTableAddress =templateNametable
+        "Setting template bit on " dump
+        nameTableAddress dump
+        nameTableAddress 7 add _ sys .asm .peek %04 bor -01 sys .asm .poke # set template bit
+      } rep
+    } /testNametableTemplatability deffst
 
     { ==logic
       [ NOP ] ==last
@@ -757,8 +788,8 @@
 
     # [ :ud2 ] emitOpcodes # enable for further development
 
-
     newLogic
+    testNametableTemplatability
     testScopeModifications
     containsScopeModifications not {
       rewriteConstantPipe
@@ -806,6 +837,15 @@
           /r15 /r14 :movqRegReg
         ] emitOpcodes
       }" ? *
+
+      templateNametable {
+        [
+          templateNametable /rax :movqImmReg
+          /rax 8 /r14 :movqRegMemDisp8
+        ] emitOpcodes
+
+        templateNametable emitReference
+      } { } ? *
     }" {
       [
         8 /r15 :subqImm8Reg

@@ -275,6 +275,7 @@ Overhead: 1/32.
 * Length in bytes (including header)
   bit 63-60: 1 0 1 0
   bit 59: reserved for GC
+  bit 58: template table, needs copy on write
 * Number of keys (also next scope entry index to assign)
 * Hash buckets (16 bytes each)
   [

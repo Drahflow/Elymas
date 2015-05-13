@@ -1378,6 +1378,9 @@
     [[
       /rdi :pushqReg
       /rsi :pushqReg
+      
+      58 /rsi :btqImm8Mem
+      /noSlotFound :jcLbl32 # nametable has template bit set, cannot modify
 
       8 /rdi /rcx :movqMemDisp8Reg # load cached hash value
       /rcx /rcx :testqRegReg
@@ -1439,6 +1442,7 @@
         trySlot
       > --
 
+      @noSlotFound
       /rax /rax :xorqRegReg # no slot found
       /rdx /rdx :xorqRegReg
       16 /rsp :addqImm8Reg
