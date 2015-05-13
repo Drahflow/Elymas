@@ -95,6 +95,8 @@
   4096 16 mul 8 mul ==ALLOCCHUNKSIZE # minimum ALLOCCHUNKSIZE
   # 4096 16 mul 8 mul 64 mul ==ALLOCCHUNKSIZE # FIXME: there is still some wonkyness with freezing
 
+  32 ==FREELISTCOUNT
+
   <
     # current end of heap memory (grows upwards)
     [ %00 %00 %00 %00 %00 %00 %00 %00 ] ==heapSize
@@ -102,11 +104,11 @@
     # index of next cell likely to be free
     [ %00 %00 %00 %00 %00 %00 %00 %00 ] ==unusedHeapStart
     
-    # current parser scope
-    [ %00 %00 %00 %00 %00 %00 %00 %00 ] ==currentScope
-
     # current parser quote state
     [ %00 %00 %00 %00 %00 %00 %00 %00 ] ==currentQuoted
+    
+    # freelists for various sizes
+    [ FREELISTCOUNT { %00 %00 %00 %00 %00 %00 %00 %00 } rep ] ==freeLists
   > { defv }' allocateOffsetStruct
 
   { ==register
@@ -350,6 +352,9 @@
       # /markAndSweep :callqLbl32 # load testing
       # /rdi :popqReg # load testing
       /rdi :pushqReg
+      /takeFromFreelist :callqLbl32
+      /rax /rax :andqRegReg
+      /success :jnzLbl32
       /searchForFreeBlock :callqLbl32
       /rax /rax :andqRegReg
       /success :jnzLbl32
@@ -369,11 +374,22 @@
       /rbx :popqReg
       :retn
 
-      # run through block bitmap until sufficiently many zeroes are found
-      # if yes, allocate block
-      @searchForFreeBlock
-      # rdi -> size of chunk in bytes
-      # rax <- address of allocated chunk or zero if no free block was found
+      @takeFromFreelist
+      /rdi /rax :movqRegReg
+      /rax :decqReg
+      /rax /rax :bsrqRegReg # compute log_2(rdi)
+      /rax :incqReg
+
+      freeLists /rsi :movqImmReg
+      8 /rax /rsi /rcx :leaqMemIndexScaleReg # load correct freelist start
+      /rcx /rax :movqMemReg # load entry
+      /rax /rax :testqRegReg
+      /freeListUseful :jnzLbl8
+      :retn
+
+      @freeListUseful
+      /rax /rdx :movqMemReg # load next entry of free list
+      /rdx /rcx :movqRegMem # and save into global freelist starts
 
       heapSize /rbp :movqImmReg
       0 /rbp /rbp :movqMemDisp8Reg
@@ -381,10 +397,36 @@
       4 /rbp :shrqImm8Reg
       # rbp now holds number of 16 byte cells in heap
 
+      /r8 :pushqReg
+      /r9 :pushqReg
+
+      /r8 :movqImmOOBReg BLOCKBASE
+      /r9 :movqImmOOBReg MARKBASE
+
+      /rcx :movqImmOOBReg HEAPBASE
+      /rcx /rax :subqRegReg
+      /rdi /rax :addqRegReg
+      8 /rax :addqImm8Reg # adjust 8-byte chunks upwards
+      /rax /rbx :movqRegReg
+      4 /rbx :shrqImm8Reg # rbx == cell number of last cell of block to allocate
+      /freeListAllocation :jmpLbl32 # continue as normal allocation
+
+      # run through block bitmap until sufficiently many zeroes are found
+      # if yes, allocate block
+      @searchForFreeBlock
+      # rdi -> size of chunk in bytes
+      # rax <- address of allocated chunk or zero if no free block was found
+
       unusedHeapStart /rbx :movqImmReg
       /rbx /rbx :movqMemReg
       # /rbx /rbx :xorqRegReg
       # rbx == index of cell currently tested
+
+      heapSize /rbp :movqImmReg
+      0 /rbp /rbp :movqMemDisp8Reg
+      # rbp now holds number of bytes in heap
+      4 /rbp :shrqImm8Reg
+      # rbp now holds number of 16 byte cells in heap
 
       /r8 :pushqReg
       /r9 :pushqReg
@@ -414,6 +456,8 @@
       /noFreeBlockAvailable :jmpLbl32
 
       @freeBlockStartFound
+      /rbx /rdx :movqRegReg
+      @freeBlockContinues
       16 /rsi :addqImm8Reg
       /rsi /rdi :cmpqRegReg
       /freeBlockFound :jbeLbl8
@@ -421,9 +465,30 @@
       /rbx /rbp :cmpqRegReg
       /noFreeBlockAvailable :jbeLbl32
       /rbx /r8 :btqRegMem # test block bitmap
-      /resumeFreeBlockStartSearch :jcLbl8 # block not free
+      /blockTooSmall :jcLbl8 # block not free
       /rbx /r9 :btrqRegMem # reset mark bit to reconnect free blocks
-      /freeBlockStartFound :jmpLbl8
+      /freeBlockContinues :jmpLbl8
+
+      @blockTooSmall
+      4 /rdx :shlqImm8Reg
+      /rax :movqImmOOBReg HEAPBASE
+      /rax /rdx :addqRegReg # rdx == start of empty block in heap
+
+      /rsi /rax :bsrqRegReg # compute log_2(rsi)
+      freeLists /rsi :movqImmReg
+      8 /rax /rsi /rcx :leaqMemIndexScaleReg # load correct freelist start
+      /rcx /rsi :movqMemReg
+      /rsi /rsi :testqRegReg
+      /freeListEmpty :jzLbl8
+
+      /rsi /rdx :movqRegMem # save old freelist start into heap
+      /rdx /rcx :movqRegMem # save freelist entry
+      /resumeFreeBlockStartSearch :jmpLbl8
+
+      @freeListEmpty
+      0 /rdx :andqImm8Mem # put zero into heap to signal end of list
+      /rdx /rcx :movqRegMem # save freelist entry
+      /resumeFreeBlockStartSearch :jmpLbl8
 
       @freeBlockFound
       # rdi == size of block to allocate
@@ -434,6 +499,7 @@
 
       # split block if necessary
       /rbx :incqReg
+      @freeListAllocation
       /rbx /rbp :cmpqRegReg
       /dontSplit :jbeLbl8
 
@@ -465,6 +531,12 @@
       @noFreeBlockAvailable
       /r9 :popqReg
       /r8 :popqReg
+
+      freeLists /rax :movqImmReg
+      FREELISTCOUNT {
+        0 /rax :andqImm8Mem
+        8 /rax :addqImm8Reg
+      } rep
 
       /rax /rax :xorqRegReg
       :retn
@@ -936,6 +1008,7 @@
 
       # allocate next chunk of memory from the operating system
       @allocateFromSystem
+
       heapSize /rax :movqImmReg
       /rax /rdi :movqMemReg
       ALLOCCHUNKSIZE /rax :movqImmReg # minimum size of new block
@@ -1288,63 +1361,6 @@
     # rax <- address of allocated integer
     #        chunk will have GC length header initialized correctly
     [[
-      heapSize /rbp :movqImmReg
-      unusedHeapStart /rcx :movqImmReg
-      /rdx :movqImmOOBReg HEAPBASE
-      0 /rbp /rbp :movqMemDisp8Reg
-      # rbp now holds number of bytes in heap
-      /rcx /rcx :movqMemReg
-      /rdi :movqImmOOBReg BLOCKBASE
-      /rsi :movqImmOOBReg MARKBASE
-      6 /rcx :shrqImm8Reg # extract quadword
-      10 /rbp :shrqImm8Reg
-      # rbp now holds number of quad-words in bitmaps
-
-      @testBlockBitLoop
-      /rcx /rbp :cmpqRegReg
-      /noFreeBlockAvailable :jbeLbl32
-      8 /rcx /rdi /rax :movqMemIndexScaleReg
-      /rax :notqReg
-      8 /rcx /rsi /rax :andqMemIndexScaleReg
-      /rax /rax :bsfqRegReg # find bit with !block & mark -> free
-      /continueTestBlockBitLoop :jzLbl8
-
-      /rax 8 /rcx /rdi :btsqRegMemIndexScale # set block bit of new block
-      /rax 8 /rcx /rsi :btrqRegMemIndexScale # reset mark bit of new block
-
-      # split block if necessary
-      /rax :incqReg
-      6 /rax :btqImm8Reg
-      0 /rcx :adcqImm8Reg
-      %3F /rax :andqImm8Reg
-      /rcx /rbp :cmpqRegReg
-      /dontSplit :jbeLbl8 # next cell outside of heap
-      /rax 8 /rcx /rdi :btqRegMemIndexScale
-      /dontSplit :jcLbl8 # next cell already allocated
-      /rax 8 /rcx /rsi :btsqRegMemIndexScale # set mark bit
-
-      @dontSplit
-      6 /rcx :shlqImm8Reg
-      /rax /rcx :addqRegReg
-      # rcx == cell index of cell after allocated int
-      unusedHeapStart /rax :movqImmReg
-      /rcx /rax :movqRegMem
-
-      /rcx :decqReg
-      # rcx == cell index of allocated int
-      4 /rcx :shlqImm8Reg
-      # rcx == offset of allocated int
-      /rdx /rcx /rax :leaqMemIndexReg
-
-      /rcx :movqImmOOBReg %10 %00 %00 %00 %00 %00 %00 %08 # -> light grep
-      /rcx /rax :movqRegMem # initialize GC header
-      :retn
-
-      @continueTestBlockBitLoop
-      /rcx :incqReg
-      /testBlockBitLoop :jmpLbl8
-
-      @noFreeBlockAvailable
       10 /rdi :movqImmReg
       internalAllocate /rax :movqImmReg
       /rax :jmpqReg

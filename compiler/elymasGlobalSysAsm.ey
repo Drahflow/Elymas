@@ -494,8 +494,14 @@
       /rbx /rax :movqRegMem # 112
       /r13 :movqImmOOBReg %EE %EE %EE %EE %EE %EE %EE %EE # 122
 
-      /r8 /rsp :xchgqRegReg # swap to elymas stack to ensure correct GC behavior for what follows
+      ::freeLists /rax :movqImmReg
+      ::FREELISTCOUNT {
+        0 /rax :andqImm8Mem
+        8 /rax :addqImm8Reg
+      } rep
 
+      /r8 /rsp :xchgqRegReg # swap to elymas stack to ensure correct GC behavior for what follows
+      
       # empty encoding buffer to ensure the GC does not follow residue from freeze into unallocated memory
       :quoteEncodingBufferObjects /rdi :movqImmReg
       /rax /rax :xorqRegReg
