@@ -560,6 +560,10 @@
         8 /rax :addqImm8Reg
       } rep
 
+      unusedHeapStart /rax :movqImmReg
+      /rbx /rbx :xorqRegReg
+      /rbx /rax :movqRegMem
+
       /rax /rax :xorqRegReg
       :retn
 
@@ -576,10 +580,6 @@
       heapSize /r11 :movqImmReg
       /r11 /r11 :movqMemReg # constant through mark
       /r8 /r11 :addqRegReg # r11 == end of heap
-
-      unusedHeapStart /rax :movqImmReg
-      /rbx /rbx :xorqRegReg
-      /rbx /rax :movqRegMem
 
       # zero mark bitmap
       /r11 /rcx :movqRegReg
