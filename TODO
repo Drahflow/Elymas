@@ -1,4 +1,3 @@
-* make '' applicable to arrays, too, i.e. save input type
 * utf8
 * regex substitution
 * asm-based regex engine
@@ -6,8 +5,11 @@
 * txt .consume .u sollte nicht negative Zahlen liefern
   * evtl. BigNums bauen und die Int-Funktionen entsprechend machen
 * trigonometrics
+* make jmp-pads after optimization rewrite call site if ... /rax movqImmReg; /rax :callqReg pattern
 
 * testsuite (incl. coverage test)
+
+* make '' applicable to arrays, too, i.e. save input type
 
 * consider polymorphic call-site caches instead of deffs_t_ / deffs?
 

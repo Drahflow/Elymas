@@ -375,7 +375,7 @@
       :retn
 
       # free lists are accumulated during searchForFreeBlock when small blocks are skipped
-      # they always point downwards in the heap and are terminated by a null pointer
+      # they are terminated by a null pointer
       # only cells below unusedHeapStart may be present in the free lists
 
       @takeFromFreelist
@@ -389,11 +389,46 @@
       /rcx /rax :movqMemReg # load entry
       /rax /rax :testqRegReg
       /freeListUseful :jnzLbl8
+
+      3 {
+        8 /rcx :addqImm8Reg
+        /rcx /rax :movqMemReg # load entry
+        /rax /rax :testqRegReg
+        /freeListUseful :jnzLbl8
+      } rep # try some larger freelists
+
       :retn
 
       @freeListUseful
+      # rdi == requested size
+      # rax == start of free block on heap
+      # rcx == global freelist starts slot
+
       /rax /rdx :movqMemReg # load next entry of free list
       /rdx /rcx :movqRegMem # and save into global freelist starts
+
+      8 /rax /rsi :movqMemDisp8Reg # load length of free block
+      /rdi /rsi :subqRegReg # substract requested size
+      %F0 /rsi :andqImm8Reg # reset lower 4 bit
+      /returnFreeListBlock :jzLbl8
+
+      /rax /rdi /rdx :leaqMemIndexReg
+      8 /rdx :addqImm8Reg
+      %F0 /rdx :andqImm8Reg # align on 16 byte cell
+
+      # rdx == start of remaining block
+      # rsi == length of remaining block
+
+      /rsi 8 /rdx :movqRegMemDisp8 # save remaining size
+
+      /rsi /rbp :bsrqRegReg # compute log_2(rsi)
+      freeLists /rsi :movqImmReg
+      8 /rbp /rsi /rcx :leaqMemIndexScaleReg # load correct freelist start
+      /rcx /rsi :movqMemReg
+      /rsi /rdx :movqRegMem # save old freelist start into heap
+      /rdx /rcx :movqRegMem # save freelist entry
+
+      @returnFreeListBlock
 
       # rdi == requested size
       # rax == start of free block on heap
@@ -496,6 +531,7 @@
       4 /rdx :shlqImm8Reg
       /rax :movqImmOOBReg HEAPBASE
       /rax /rdx :addqRegReg # rdx == start of empty block in heap
+      /rsi 8 /rdx :movqRegMemDisp8 # save length of free block into heap
 
       /rsi /rax :bsrqRegReg # compute log_2(rsi)
       freeLists /rsi :movqImmReg
