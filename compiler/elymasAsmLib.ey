@@ -96,6 +96,7 @@
   # 4096 16 mul 8 mul 64 mul ==ALLOCCHUNKSIZE # FIXME: there is still some wonkyness with freezing
 
   32 ==FREELISTCOUNT
+  4096 ==MARKANDSWEEPCOST
 
   <
     # current end of heap memory (grows upwards)
@@ -372,10 +373,10 @@
       /markAndSweep :callqLbl32
 
       markAndSweepCosts /rax :movqImmReg
-      4096 /rdx :movqImmReg
+      MARKANDSWEEPCOST /rdx :movqImmReg
       /rdx /rax :addqRegMem
 
-      5000 /rdx :movqImmReg
+      MARKANDSWEEPCOST 16 add /rdx :movqImmReg
       /rdx /rax :cmpqRegMem
       /allocateFromSystemAtLeastOnce :jaeLbl8
 
