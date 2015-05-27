@@ -761,6 +761,9 @@
 
       # FIXME: clean this up, only skip mark check for function code objects actually
 
+      @markObjectDoneFixMarkBit
+      /rdx /r10 :btrqRegMem # reset mark bit (as it was before)
+
       @markObjectDone
       :retn
 
@@ -778,7 +781,6 @@
       # guaranteed not to clobber rcx, rsi (because it is used in many loops)
       @markObject
       # rdi == address of a reachable object or some other random bits
-      /rbp /rbp :xorqRegReg # rbp == 0: not from stack exploration, function code references ignored if trivial forward
       /rdi /r8 :cmpqRegReg
       /markObjectDone :jaLbl32 # pointing below the heap
       15 /dil :testbImmReg
@@ -793,11 +795,13 @@
       4 /rdx :shrqImm8Reg
       # rdx == cell index of first 16-byte cell of object
 
-      /rdx /r9 :btqRegMem # test block bit
-      /markObjectDone :jncLbl8 # not pointing to an object
       /rdx /r10 :btsqRegMem # test mark bit
-      /markObjectDone :jcLbl8 # was already marked
+      /markObjectDone :jcLbl8 # was already marked (or not an object at all)
+      /rdx /r9 :btqRegMem # test block bit
+      /markObjectDoneFixMarkBit :jncLbl8 # not pointing to an object (... and mark bit should not have been set)
 
+      /rbp /rbp :xorqRegReg # rbp == 0: not from stack exploration, function code references ignored if trivial forward
+      
       @markObjectUnclean
       # rdi == address of a reachable object
       /rax /rax :xorqRegReg
