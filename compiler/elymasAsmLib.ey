@@ -781,16 +781,16 @@
       # guaranteed not to clobber rcx, rsi (because it is used in many loops)
       @markObject
       # rdi == address of a reachable object or some other random bits
-      /rdi /r8 :cmpqRegReg
-      /markObjectDone :jaLbl32 # pointing below the heap
       15 /dil :testbImmReg
       /markObjectDone :jnzLbl32 # pointing to unaligned address
-      /rdi /r11 :cmpqRegReg
-      /markObjectDone :jbeLbl32 # pointing above the heap
       
-      # rdi == address of a reachable object
       /rdi /rdx :movqRegReg
       /r8 /rdx :subqRegReg
+      /markObjectDone :jbLbl32 # pointing below the heap
+      /rdi /r11 :cmpqRegReg
+      /markObjectDone :jbeLbl32 # pointing above the heap
+
+      # rdi == address of a reachable object
       # rdx == byte offset relative to heap begin
       4 /rdx :shrqImm8Reg
       # rdx == cell index of first 16-byte cell of object
