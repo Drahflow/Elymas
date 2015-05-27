@@ -107,6 +107,9 @@
     # current parser quote state
     [ %00 %00 %00 %00 %00 %00 %00 %00 ] ==currentQuoted
     
+    # amortized mark and sweep costs
+    [ %00 %00 %00 %00 %00 %00 %00 %00 ] ==markAndSweepCosts
+
     # freelists for various sizes
     [ FREELISTCOUNT { %00 %00 %00 %00 %00 %00 %00 %00 } rep ] ==freeLists
   > { defv }' allocateOffsetStruct
@@ -355,10 +358,26 @@
       /takeFromFreelist :callqLbl32
       /rax /rax :andqRegReg
       /success :jnzLbl32
+
+      markAndSweepCosts /rax :movqImmReg
+      /rax /rdx :movqMemReg
+      /rdx /rdx :testqRegReg
+      /costAlreadyZero :jzLbl8
+      1 /rax :subqImm8Mem
+      @costAlreadyZero
+
       /searchForFreeBlock :callqLbl32
       /rax /rax :andqRegReg
       /success :jnzLbl32
       /markAndSweep :callqLbl32
+
+      markAndSweepCosts /rax :movqImmReg
+      4096 /rdx :movqImmReg
+      /rdx /rax :addqRegMem
+
+      5000 /rdx :movqImmReg
+      /rdx /rax :cmpqRegMem
+      /allocateFromSystemAtLeastOnce :jaeLbl8
 
       @allocateFromSystemLoop
       /rdi :popqReg
@@ -366,6 +385,8 @@
       /searchForFreeBlock :callqLbl32
       /rax /rax :andqRegReg
       /success :jnzLbl32
+
+      @allocateFromSystemAtLeastOnce
       /allocateFromSystem :callqLbl32
       /allocateFromSystemLoop :jmpLbl8
 
