@@ -803,12 +803,10 @@
       # guaranteed not to clobber rcx, rsi (because it is used in many loops)
       @markObject
       # rdi == address of a reachable object or some other random bits
-      15 /dil :testbImmReg
-      /markObjectDone :jnzLbl32 # pointing to unaligned address
-      
       /rdi /rdx :movqRegReg
       /r8 /rdx :subqRegReg
       /markObjectDone :jbLbl32 # pointing below the heap
+
       /rdi /r11 :cmpqRegReg
       /markObjectDone :jbeLbl32 # pointing above the heap
 
@@ -821,6 +819,8 @@
       /markObjectDone :jcLbl8 # was already marked (or not an object at all)
       /rdx /r9 :btqRegMem # test block bit
       /markObjectDoneFixMarkBit :jncLbl8 # not pointing to an object (... and mark bit should not have been set)
+      15 /dil :testbImmReg
+      /markObjectDoneFixMarkBit :jnzLbl32 # pointing to unaligned address (... and mark bit should not have been set)
 
       /rbp /rbp :xorqRegReg # rbp == 0: not from stack exploration, function code references ignored if trivial forward
       
