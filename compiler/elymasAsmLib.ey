@@ -804,33 +804,73 @@
       
       @markObjectUnclean
       # rdi == address of a reachable object
-      /rax /rax :xorqRegReg
       7 /rdi /al :movbMemDisp8Reg
-      %F0 /al :andbImmReg
-      4 /rax :shrqImm8Reg
+      %10 /al :testbImmReg
+      /mark1_1 :jnzLbl8
+      # @mark1_0
+
+      %20 /al :testbImmReg
+      /mark3_2 :jnzLbl8
+      # @mark3_0
+
+      %40 /al :testbImmReg
+      /mark7_4 :jnzLbl8
+      # @mark7_0
+
+      %80 /al :testbImmReg
       /markInteger :jzLbl32
-      /rax :decqReg
+      /markFunctionType :jmpLbl32
+
+      @mark1_1
+      %20 /al :testbImmReg
+      /mark3_3 :jnzLbl8
+      # @mark3_1
+
+      %40 /al :testbImmReg
+      /mark7_5 :jnzLbl8
+      # @mark7_1
+
+      %80 /al :testbImmReg
       /markString :jzLbl32
-      /rax :decqReg
+      /markScope :jmpLbl32
+
+      @mark3_2
+      %40 /al :testbImmReg
+      /mark7_6 :jnzLbl8
+      # @mark7_2
+
+      %80 /al :testbImmReg
       /markFloat :jzLbl32
-      2 /rax :subqImm8Reg
+      /markNameTable :jmpLbl32
+
+      @mark7_4
+      %80 /al :testbImmReg
       /markExtensionArea :jzLbl32
-      /rax :decqReg
+      /markCoroutine :jmpLbl32
+
+      @mark3_3
+      %40 /al :testbImmReg
+      /mark7_7 :jnzLbl8
+      # @mark7_3
+
+      %80 /al :testbImmReg
+      /markInvalidType :jzLbl8
+      /markStack :jmpLbl32
+
+      @mark7_5
+      %80 /al :testbImmReg
       /markFunction :jzLbl32
-      /rax :decqReg
+      /markInvalidType :jmpLbl8
+
+      @mark7_6
+      %80 /al :testbImmReg
       /markFunctionCode :jzLbl32
-      /rax :decqReg
+      /markInvalidType :jmpLbl8
+
+      @mark7_7
+      %80 /al :testbImmReg
       /markArray :jzLbl32
-      /rax :decqReg
-      /markFunctionType :jzLbl32
-      /rax :decqReg
-      /markScope :jzLbl32
-      /rax :decqReg
-      /markNameTable :jzLbl32
-      /rax :decqReg
-      /markStack :jzLbl32
-      /rax :decqReg
-      /markCoroutine :jzLbl32
+      /markInvalidType :jmpLbl8
 
       @markInvalidType
       /rax /rbx :movqRegReg # for easier inspection
