@@ -482,6 +482,33 @@
               [ NOP ] i 1 sub logic =[]
             }
 
+            { 1 last * |and ::rawAddress eq }' {
+              [ NATIVENOSCOPE [
+                /rcx :popqReg
+                63 /rcx :btrqImm8Reg
+                [ 8 /rcx /rcx :movqMemDisp8Reg ] len :jcRel8
+                8 /rcx /rcx :movqMemDisp8Reg
+
+                /rdx :popqReg
+                63 /rdx :btrqImm8Reg
+                [ 8 /rdx /rdx :movqMemDisp8Reg ] len :jcRel8
+                8 /rdx /rdx :movqMemDisp8Reg
+
+                1 /rax :movqImmReg
+                /rcx /rcx :testqRegReg
+                [ /rax /rax :xorqRegReg ] len :jnzRel8
+                /rax /rax :xorqRegReg
+
+                /rdx /rdx :testqRegReg
+                [ /rax /rax :xorqRegReg ] len :jnzRel8
+                /rax /rax :xorqRegReg
+
+                63 /rax :btsqImm8Reg
+                /rax :pushqReg
+              ] ] i logic =[]
+              [ NOP ] i 1 sub logic =[]
+            }
+
             { ==negatedOpcodeName ==functionName
               { 1 last * functionName | ::rawAddress eq }' {
                 [ NATIVENOSCOPE [
