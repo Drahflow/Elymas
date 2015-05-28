@@ -414,7 +414,7 @@
     "exit failed" die
   } /exit sys .deff
 
-  { < ==?mode ==?flags ==?fd <
+  { < ==mode ==flags ==fd <
       { flags RWMASK bnot band RDONLY bor =flags } /readonly deff
       { flags RWMASK bnot band WRONLY bor =flags } /writeonly deff
       { flags RWMASK bnot band RDWR bor =flags } /readwrite deff
@@ -433,7 +433,7 @@
       } /close deff
       { ==count
         fd 0 lt { "file not open" die } rep 
-        count str .alloc ==?buf
+        count str .alloc ==buf
         fd buf count 0 0 0 READ sys .asm .syscall -- _
         0 lt { "read failed" die } rep
         buf str .inplacePrefix
