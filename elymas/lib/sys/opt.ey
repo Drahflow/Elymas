@@ -17,6 +17,10 @@
       sysasmops -01 .
     } ? *
   } ":" defq
+  { [ } "[[" deff
+  { ] :labelResolve } "]]" deff
+  sysasmops .|label "@" deff
+
   sys .asm "::" via
   sys .asm .|peek ==:peek
   { [ -01 _ 4 add range peek each ] 256 math .unbase } =*:peeku32
@@ -155,6 +159,89 @@
   { =*f ==t
     t { f } { 0 } ? *
   } /andif deffd
+
+  [ NATIVENOSCOPE [[
+    /rcx :popqReg
+    /rdx :popqReg
+
+    /rcx /rax :movqRegReg
+    /rdx /rbp :movqRegReg
+
+    63 /rax :btrqImm8Reg
+    /nonInlineCase :jncLbl8
+    63 /rbp :btrqImm8Reg
+    /nonInlineCase :jncLbl8
+
+    /rax /rax :testqRegReg
+    /negative :jzLbl8
+    /rbp /rbp :testqRegReg
+    /negative :jzLbl8
+
+    1 /rax :movqImmReg
+    63 /rax :btsqImm8Reg
+    /rax :pushqReg
+    /done :jmpLbl8
+
+    @negative
+    /rax /rax :xorqRegReg
+    63 /rax :btsqImm8Reg
+    /rax :pushqReg
+    /done :jmpLbl8
+
+    @nonInlineCase
+    /rdx :pushqReg
+    /rcx :pushqReg
+
+    |and ::rawAddress /rax :movqImmReg
+    /rax :pushqReg
+    "*" | ::rawCodeAddress /rax :movqImmReg
+    /rax :callqReg
+
+    @done
+  ]] ] ==:INLINEBLOCKAND
+
+  { ==negatedOpcodeName ==functionName
+    [ NATIVENOSCOPE [[
+      /rcx :popqReg
+      /rdx :popqReg
+
+      /rcx /rax :movqRegReg
+      /rdx /rbp :movqRegReg
+
+      63 /rax :btrqImm8Reg
+      /nonInlineCase :jncLbl8
+      63 /rbp :btrqImm8Reg
+      /nonInlineCase :jncLbl8
+
+      /rsi /rsi :xorqRegReg
+      /rax /rbp :cmpqRegReg
+
+      [ /rsi :incqReg ] len negatedOpcodeName :
+      /rsi :incqReg
+
+      63 /rsi :btsqImm8Reg
+      /rsi :pushqReg
+      /done :jmpLbl8
+
+      @nonInlineCase
+      /rdx :pushqReg
+      /rcx :pushqReg
+
+      functionName | ::rawAddress /rax :movqImmReg
+      /rax :pushqReg
+      "*" | ::rawCodeAddress /rax :movqImmReg
+      /rax :callqReg
+
+      @done
+    ]] ]
+  } /comparisonOperator deffst
+
+  /eq /jnzRel8 comparisonOperator ==:INLINEBLOCKEQ
+  /neq /jzRel8 comparisonOperator ==:INLINEBLOCKNEQ
+  /le /jnleRel8 comparisonOperator ==:INLINEBLOCKLE
+  /lt /jnlRel8 comparisonOperator ==:INLINEBLOCKLT
+  /ge /jngeRel8 comparisonOperator ==:INLINEBLOCKGE
+  /gt /jngRel8 comparisonOperator ==:INLINEBLOCKGT
 
   { ==e
     [
@@ -533,18 +620,45 @@
                 ] ] i logic =[]
                 [ NOP ] i 1 sub logic =[]
               }
-            } /logicalOperator deffst
+            } /comparisonOperator deffst
 
-            /eq /jnzRel8 logicalOperator
-            /neq /jzRel8 logicalOperator
-            /le /jnleRel8 logicalOperator
-            /lt /jnlRel8 logicalOperator
-            /ge /jngeRel8 logicalOperator
-            /gt /jngRel8 logicalOperator
+            /eq /jnzRel8 comparisonOperator
+            /neq /jzRel8 comparisonOperator
+            /le /jnleRel8 comparisonOperator
+            /lt /jnlRel8 comparisonOperator
+            /ge /jngeRel8 comparisonOperator
+            /gt /jngRel8 comparisonOperator
           ] conds
         } rep
       } each
     } /rewriteArithmetics deffst
+
+    { _ ==logic
+      1 logic len range { ==i
+        i logic * ==entry
+        0 entry * ==action
+        i 1 sub logic * ==last
+
+        action CALL eq
+          { 1 entry * "*" | ::rawCodeAddress eq }' andif
+          { 0 last * PUSH eq }' andif
+        {
+          [
+            { 1 last * |and ::rawAddress eq }' {
+              INLINEBLOCKAND i logic =[]
+              [ NOP ] i 1 sub logic =[]
+            }
+
+            { 1 last * |eq ::rawAddress eq }' { INLINEBLOCKEQ i logic =[] [ NOP ] i 1 sub logic =[] }
+            { 1 last * |neq ::rawAddress eq }' { INLINEBLOCKNEQ i logic =[] [ NOP ] i 1 sub logic =[] }
+            { 1 last * |le ::rawAddress eq }' { INLINEBLOCKLE i logic =[] [ NOP ] i 1 sub logic =[] }
+            { 1 last * |lt ::rawAddress eq }' { INLINEBLOCKLT i logic =[] [ NOP ] i 1 sub logic =[] }
+            { 1 last * |ge ::rawAddress eq }' { INLINEBLOCKGE i logic =[] [ NOP ] i 1 sub logic =[] }
+            { 1 last * |gt ::rawAddress eq }' { INLINEBLOCKGT i logic =[] [ NOP ] i 1 sub logic =[] }
+          ] conds
+        } rep
+      } each
+    } /rewriteArithmeticsOptimistic deffst
 
     { _ ==logic
       1 logic len range { ==i i logic * ==entry 0 entry * ==action i 1 sub logic * ==last
@@ -859,8 +973,11 @@
     rewriteConstantStar
     rewriteConstantQuestionStar
     rewriteArithmetics
+    rewriteArithmeticsOptimistic
     rewriteSimpleFunctions
     testAllocatedScopeEscape
+
+    # _ dump # enable this line to see intermediate representation
 
     isScoping {
       allocatedScopeMightEscape {
