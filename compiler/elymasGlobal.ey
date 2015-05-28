@@ -3721,7 +3721,7 @@
       /rax :pushqReg
       /rax :movqImmOOBReg name ::string
       /rax :pushqReg
-      |eydefv /rax :movqImmReg
+      |eydefvc /rax :movqImmReg
       /rax :callqReg
 
       /r14 :popqReg
