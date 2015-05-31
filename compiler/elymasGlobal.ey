@@ -9,10 +9,6 @@
   { [ } "[[" deff
   { ] :labelResolve ::stringResolve } "]]" deff
 
-  1 ==INITIALEXTENSIONSIZE
-  2 ==INITIALSCOPESIZE
-  1 ==INITIALNAMETABLESIZE
-
   # elymas functions, stack based ABI
 
   1 ==ARRAYMARKER
@@ -148,7 +144,7 @@
       /rsi /rsi :testqRegReg
       /nameTableExists :jnzLbl32
 
-      INITIALNAMETABLESIZE /rdi :movqImmReg
+      ::INITIALNAMETABLESIZE /rdi :movqImmReg
       ::internalAllocateNametable /rax :movqImmReg
       /rax :callqReg
 
@@ -223,7 +219,7 @@
       /extensionAreaExists :jnzLbl8
 
       /rdx :pushqReg
-      INITIALEXTENSIONSIZE 8 mul 8 add /rdi :movqImmReg
+      ::INITIALEXTENSIONSIZE 8 mul 8 add /rdi :movqImmReg
       ::internalAllocateAndZero /rax :movqImmReg
       /rax :callqReg
       /rdx :popqReg
@@ -1090,7 +1086,7 @@
 
     # create a new scope capturing the current one
     [
-      INITIALSCOPESIZE /rdi :movqImmReg
+      ::INITIALSCOPESIZE /rdi :movqImmReg
       /r14 /rsi :movqRegReg
       ::internalAllocateScope /rax :movqImmReg
       /rax :callqReg
@@ -3710,7 +3706,7 @@
 
   { ==name
     [[
-      INITIALSCOPESIZE /rdi :movqImmReg
+      ::INITIALSCOPESIZE /rdi :movqImmReg
       8 /r15 :subqImm8Reg
       /r14 /r15 :movqRegMem # save scope
       /r14 /rsi :movqRegReg
