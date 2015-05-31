@@ -5,6 +5,8 @@
     "../compiler/elymasAsmOps.ey" include
   > /ops sys .asm .defv
 
+  4 ==INITIALSCOPESIZE # FIXME take this from the compiler directory
+
   sys .asm .ops ==:sysasmops
   {
     quoted {
@@ -155,6 +157,7 @@
   /UNTYPEDSCOPEDSTAR ==:UNTYPEDSCOPEDSTAR
   /UNTYPEDUNSCOPEDSTAR ==:UNTYPEDUNSCOPEDSTAR
   /STRINGSTAR ==:STRINGSTAR
+  /CONDITIONALTAIL ==:CONDITIONALTAIL
 
   { =*f ==t
     t { f } { 0 } ? *
@@ -286,7 +289,7 @@
   { ==e
     [
       0 e * STATICTYPED eq { 4 e * sys .typed .type 0 eq }' andif
-      0 e * PUSH        eq { 1 e * sys .typed .type 0 eq }' andif
+      0 e * PUSH        eq { 1 e * sys .typed .type 0 eq }' andif # FIXME: this is wrong! PUSH holds _address_ of integer, if at all
       0 e * STRINGSTAR  eq
     ] any
   } /holdsInt deffd
@@ -339,6 +342,7 @@
           { action UNTYPEDSCOPEDSTAR eq }' { }
           { action STRINGSTAR eq }' { }
           { action NATIVENOSCOPE eq }' { }
+          { action CONDITIONALTAIL eq }' { }
 
           { action CALL eq { 1 entry * SCOPETIGHTFUNCTIONS eq any } andif }' { }
 
@@ -698,6 +702,454 @@
       } each
     } /rewriteArithmeticsOptimistic deffst
 
+    { ==logic
+      [ ] ==knownStack
+      {
+        [ knownStack _ len dearray ==ret ] =knownStack ret # TODO: make a real array pop
+      } /knownPop deffst
+
+      [ ] ==sideEffects
+      
+      0 ==actualImprovement
+      0 ==consumedInputStack
+      /NOREGISTER ==NOREGISTER
+
+      0 ==i
+      0 ==traceStart
+
+      { ==why
+        "Restarting optimization attempt: " why cat dump
+
+        0 =actualImprovement
+        0 =consumedInputStack
+        [ ] =knownStack
+        [ ] =sideEffects
+        i 1 add =traceStart
+      } =*restartTracing
+
+      0 ==aborted { ==why
+        "Aborting optimization attempt: " why cat dump
+
+        1 =aborted
+      } =*abortTracing
+
+      { ==addrOrInt
+        addrOrInt %8000000000000000 band { 1 } { addrOrInt ::rawObject sys .typed .type 0 eq } ? *
+      } /isIntValue deffst
+
+      { ==addrOrInt
+        addrOrInt %8000000000000000 band {
+          addrOrInt %00000000FFFFFFFF band
+        } {
+          addrOrInt ::rawObject
+        } ? *
+      } /getIntValue deffst
+
+      {
+        knownStack len { knownPop }' {
+          [ /INPUT consumedInputStack _ 1 add =consumedInputStack NOREGISTER ]
+        }' ? *
+      } /consume deffst
+
+      { i logic len lt } {
+        i logic * ==entry
+        0 entry * ==action
+
+        # "Known Stack: " dump
+        # knownStack dump
+        # "Handling: " dump
+        # entry dump
+
+        [
+          { action NOP eq } { }
+          { action PUSH eq } {
+            knownStack [ entry ] cat =knownStack
+          }
+          { action STATICTYPED eq { 4 entry * sys .typed .type 0 eq }' andif } {
+            knownStack [ [ entry _ len dearray NOREGISTER ] ] cat =knownStack
+          }
+          { action STATICWRITE eq } {
+            consume ==value
+            sideEffects [ [ entry _ len dearray value ] ] cat =sideEffects
+          }
+          { action CALL eq { 1 entry * "*" | ::rawCodeAddress eq }' andif { knownStack len }' andif } {
+            knownPop ==top
+            0 top * PUSH eq {
+              1 top * ==called
+              [
+                { called |eq ::rawAddress eq }' {
+                  consume ==right consume ==left
+                  knownStack [ [ /LOGICFUNCTION /EQ left right NOREGISTER ] ] cat =knownStack
+                }
+                { called |or ::rawAddress eq }' {
+                  consume ==right consume ==left
+                  knownStack [ [ /LOGICFUNCTION /OR left right NOREGISTER ] ] cat =knownStack
+                }
+                { 1 } { "Unhandled called function" restartTracing called dump }
+              ] conds
+            } { "Star on non-constant object" restartTracing } ? *
+          }
+          { 1 } { "Unhandled logic entry type" restartTracing entry dump }
+        ] conds
+
+        i 1 add =i
+      } loop
+
+      0 ==registerUsed
+      [ /rcx /rdx /rbx /rbp /rsi /rdi ] ==availableRegisters
+      [ availableRegisters len { 0 } rep ] ==usedRegisters
+      {
+        0 ==i /NONE ==reg
+        { i availableRegisters len lt } {
+          i usedRegisters * not {
+            i availableRegisters * =reg
+            1 i usedRegisters =[]
+            availableRegisters len =i
+          } rep
+          i 1 add =i
+        } loop
+        reg /NONE eq { "Out of registers" abortTracing /rax =reg } rep
+        reg
+      } /nextRegister deffst
+      { ==reg
+        0 ==i
+        { i availableRegisters len lt } {
+          i availableRegisters * reg eq {
+            0 i usedRegisters =[]
+          } rep
+          i 1 add =i
+        } loop
+      } /freeRegister deffst
+      <
+        /al ==rax
+        /bl ==rbx
+        /cl ==rcx
+        /dl ==rdx
+        /spl ==rsp
+        /bpl ==rbp
+        /sil ==rsi
+        /dil ==rdi
+      > ==lowByte
+
+      [ ] ==traceConditions
+      [
+        consumedInputStack { consumedInputStack 8 mul /rsp :addqImm8Reg } { } ? *
+      ] ==traceCode
+
+      aborted not {
+        { =*entry
+          [
+            { 0 entry /INPUT eq } { 2 }
+            { 0 entry /LOGICFUNCTION eq } { 4 }
+            { 0 entry STATICTYPED eq } { 5 }
+            { 1 } { 0 }
+          ] conds
+        } /hasRegister deffst
+
+        { ==entry
+          entry hasRegister _ { entry * } { "getRegister, but it has none" die } ? *
+        } /getRegister deffst
+
+        { =*entry
+          [
+            { 0 entry /LOGICFUNCTION eq } { 0 }
+            { 1 } { 1 }
+          ] conds
+        } /canProduceLargeInts deffst
+
+        { =*entry
+          [
+            { 0 entry PUSH eq } { } # don't put constant into a register
+
+            { 0 entry /INPUT eq } {
+              nextRegister _ ==target 2 |entry =[]
+
+              traceConditions [
+                1 entry 8 mul /rsp target :movqMemDisp8Reg
+                63 target :btrqImm8Reg
+
+                [
+                  %F0 7 target :testbImmMemDisp8
+                  0 :jnzRel8
+                  8 target target :movqMemDisp8Reg
+                  0 :jmpRel8
+                  /rax /rax :xorqRegReg
+                ] len :jcRel8
+
+                %F0 7 target :testbImmMemDisp8
+
+                [
+                  8 target target :movqMemDisp8Reg
+                  0 :jmpRel8
+                ] len :jnzRel8
+
+                8 target target :movqMemDisp8Reg
+                [ /rax /rax :xorqRegReg ] len :jmpRel8
+
+                /rax /rax :xorqRegReg
+              ] cat =traceConditions
+            }
+
+            { 0 entry STATICWRITE eq } {
+              4 entry compileExpression
+            }
+
+            { 0 entry STATICTYPED eq } {
+              nextRegister _ ==target 5 |entry =[]
+
+              traceCode [
+                2 entry {
+                  16 /r14 target :movqMemDisp8Reg
+                  2 entry 1 sub { 16 target target :movqMemDisp8Reg } rep
+
+                  3 entry {
+                    target /eax :movlMemReg # load scope length
+                    24 target target :movqMemDisp8Reg # load extension area pointer
+                    /rax :negqReg # prepare for substraction # TODO the length calculation could be done beforehand
+                    1 entry 1 /rax target target :movqMemIndexScaleDisp32Reg
+                  } {
+                    1 entry target target :movqMemDisp32Reg
+                  } ? *
+                } {
+                  3 entry {
+                    /r14 /eax :movlMemReg # load scope length
+                    24 /r14 target :movqMemDisp8Reg # load extension area pointer
+                    /rax :negqReg # prepare for substraction # TODO the length calculation could be done beforehand
+                    1 entry 1 /rax target target :movqMemIndexScaleDisp32Reg
+                  } {
+                    1 entry /r14 target :movqMemDisp32Reg
+                  } ? *
+                } ? *
+
+                63 target :btrqImm8Reg
+                [
+                  8 target target :movqMemDisp8Reg
+                ] len :jcRel8
+                8 target target :movqMemDisp8Reg
+              ] cat =traceCode
+            }
+
+            { 0 entry /LOGICFUNCTION eq { 1 entry /EQ eq }' andif } {
+              2 entry _ compileExpression =*left
+              3 entry _ compileExpression =*right
+              nextRegister _ ==target 4 |entry =[]
+
+              [
+                { 0 right PUSH eq { 1 right isIntValue }' andif { 1 right getIntValue %7F le }' andif } {
+                  [
+                    { |left hasRegister } {
+                      |left getRegister ==reg
+                      1 =actualImprovement
+
+                      traceCode [
+                        target target :xorqRegReg
+                        1 right getIntValue reg :cmpqImm8Reg
+                        lowByte target . :seteReg
+                      ] cat =traceCode
+
+                      reg freeRegister
+                    }
+                    { 1 } { "EQ: unhandled left type" abortTracing }
+                  ] conds
+                }
+                { 1 } { "EQ: unhandled right type" abortTracing }
+              ] conds
+            }
+
+            { 0 entry /LOGICFUNCTION eq { 1 entry /OR eq }' andif } {
+              2 entry _ compileExpression =*left
+              3 entry _ compileExpression =*right
+              nextRegister _ ==target 4 |entry =[]
+
+              [
+                { |right hasRegister } {
+                  |right getRegister ==rreg
+                  [
+                    { |left hasRegister } {
+                      |left getRegister ==lreg
+                      1 =actualImprovement
+
+                      traceCode [
+                        target target :xorqRegReg
+                        lreg lreg :testqRegReg
+                        lowByte target . :setneReg
+                        rreg rreg :testqRegReg
+                        /al :setneReg
+                        /al lowByte target . :orbRegReg
+                      ] cat =traceCode
+
+                      rreg freeRegister
+                      lreg freeRegister
+                    }
+                    { 1 } { "OR: unhandled left type" abortTracing }
+                  ] conds
+                }
+                { 1 } { "OR: unhandled right type" abortTracing }
+              ] conds
+            }
+            { 1 } { |entry dump "Invalid entry while compiling trace code" die }
+          ] conds
+        } /compileExpression deffst
+
+        sideEffects |compileExpression each
+        sideEffects { =*entry
+          [
+            { 0 entry STATICWRITE eq } {
+              4 entry =*source
+              NOREGISTER ==reg
+
+              [
+                { 0 source PUSH eq } {
+                  /rax =reg
+                  traceCode [
+                    1 source /rax :movqImmReg
+                  ] cat =traceCode
+                }
+                { |source hasRegister } {
+                  |source getRegister =reg
+                  |source canProduceLargeInts {
+                    traceCode [
+                      reg /rax :movqRegReg
+                      32 /rax :shrqImm8Reg
+                  
+                      [
+                        63 reg :btsqImm8Reg
+                        0 :jmpRel8
+                      ] len :jnzRel8
+
+                      63 reg :btsqImm8Reg
+
+                      [
+                        availableRegisters { :pushqReg } each
+                        ::internalAllocateInteger /rax :movqImmReg
+                        /rax :callqReg
+                        availableRegisters reverse { :popqReg } each
+                        reg 8 /rax :movqRegMemDisp8
+                        /rax reg :movqRegReg
+                      ] len :jmpRel8
+
+                      availableRegisters { :pushqReg } each
+                      ::internalAllocateInteger /rax :movqImmReg
+                      /rax :callqReg
+                      availableRegisters reverse { :popqReg } each
+                      reg 8 /rax :movqRegMemDisp8
+                      /rax reg :movqRegReg
+                    ] cat =traceCode
+                  } {
+                    traceCode [
+                      63 reg :btsqImm8Reg
+                    ] cat =traceCode
+                  } ? *
+                }
+                { 1 } { |source dump "Invalid value source in sideEffects" die }
+              ] conds
+
+              2 entry {
+                traceCode [
+                  16 /r14 /rax :movqMemDisp8Reg
+                  2 entry 1 sub { 16 /rax /rax :movqMemDisp8Reg } rep
+                ] cat =traceCode
+
+                3 entry {
+                  traceCode [
+                    reg :pushqReg
+                    24 /rax reg :movqMemDisp8Reg # load extension area pointer
+                    /rax /eax :movlMemReg # load scope length
+                    /rax :negqReg # prepare for substraction
+                    1 entry 1 /rax reg :popqMemIndexScaleDisp32 # load entry from stack
+                  ] cat =traceCode
+                } {
+                  traceCode [
+                    reg 1 entry /rax :movqRegMemDisp32
+                  ] cat =traceCode
+                } ? *
+              } {
+                3 entry {
+                  traceCode [
+                    reg :pushqReg
+                    24 /r14 reg :movqMemDisp8Reg # load extension area pointer
+                    /r14 /eax :movlMemReg # load scope length
+                    /rax :negqReg # prepare for substraction
+                    1 entry 1 /rax reg :popqMemIndexScaleDisp32 # load entry from stack
+                  ] cat =traceCode
+                } {
+                  traceCode [
+                    reg 1 entry /r14 :movqRegMemDisp32
+                  ] cat =traceCode
+                } ? *
+              } ? *
+            }
+            { 1 } { "Invalid entry type in sideEffects" die }
+          ] conds
+        } each
+
+        knownStack |compileExpression each
+        knownStack { =*entry
+          [
+            { 0 entry PUSH eq } {
+              traceCode [
+                1 entry /rax :movqImmReg
+                /rax :pushqReg
+              ] cat =traceCode
+            }
+            { |entry hasRegister } {
+              |entry getRegister ==reg
+              |entry canProduceLargeInts {
+                traceCode [
+                  reg /rax :movqRegReg
+                  32 /rax :shrqImm8Reg
+              
+                  [
+                    63 reg :btsqImm8Reg
+                    reg :pushqReg
+                    0 :jmpRel8
+                  ] len :jnzRel8
+
+                  63 reg :btsqImm8Reg
+                  reg :pushqReg
+
+                  [
+                    availableRegisters { :pushqReg } each
+                    ::internalAllocateInteger /rax :movqImmReg
+                    /rax :callqReg
+                    availableRegisters reverse { :popqReg } each
+                    reg 8 /rax :movqRegMemDisp8
+                    /rax :pushqReg
+                  ] len :jmpRel8
+
+                  availableRegisters { :pushqReg } each
+                  ::internalAllocateInteger /rax :movqImmReg
+                  /rax :callqReg
+                  availableRegisters reverse { :popqReg } each
+                  reg 8 /rax :movqRegMemDisp8
+                  /rax :pushqReg
+                ] cat =traceCode
+              } {
+                traceCode [
+                  63 reg :btsqImm8Reg
+                  reg :pushqReg
+                ] cat =traceCode
+              } ? *
+            }
+            { 1 } { |entry dump "Invalid entry while assembling trace code" die }
+          ] conds
+        } each
+      } rep
+
+      aborted not actualImprovement and {
+        "Improved integer trace" dump
+        sideEffects dump
+        knownStack dump
+        [
+          0 traceStart range { logic * } each
+          [ CONDITIONALTAIL traceConditions traceCode ]
+          traceStart logic len range { logic * } each
+        ] =logic
+      } rep
+
+      logic
+    } /rewriteIntegerTrace deffst
+
     { _ ==logic
       1 logic len range { ==i i logic * ==entry 0 entry * ==action i 1 sub logic * ==last
         [
@@ -709,7 +1161,7 @@
             executedObject sys .typed .type ==type
 
             type [
-              { "failed to optimize 'execution' of integer typed object" die }
+              { last dump "failed to optimize 'execution' of integer typed object" die }
               {
                 [ STRINGSTAR ] i logic =[]
               }
@@ -811,7 +1263,7 @@
                 0 "0" * sub largestNumber max =largestNumber
             } each
 
-            [ /rax /rcx /rdx /rbx /rbp /rsi /rdi ] =*:availableRegisters
+            [ /rax /rcx /rdx /rbx /rbp /rsi /rdi ] =*availableRegisters
 
             starUsed {
               # TODO maybe implement this one day
@@ -915,6 +1367,14 @@
 
               j ==loadStart
 
+              { ==addrOrInt # FIXME: why does replacing ::rawObject below with this thing make ugly errors?
+                addrOrInt %8000000000000000 band {
+                  addrOrInt %00000000FFFFFFFF band
+                } {
+                  addrOrInt ::rawObject
+                } ? *
+              } /ensureBoxed deffst
+
               [
                 { staticLoadFromScopePattern callTargetMatch }' {
                   [ loadStart 4 add _ 4 add range peek each ] 256 math .unbase ==offsetInScope
@@ -987,7 +1447,7 @@
     } loop
 
     [ ] ==newOpcodes
-    { newOpcodes -01 cat =newOpcodes }' /emitOpcodes deffst
+    { newOpcodes -01 cat =newOpcodes } /emitOpcodes deffst
     [ ] ==newReferences
     { ==ref
       [
@@ -995,7 +1455,7 @@
         { ref 123145302310912 ge } { } # %700000000000
         { 1 } { newReferences [ ref ] cat =newReferences }
       ] conds
-    }' /emitReference deffst
+    } /emitReference deffst
 
     # [ :ud2 ] emitOpcodes # enable for further development
 
@@ -1010,7 +1470,8 @@
     rewriteConstantDot
     rewriteConstantStar
     rewriteConstantQuestionStar
-    rewriteArithmetics
+    rewriteIntegerTrace
+    # rewriteArithmetics
     rewriteArithmeticsOptimistic
     rewriteSimpleFunctions
     testAllocatedScopeEscape
@@ -1025,7 +1486,7 @@
           8 /r15 :subqImm8Reg
           /r14 /r15 :movqRegMem
           /r14 /rsi :movqRegReg
-          2 /rdi :movqImmReg # FIXME: this should use INITIALSCOPESIZE
+          INITIALSCOPESIZE /rdi :movqImmReg
           ::internalAllocateScope /rax :movqImmReg
           /rax :callqReg
           /rax /r14 :movqRegReg
@@ -1039,15 +1500,16 @@
           /r15 :popqMem
           8 /r15 :subqImm8Reg
           /r14 /r15 :movqRegMem
-          48 /r15 :subqImm8Reg # FIXME: this should use INITIALSCOPESIZE
+          32 INITIALSCOPESIZE 16 mul add /r15 :subqImm8Reg
           /rax /rax :xorqRegReg
           /rax 0 /r15 :andqRegMemDisp8
           /rax 8 /r15 :andqRegMemDisp8
           /r14 16 /r15 :movqRegMemDisp8 # save parent scope
           /rax 24 /r15 :andqRegMemDisp8
-          /rax 32 /r15 :andqRegMemDisp8 # FIXME also use INITIALSCOPESIZE
-          /rax 40 /r15 :andqRegMemDisp8
-          48 /r15 :orbImmMem # set length
+          0 INITIALSCOPESIZE range { ==i
+            /rax 32 i 16 mul add /r15 :andqRegMemDisp8
+          } each
+          32 INITIALSCOPESIZE 16 mul add /r15 :orbImmMem # set length
           %96 7 /r15 :orbImmMemDisp8 # set type and existence of all pointers
           /r15 /r14 :movqRegReg
         ] emitOpcodes
@@ -1067,6 +1529,28 @@
         /r15 :popqMem
       ] emitOpcodes
     }" ? *
+
+    isScoping {
+      allocatedScopeMightEscape {
+        [
+          /r15 /r14 :movqMemReg
+          16 /r15 :addqImm8Reg
+          8 neg /r15 :jmpqMemDisp8
+        ]
+      }" {
+        [
+          48 /r15 /r14 :movqMemDisp8Reg
+          48 INITIALSCOPESIZE 16 mul add /r15 :addqImm8Reg
+          8 neg /r15 :jmpqMemDisp8
+        ]
+      }" ? *
+    }" {
+      [
+        /r15 :pushqMem
+        8 /r15 :addqImm8Reg
+        :retn
+      ]
+    }" ? * ==newFooter
 
     { =*entry 0 entry ==action
       [
@@ -1243,34 +1727,27 @@
         { action NOP eq }' {
         }
 
+        { action CONDITIONALTAIL eq }' {
+          [
+            1 /rax :movqImmReg
+          ] emitOpcodes
+          1 entry emitOpcodes
+          [
+            /rax /rax :testqRegReg
+            2 entry len newFooter len add :jzRel32
+          ] emitOpcodes
+          2 entry emitOpcodes
+          newFooter emitOpcodes
+        }
+
         { 1 }' {
-          entry dump
+          |entry dump
           "invalid intermediate code during optimize" die
         }
       ] conds
     } each
 
-    isScoping {
-      allocatedScopeMightEscape {
-        [
-          /r15 /r14 :movqMemReg
-          16 /r15 :addqImm8Reg
-          8 neg /r15 :jmpqMemDisp8
-        ] emitOpcodes
-      }" {
-        [
-          48 /r15 /r14 :movqMemDisp8Reg
-          64 /r15 :addqImm8Reg # FIXME also use INITIALSCOPESIZE
-          8 neg /r15 :jmpqMemDisp8
-        ] emitOpcodes
-      }" ? *
-    }" {
-      [
-        /r15 :pushqMem
-        8 /r15 :addqImm8Reg
-        :retn
-      ] emitOpcodes
-    }" ? *
+    newFooter emitOpcodes
 
     newOpcodes newReferences o ::replace
     1 executingScope # return something different from o to signal successful optimization
