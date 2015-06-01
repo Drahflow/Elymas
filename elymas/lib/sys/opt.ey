@@ -702,7 +702,7 @@
       } each
     } /rewriteArithmeticsOptimistic deffst
 
-    { ==logic /CANARY
+    { ==logic
       [ ] ==knownStack
       {
         [ knownStack _ len dearray ==ret ] =knownStack ret # TODO: make a real array pop
@@ -720,7 +720,7 @@
       0 ==traceStart
 
       { ==why
-        "Restarting optimization attempt: " why cat dump
+        # "Restarting optimization attempt: " why cat dump # HINTS
 
         0 =actualImprovement
         0 =consumedInputStack
@@ -732,7 +732,7 @@
       } =*restartTracing
 
       0 ==aborted { ==why
-        "Aborting optimization attempt: " why cat dump
+        # "Aborting optimization attempt: " why cat dump # HINTS
 
         1 =aborted
       } =*abortTracing
@@ -757,14 +757,20 @@
         }' ? *
       } /consume deffst
 
+      {
+        knownStack len { knownPop -- }' {
+          consumedInputStack 1 add =consumedInputStack
+        }' ? *
+      } /consumeAndDrop deffst
+
       { i logic len lt } {
         i logic * =*entry
         0 entry ==action
 
         # "Known Stack: " dump
         # knownStack dump
-        "Handling: " dump
-        |entry dump
+        # "Handling: " dump # HINTS
+        # |entry dump # HINTS
 
         [
           { action NOP eq } { }
@@ -825,21 +831,78 @@
                   consume ==right consume ==left
                   knownStack [ [ /LOGICFUNCTION /EQ left right NOREGISTER ] ] cat =knownStack
                 }
+                { called |le ::rawAddress eq }' {
+                  consume ==right consume ==left
+                  knownStack [ [ /LOGICFUNCTION /LE left right NOREGISTER ] ] cat =knownStack
+                }
+                { called |ge ::rawAddress eq }' {
+                  consume ==right consume ==left
+                  knownStack [ [ /LOGICFUNCTION /GE left right NOREGISTER ] ] cat =knownStack
+                }
+                { called |lt ::rawAddress eq }' {
+                  consume ==right consume ==left
+                  knownStack [ [ /LOGICFUNCTION /LT left right NOREGISTER ] ] cat =knownStack
+                }
+                { called |gt ::rawAddress eq }' {
+                  consume ==right consume ==left
+                  knownStack [ [ /LOGICFUNCTION /GT left right NOREGISTER ] ] cat =knownStack
+                }
                 { called |or ::rawAddress eq }' {
                   consume ==right consume ==left
                   knownStack [ [ /LOGICFUNCTION /OR left right NOREGISTER ] ] cat =knownStack
                 }
-                { 1 } { "Unhandled called function" restartTracing called dump }
+                { called |and ::rawAddress eq }' {
+                  consume ==right consume ==left
+                  knownStack [ [ /LOGICFUNCTION /AND left right NOREGISTER ] ] cat =knownStack
+                }
+                { 1 } { "Unhandled called function" restartTracing
+                  # called dump HINTS
+                }
               ] conds
             } { "Star on non-constant object" restartTracing } ? *
           }
-          { 1 } { "Unhandled logic entry type" restartTracing |entry dump }
+          { action CALL eq { 1 entry "_" | ::rawCodeAddress eq }' andif } {
+            consume ==value
+            knownStack [ value value ] cat =knownStack
+          }
+          { action CALL eq { 1 entry "--" | ::rawCodeAddress eq }' andif } {
+            consumeAndDrop
+          }
+          { action CALL eq { 1 entry "-" | ::rawCodeAddress eq }' andif { knownStack len }' andif } {
+            knownPop ==shufflePush
+            0 shufflePush * PUSH eq {
+              1 shufflePush * ::rawObject ==shuffle
+
+              0 ==largestNumber
+              0 ==starUsed
+
+              shuffle {
+                _ 0 "*" * eq { 1 =starUsed } rep
+                  0 "0" * sub largestNumber max =largestNumber
+              } each
+
+              starUsed {
+                # shuffle dump # HINTS
+                "Star used in stack shuffle" restartTracing
+              } {
+                [ 0 largestNumber 1 add range { -- consume } each ] =*shuffleInputs
+                knownStack [
+                  shuffle { 0 "0" * sub shuffleInputs } each
+                ] cat =knownStack
+              } ? *
+            } {
+              # shufflePush dump # HINTS
+              "Non-constant stack shuffle" restartTracing
+            } ? *
+          }
+          { 1 } {
+            "Unhandled logic entry type" restartTracing
+            # |entry dump # HINTS
+          }
         ] conds
 
         i 1 add =i
       } loop
-
-      _ dump /starting_assembly dump
 
       0 ==registerUsed
       [ /rcx /rdx /rbx /rbp /rsi /rdi ] ==availableRegisters
@@ -907,8 +970,15 @@
         } /canProduceLargeInts deffst
 
         { =*entry
-          "Compiling..." dump
-          |entry dump
+          [
+            { 0 entry /LOGICFUNCTION eq } { 0 }
+            { 1 } { 1 }
+          ] conds
+        } /canProduceNonBooleans deffst
+
+        { =*entry
+          # "Compiling..." dump # HINTS
+          # |entry dump
           { } ==?registerDeallocations # shall be returned
           [
             { |entry hasRegister { |entry getRegister NOREGISTER neq }' andif } { } # entry already compiled
@@ -1013,6 +1083,118 @@
               deallocLeft deallocRight
             }
 
+            { 0 entry /LOGICFUNCTION eq { 1 entry /LE eq }' andif } { # FIXME: condense with /EQ
+              2 entry _ =*left compileExpression =*?deallocLeft
+              3 entry _ =*right compileExpression =*?deallocRight
+              nextRegister _ ==target 4 |entry =[]
+                { target freeRegister NOREGISTER 4 |entry =[] } registerDeallocations ; =registerDeallocations
+
+              [
+                { 0 right PUSH eq { 1 right isIntValue }' andif { 1 right getIntValue %7F le }' andif } {
+                  [
+                    { |left hasRegister } {
+                      |left getRegister ==reg
+                      1 =actualImprovement
+
+                      traceCode [
+                        target target :xorqRegReg
+                        1 right getIntValue reg :cmpqImm8Reg
+                        lowByte target . :setleReg
+                      ] cat =traceCode
+                    }
+                    { 1 } { "LE: unhandled left type" abortTracing }
+                  ] conds
+                }
+                { 1 } { "LE: unhandled right type" abortTracing }
+              ] conds
+
+              deallocLeft deallocRight
+            }
+
+            { 0 entry /LOGICFUNCTION eq { 1 entry /GE eq }' andif } { # FIXME: condense with /EQ
+              2 entry _ =*left compileExpression =*?deallocLeft
+              3 entry _ =*right compileExpression =*?deallocRight
+              nextRegister _ ==target 4 |entry =[]
+                { target freeRegister NOREGISTER 4 |entry =[] } registerDeallocations ; =registerDeallocations
+
+              [
+                { 0 right PUSH eq { 1 right isIntValue }' andif { 1 right getIntValue %7F le }' andif } {
+                  [
+                    { |left hasRegister } {
+                      |left getRegister ==reg
+                      1 =actualImprovement
+
+                      traceCode [
+                        target target :xorqRegReg
+                        1 right getIntValue reg :cmpqImm8Reg
+                        lowByte target . :setgeReg
+                      ] cat =traceCode
+                    }
+                    { 1 } { "GE: unhandled left type" abortTracing }
+                  ] conds
+                }
+                { 1 } { "GE: unhandled right type" abortTracing }
+              ] conds
+
+              deallocLeft deallocRight
+            }
+
+            { 0 entry /LOGICFUNCTION eq { 1 entry /LT eq }' andif } { # FIXME: condense with /EQ
+              2 entry _ =*left compileExpression =*?deallocLeft
+              3 entry _ =*right compileExpression =*?deallocRight
+              nextRegister _ ==target 4 |entry =[]
+                { target freeRegister NOREGISTER 4 |entry =[] } registerDeallocations ; =registerDeallocations
+
+              [
+                { 0 right PUSH eq { 1 right isIntValue }' andif { 1 right getIntValue %7F le }' andif } {
+                  [
+                    { |left hasRegister } {
+                      |left getRegister ==reg
+                      1 =actualImprovement
+
+                      traceCode [
+                        target target :xorqRegReg
+                        1 right getIntValue reg :cmpqImm8Reg
+                        lowByte target . :setlReg
+                      ] cat =traceCode
+                    }
+                    { 1 } { "LT: unhandled left type" abortTracing }
+                  ] conds
+                }
+                { 1 } { "LT: unhandled right type" abortTracing }
+              ] conds
+
+              deallocLeft deallocRight
+            }
+
+            { 0 entry /LOGICFUNCTION eq { 1 entry /GT eq }' andif } { # FIXME: condense with /EQ
+              2 entry _ =*left compileExpression =*?deallocLeft
+              3 entry _ =*right compileExpression =*?deallocRight
+              nextRegister _ ==target 4 |entry =[]
+                { target freeRegister NOREGISTER 4 |entry =[] } registerDeallocations ; =registerDeallocations
+
+              [
+                { 0 right PUSH eq { 1 right isIntValue }' andif { 1 right getIntValue %7F le }' andif } {
+                  [
+                    { |left hasRegister } {
+                      |left getRegister ==reg
+                      1 =actualImprovement
+
+                      traceCode [
+                        target target :xorqRegReg
+                        1 right getIntValue reg :cmpqImm8Reg
+                        lowByte target . :setgReg
+                      ] cat =traceCode
+                    }
+                    { 1 } { "GT: unhandled left type" abortTracing }
+                  ] conds
+                }
+                { 1 } { "GT: unhandled right type" abortTracing }
+              ] conds
+
+              deallocLeft deallocRight
+            }
+
             { 0 entry /LOGICFUNCTION eq { 1 entry /OR eq }' andif } {
               2 entry _ =*left compileExpression =*?deallocLeft
               3 entry _ =*right compileExpression =*?deallocRight
@@ -1027,19 +1209,83 @@
                       |left getRegister ==lreg
                       1 =actualImprovement
 
-                      traceCode [
-                        target target :xorqRegReg
-                        lreg lreg :testqRegReg
-                        lowByte target . :setneReg
-                        rreg rreg :testqRegReg
-                        /al :setneReg
-                        /al lowByte target . :orbRegReg
-                      ] cat =traceCode
+                      |left canProduceNonBooleans {
+                        traceCode [
+                          target target :xorqRegReg
+                          lreg lreg :testqRegReg
+                          lowByte target . :setneReg
+                          rreg rreg :testqRegReg
+                          /al :setneReg
+                          /al lowByte target . :orbRegReg
+                        ] cat =traceCode
+                      } {
+                        |right canProduceNonBooleans {
+                          traceCode [
+                            lreg target :movqRegReg
+                            rreg rreg :testqRegReg
+                            /al :setneReg
+                            /al lowByte target . :orbRegReg
+                          ] cat =traceCode
+                        } {
+                          traceCode [
+                            lreg target :movqRegReg
+                            lowByte rreg . lowByte target . :orbRegReg
+                          ] cat =traceCode
+                        } ? *
+                      } ? *
                     }
                     { 1 } { "OR: unhandled left type" abortTracing }
                   ] conds
                 }
                 { 1 } { "OR: unhandled right type" abortTracing }
+              ] conds
+
+              deallocLeft deallocRight
+            }
+
+            { 0 entry /LOGICFUNCTION eq { 1 entry /AND eq }' andif } { # FIXME: condense with /OR
+              2 entry _ =*left compileExpression =*?deallocLeft
+              3 entry _ =*right compileExpression =*?deallocRight
+              nextRegister _ ==target 4 |entry =[]
+                { target freeRegister NOREGISTER 4 |entry =[] } registerDeallocations ; =registerDeallocations
+
+              [
+                { |right hasRegister } {
+                  |right getRegister ==rreg
+                  [
+                    { |left hasRegister } {
+                      |left getRegister ==lreg
+                      1 =actualImprovement
+
+                      |left canProduceNonBooleans {
+                        traceCode [
+                          target target :xorqRegReg
+                          lreg lreg :testqRegReg
+                          lowByte target . :setneReg
+                          rreg rreg :testqRegReg
+                          /al :setneReg
+                          /al lowByte target . :andbRegReg
+                        ] cat =traceCode
+                      } {
+                        |right canProduceNonBooleans {
+                          traceCode [
+                            lreg target :movqRegReg
+                            rreg rreg :testqRegReg
+                            /al :setneReg
+                            /al lowByte target . :andbRegReg
+                          ] cat =traceCode
+                        } {
+                          traceCode [
+                            lreg target :movqRegReg
+                            lowByte rreg . lowByte target . :andbRegReg
+                          ] cat =traceCode
+                        } ? *
+                      } ? *
+                    }
+                    { 1 } { "AND: unhandled left type" abortTracing }
+                  ] conds
+                }
+                { 1 } { "AND: unhandled right type" abortTracing }
               ] conds
 
               deallocLeft deallocRight
@@ -1204,13 +1450,11 @@
         } each
       } rep
 
-      _ dump /assembly_finished dump
-
       aborted not actualImprovement and {
-        "Improved integer trace" dump
-        scopeReads dump
-        scopeWrites dump
-        knownStack dump
+        # "Improved integer trace" dump # HINTS
+        # scopeReads dump
+        # scopeWrites dump
+        # knownStack dump
         [
           0 traceStart range { logic * } each
           [ CONDITIONALTAIL traceConditions traceCode ]
@@ -1218,7 +1462,6 @@
         ] =logic
       } rep
 
-      dump /we_are_done dump
       logic
     } /rewriteIntegerTrace deffst
 

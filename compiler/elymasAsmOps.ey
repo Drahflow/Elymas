@@ -1335,6 +1335,38 @@ memoryAddressingVariants keys { ==variant memoryAddressingVariants variant . =*p
 } /setneReg deff
 
 { ==reg
+  reg regno %07 gt reg rexreqbyte or { 0 reg /none /none rex } rep
+  %0F
+  %9C
+  /zero reg modrm11
+} _ /setlReg deff
+    /setngeReg deff
+
+{ ==reg
+  reg regno %07 gt reg rexreqbyte or { 0 reg /none /none rex } rep
+  %0F
+  %9D
+  /zero reg modrm11
+} _ /setnlReg deff
+    /setgeReg deff
+
+{ ==reg
+  reg regno %07 gt reg rexreqbyte or { 0 reg /none /none rex } rep
+  %0F
+  %9E
+  /zero reg modrm11
+} _ /setleReg deff
+    /setngReg deff
+
+{ ==reg
+  reg regno %07 gt reg rexreqbyte or { 0 reg /none /none rex } rep
+  %0F
+  %9F
+  /zero reg modrm11
+} _ /setnleReg deff
+    /setgReg deff
+
+{ ==reg
   reg bit64assert
 
   1 /none /none reg rex
