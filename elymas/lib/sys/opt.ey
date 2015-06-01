@@ -702,13 +702,15 @@
       } each
     } /rewriteArithmeticsOptimistic deffst
 
-    { ==logic
+    { ==logic /CANARY
       [ ] ==knownStack
       {
         [ knownStack _ len dearray ==ret ] =knownStack ret # TODO: make a real array pop
       } /knownPop deffst
 
-      [ ] ==sideEffects
+      [ ] ==scopeReads
+      [ ] ==stackReads
+      [ ] ==scopeWrites
       
       0 ==actualImprovement
       0 ==consumedInputStack
@@ -723,7 +725,9 @@
         0 =actualImprovement
         0 =consumedInputStack
         [ ] =knownStack
-        [ ] =sideEffects
+        [ ] =scopeWrites
+        [ ] =scopeReads
+        [ ] =stackReads
         i 1 add =traceStart
       } =*restartTracing
 
@@ -747,32 +751,72 @@
 
       {
         knownStack len { knownPop }' {
-          [ /INPUT consumedInputStack _ 1 add =consumedInputStack NOREGISTER ]
+          [ /INPUT consumedInputStack _ 1 add =consumedInputStack NOREGISTER ] ==read
+          stackReads [ read ] cat =stackReads
+          read
         }' ? *
       } /consume deffst
 
       { i logic len lt } {
-        i logic * ==entry
-        0 entry * ==action
+        i logic * =*entry
+        0 entry ==action
 
         # "Known Stack: " dump
         # knownStack dump
-        # "Handling: " dump
-        # entry dump
+        "Handling: " dump
+        |entry dump
 
         [
           { action NOP eq } { }
           { action PUSH eq } {
-            knownStack [ entry ] cat =knownStack
+            knownStack [ |entry ] cat =knownStack
           }
-          { action STATICTYPED eq { 4 entry * sys .typed .type 0 eq }' andif } {
-            knownStack [ [ entry _ len dearray NOREGISTER ] ] cat =knownStack
+          { action STATICTYPED eq { 4 entry sys .typed .type 0 eq }' andif } {
+            1 neg ==priorWrite 0 ==i { i scopeWrites len lt } {
+              i scopeWrites * =*write
+              0 write STATICWRITE neq { |write dump "scopeWrites contains unexpected element type" die } rep
+              1 write 1 entry eq { 2 write 2 entry eq }' andif { 3 write 3 entry eq }' andif { i =priorWrite } rep
+              i 1 add =i
+            } loop
+
+            priorWrite 0 ge {
+              4 priorWrite scopeWrites * * ==source
+              knownStack [ source ] cat =knownStack
+            } {
+              1 neg ==priorRead 0 ==i { i scopeReads len lt } {
+                i scopeReads * =*read
+                0 read STATICTYPED neq { |read dump "scopeReads contains unexpected element type" die } rep
+                1 read 1 entry eq { 2 read 2 entry eq }' andif { 3 read 3 entry eq }' andif { i =priorRead } rep
+                i 1 add =i
+              } loop
+
+              priorRead 0 ge {
+                priorRead scopeReads * ==read
+                knownStack [ read ] cat =knownStack
+              } {
+                [ |entry _ len dearray NOREGISTER ] ==read
+                knownStack [ read ] cat =knownStack
+                scopeReads [ read ] cat =scopeReads
+              } ? *
+            } ? *
           }
           { action STATICWRITE eq } {
             consume ==value
-            sideEffects [ [ entry _ len dearray value ] ] cat =sideEffects
+
+            1 neg ==priorWrite 0 ==i { i scopeWrites len lt } {
+              i scopeWrites * =*write
+              0 write STATICWRITE neq { |write dump "scopeWrites contains unexpected element type" die } rep
+              1 write 1 entry eq { 2 write 2 entry eq }' andif { 3 write 3 entry eq }' andif { i =priorWrite } rep
+              i 1 add =i
+            } loop
+
+            priorWrite 0 ge {
+              [ |entry _ len dearray value ] priorWrite scopeWrites =[]
+            } {
+              scopeWrites [ [ |entry _ len dearray value ] ] cat =scopeWrites
+            } ? *
           }
-          { action CALL eq { 1 entry * "*" | ::rawCodeAddress eq }' andif { knownStack len }' andif } {
+          { action CALL eq { 1 entry "*" | ::rawCodeAddress eq }' andif { knownStack len }' andif } {
             knownPop ==top
             0 top * PUSH eq {
               1 top * ==called
@@ -789,11 +833,13 @@
               ] conds
             } { "Star on non-constant object" restartTracing } ? *
           }
-          { 1 } { "Unhandled logic entry type" restartTracing entry dump }
+          { 1 } { "Unhandled logic entry type" restartTracing |entry dump }
         ] conds
 
         i 1 add =i
       } loop
+
+      _ dump /starting_assembly dump
 
       0 ==registerUsed
       [ /rcx /rdx /rbx /rbp /rsi /rdi ] ==availableRegisters
@@ -831,6 +877,9 @@
         /dil ==rdi
       > ==lowByte
 
+      [ ] ==inputsChecked
+      [ ] ==scopeReadsChecked
+
       [ ] ==traceConditions
       [
         consumedInputStack { consumedInputStack 8 mul /rsp :addqImm8Reg } { } ? *
@@ -858,11 +907,16 @@
         } /canProduceLargeInts deffst
 
         { =*entry
+          "Compiling..." dump
+          |entry dump
+          { } ==?registerDeallocations # shall be returned
           [
+            { |entry hasRegister { |entry getRegister NOREGISTER neq }' andif } { } # entry already compiled
             { 0 entry PUSH eq } { } # don't put constant into a register
 
             { 0 entry /INPUT eq } {
               nextRegister _ ==target 2 |entry =[]
+               { target freeRegister NOREGISTER 2 |entry =[] } registerDeallocations ; =registerDeallocations
 
               traceConditions [
                 1 entry 8 mul /rsp target :movqMemDisp8Reg
@@ -892,10 +946,12 @@
 
             { 0 entry STATICWRITE eq } {
               4 entry compileExpression
+                registerDeallocations ; =registerDeallocations # reuse source register for ourselves (a bit)
             }
 
             { 0 entry STATICTYPED eq } {
               nextRegister _ ==target 5 |entry =[]
+               { target freeRegister NOREGISTER 5 |entry =[] } registerDeallocations ; =registerDeallocations
 
               traceCode [
                 2 entry {
@@ -930,9 +986,10 @@
             }
 
             { 0 entry /LOGICFUNCTION eq { 1 entry /EQ eq }' andif } {
-              2 entry _ compileExpression =*left
-              3 entry _ compileExpression =*right
+              2 entry _ =*left compileExpression =*?deallocLeft
+              3 entry _ =*right compileExpression =*?deallocRight
               nextRegister _ ==target 4 |entry =[]
+                { target freeRegister NOREGISTER 4 |entry =[] } registerDeallocations ; =registerDeallocations
 
               [
                 { 0 right PUSH eq { 1 right isIntValue }' andif { 1 right getIntValue %7F le }' andif } {
@@ -946,20 +1003,21 @@
                         1 right getIntValue reg :cmpqImm8Reg
                         lowByte target . :seteReg
                       ] cat =traceCode
-
-                      reg freeRegister
                     }
                     { 1 } { "EQ: unhandled left type" abortTracing }
                   ] conds
                 }
                 { 1 } { "EQ: unhandled right type" abortTracing }
               ] conds
+
+              deallocLeft deallocRight
             }
 
             { 0 entry /LOGICFUNCTION eq { 1 entry /OR eq }' andif } {
-              2 entry _ compileExpression =*left
-              3 entry _ compileExpression =*right
+              2 entry _ =*left compileExpression =*?deallocLeft
+              3 entry _ =*right compileExpression =*?deallocRight
               nextRegister _ ==target 4 |entry =[]
+                { target freeRegister NOREGISTER 4 |entry =[] } registerDeallocations ; =registerDeallocations
 
               [
                 { |right hasRegister } {
@@ -977,26 +1035,29 @@
                         /al :setneReg
                         /al lowByte target . :orbRegReg
                       ] cat =traceCode
-
-                      rreg freeRegister
-                      lreg freeRegister
                     }
                     { 1 } { "OR: unhandled left type" abortTracing }
                   ] conds
                 }
                 { 1 } { "OR: unhandled right type" abortTracing }
               ] conds
+
+              deallocLeft deallocRight
             }
             { 1 } { |entry dump "Invalid entry while compiling trace code" die }
           ] conds
+
+          registerDeallocations
         } /compileExpression deffst
 
-        sideEffects |compileExpression each
-        sideEffects { =*entry
+        scopeReads { compileExpression -- } each # do not deallocate, keep the values in registers to permit later writes
+        stackReads { compileExpression -- } each # do not deallocate, keep the cleaned values in registers
+        scopeWrites { _ =*entry compileExpression =*?registerDeallocations
           [
             { 0 entry STATICWRITE eq } {
               4 entry =*source
               NOREGISTER ==reg
+              nextRegister ==tmpreg
 
               [
                 { 0 source PUSH eq } {
@@ -1010,14 +1071,15 @@
                   |source canProduceLargeInts {
                     traceCode [
                       reg /rax :movqRegReg
+                      reg tmpreg :movqRegReg
                       32 /rax :shrqImm8Reg
                   
                       [
-                        63 reg :btsqImm8Reg
+                        63 tmpreg :btsqImm8Reg
                         0 :jmpRel8
                       ] len :jnzRel8
 
-                      63 reg :btsqImm8Reg
+                      63 tmpreg :btsqImm8Reg
 
                       [
                         availableRegisters { :pushqReg } each
@@ -1025,7 +1087,7 @@
                         /rax :callqReg
                         availableRegisters reverse { :popqReg } each
                         reg 8 /rax :movqRegMemDisp8
-                        /rax reg :movqRegReg
+                        /rax tmpreg :movqRegReg
                       ] len :jmpRel8
 
                       availableRegisters { :pushqReg } each
@@ -1033,15 +1095,16 @@
                       /rax :callqReg
                       availableRegisters reverse { :popqReg } each
                       reg 8 /rax :movqRegMemDisp8
-                      /rax reg :movqRegReg
+                      /rax tmpreg :movqRegReg
                     ] cat =traceCode
                   } {
                     traceCode [
-                      63 reg :btsqImm8Reg
+                      reg tmpreg :movqRegReg
+                      63 tmpreg :btsqImm8Reg
                     ] cat =traceCode
                   } ? *
                 }
-                { 1 } { |source dump "Invalid value source in sideEffects" die }
+                { 1 } { |source dump "Invalid value source in scopeWrites" die }
               ] conds
 
               2 entry {
@@ -1052,39 +1115,42 @@
 
                 3 entry {
                   traceCode [
-                    reg :pushqReg
-                    24 /rax reg :movqMemDisp8Reg # load extension area pointer
+                    tmpreg :pushqReg
+                    24 /rax tmpreg :movqMemDisp8Reg # load extension area pointer
                     /rax /eax :movlMemReg # load scope length
                     /rax :negqReg # prepare for substraction
-                    1 entry 1 /rax reg :popqMemIndexScaleDisp32 # load entry from stack
+                    1 entry 1 /rax tmpreg :popqMemIndexScaleDisp32 # load entry from stack
                   ] cat =traceCode
                 } {
                   traceCode [
-                    reg 1 entry /rax :movqRegMemDisp32
+                    tmpreg 1 entry /rax :movqRegMemDisp32
                   ] cat =traceCode
                 } ? *
               } {
                 3 entry {
                   traceCode [
-                    reg :pushqReg
-                    24 /r14 reg :movqMemDisp8Reg # load extension area pointer
+                    tmpreg :pushqReg
+                    24 /r14 tmpreg :movqMemDisp8Reg # load extension area pointer
                     /r14 /eax :movlMemReg # load scope length
                     /rax :negqReg # prepare for substraction
-                    1 entry 1 /rax reg :popqMemIndexScaleDisp32 # load entry from stack
+                    1 entry 1 /rax tmpreg :popqMemIndexScaleDisp32 # load entry from stack
                   ] cat =traceCode
                 } {
                   traceCode [
-                    reg 1 entry /r14 :movqRegMemDisp32
+                    tmpreg 1 entry /r14 :movqRegMemDisp32
                   ] cat =traceCode
                 } ? *
               } ? *
+
+              tmpreg freeRegister
             }
-            { 1 } { "Invalid entry type in sideEffects" die }
+            { 1 } { "Invalid entry type in scopeWrites" die }
           ] conds
+
+          registerDeallocations
         } each
 
-        knownStack |compileExpression each
-        knownStack { =*entry
+        knownStack { _ =*entry compileExpression =*?registerDeallocations
           [
             { 0 entry PUSH eq } {
               traceCode [
@@ -1133,12 +1199,17 @@
             }
             { 1 } { |entry dump "Invalid entry while assembling trace code" die }
           ] conds
+
+          registerDeallocations
         } each
       } rep
 
+      _ dump /assembly_finished dump
+
       aborted not actualImprovement and {
         "Improved integer trace" dump
-        sideEffects dump
+        scopeReads dump
+        scopeWrites dump
         knownStack dump
         [
           0 traceStart range { logic * } each
@@ -1147,6 +1218,7 @@
         ] =logic
       } rep
 
+      dump /we_are_done dump
       logic
     } /rewriteIntegerTrace deffst
 
