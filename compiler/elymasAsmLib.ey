@@ -521,6 +521,7 @@
       /rbx /rbp :cmpqRegReg
       /noFreeBlockAvailable :jbeLbl32
 
+      @resumeFreeBlockStartSearch
       /rsi /rsi :xorqRegReg
       # rsi > 0  =>  currently counting block extent of free block
 
@@ -533,25 +534,28 @@
       /rdx :notqReg
       /rdx /rax :andqRegReg
       /rbx /rcx :movqRegReg
-      63 /rcx :andqImm8Reg
+      # 63 /rcx :andqImm8Reg
       /rax :shrqClReg
       /rax :shlqClReg
       /rax /rax :bsfqRegReg # rax == lowest bit which denotes free block start
       /immediateHit :jnzLbl8
 
-      /rbx /r8 :btqRegMem # test block bitmap
-      /nonFreeBlockStartFound :jcLbl8 # block not free
-      /rbx /r9 :btqRegMem # test mark bitmap
-      /freeBlockStartFound :jcLbl8 # block marked, i.e. truly free block start
-
-      @resumeFreeBlockStartSearch
-      /rsi /rsi :xorqRegReg
-
-      @nonFreeBlockStartFound
-      /rbx :incqReg
+      %C0 /rbx :andqImm8Reg
+      64 /rbx :addqImm8Reg
       /rbx /rbp :cmpqRegReg
       /searchFreeBlockStart :jaLbl8
       /noFreeBlockAvailable :jmpLbl32
+
+      # /rbx /r8 :btqRegMem # test block bitmap
+      # /nonFreeBlockStartFound :jcLbl8 # block not free
+      # /rbx /r9 :btqRegMem # test mark bitmap
+      # /freeBlockStartFound :jcLbl8 # block marked, i.e. truly free block start
+
+      # @nonFreeBlockStartFound
+      # /rbx :incqReg
+      # /rbx /rbp :cmpqRegReg
+      # /searchFreeBlockStart :jaLbl8
+      # /noFreeBlockAvailable :jmpLbl32
 
       @immediateHit
       %C0 /rbx :andqImm8Reg
@@ -586,12 +590,12 @@
 
       /rsi /rdx :movqRegMem # save old freelist start into heap
       /rdx /rcx :movqRegMem # save freelist entry
-      /resumeFreeBlockStartSearch :jmpLbl8
+      /resumeFreeBlockStartSearch :jmpLbl32
 
       @freeListEmpty
       0 /rdx :andqImm8Mem # put zero into heap to signal end of list
       /rdx /rcx :movqRegMem # save freelist entry
-      /resumeFreeBlockStartSearch :jmpLbl8
+      /resumeFreeBlockStartSearch :jmpLbl32
 
       @freeBlockFound
       # rdi == size of block to allocate
