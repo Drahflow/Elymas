@@ -525,6 +525,20 @@
       # rsi > 0  =>  currently counting block extent of free block
 
       @searchFreeBlockStart
+      /rbx /rax :movqRegReg
+      6 /rax :shrqImm8Reg
+      3 /rax :shlqImm8Reg
+      /rax /r8 /rdx :movqMemIndexReg
+      /rax /r9 /rax :movqMemIndexReg
+      /rdx :notqReg
+      /rdx /rax :andqRegReg
+      /rbx /rcx :movqRegReg
+      63 /rcx :andqImm8Reg
+      /rax :shrqClReg
+      /rax :shlqClReg
+      /rax /rax :bsfqRegReg # rax == lowest bit which denotes free block start
+      /immediateHit :jnzLbl8
+
       /rbx /r8 :btqRegMem # test block bitmap
       /nonFreeBlockStartFound :jcLbl8 # block not free
       /rbx /r9 :btqRegMem # test mark bitmap
@@ -538,6 +552,10 @@
       /rbx /rbp :cmpqRegReg
       /searchFreeBlockStart :jaLbl8
       /noFreeBlockAvailable :jmpLbl32
+
+      @immediateHit
+      %C0 /rbx :andqImm8Reg
+      /rax /rbx :addqRegReg
 
       @freeBlockStartFound
       /rbx /rdx :movqRegReg

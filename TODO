@@ -1,3 +1,6 @@
+* optimize the free-block scanning loop
+* why is vp3view crashing?
+* apply the trace extractor to non-tail situations
 * utf8
 * regex substitution
 * asm-based regex engine
@@ -14,6 +17,7 @@
 * consider polymorphic call-site caches instead of deffs_t_ / deffs?
 
 * eliminate all FIXMEs
+** unite the /EQ-LT-OR-GE... things in lib/sys/opt.ey
 * stack underflow protection
 * input prompt
 * better interactive error handling when interpreting from stdin

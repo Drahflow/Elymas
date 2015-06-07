@@ -65,7 +65,7 @@
 } /modrm00 deff
 
 { ==mem ==reg
-  mem [ /spl /sp /esp /rsp ] eq any {
+  mem [ /spl /sp /esp /rsp /r12b /r12w /r12d /r12 ] eq any {
     # actually encode sib with rsp index register (to get it ignored)
                     %40
     /sib regno      %07 band add
@@ -1222,6 +1222,14 @@ memoryAddressingVariants keys { ==variant memoryAddressingVariants variant . =*p
 } /nop deff
 
 { ==reg
+  reg bit8assert
+
+  reg regno %07 gt reg rexreqbyte or { 0 /none /none reg rex } rep
+  %F6
+  /two reg modrm11
+} /notbReg deff
+
+{ ==reg
   reg bit64assert
 
   1 /none /none reg rex
@@ -1365,6 +1373,14 @@ memoryAddressingVariants keys { ==variant memoryAddressingVariants variant . =*p
   /zero reg modrm11
 } _ /setnleReg deff
     /setgReg deff
+
+{ ==reg
+  reg bit64assert
+
+  1 /none /none reg rex
+  %D1
+  /four reg modrm11
+} /shlq1Reg deff
 
 { ==reg
   reg bit64assert
