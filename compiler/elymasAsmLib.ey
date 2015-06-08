@@ -534,7 +534,7 @@
       /rdx :notqReg
       /rdx /rax :andqRegReg
       /rbx /rcx :movqRegReg
-      # 63 /rcx :andqImm8Reg # no need for this, the shrq/shlq bitmask with 63 anyway
+      # 63 /rcx :andqImm8Reg # no need for this, the shrq/shlq bitmasks with 63 anyway
       /rax :shrqClReg
       /rax :shlqClReg
       /rax /rax :bsfqRegReg # rax == lowest bit which denotes free block start
@@ -549,17 +549,48 @@
       @freeBlockStartFound
       %C0 /rbx :andqImm8Reg
       /rax /rbx :addqRegReg
-      8 /rdi /rcx :leaqMemDisp8Reg
-      4 /rcx :shrqImm8Reg # rcx == number of cells needed overall
-      1 neg 1 /rbx /rcx /rcx :leaqMemIndexScaleDisp8Reg # rcx == last cell we need to allocate
-      /rcx /rbp :cmpqRegReg
+      8 /rdi /rsi :leaqMemDisp8Reg
+      4 /rsi :shrqImm8Reg # rsi == number of cells needed overall
+      1 neg 1 /rbx /rsi /rsi :leaqMemIndexScaleDisp8Reg # rsi == last cell we need to allocate
+      /rsi /rbp :cmpqRegReg
       /noFreeBlockAvailable :jbeLbl32 # not enough space remaining on heap
 
       /rbx /rdx :movqRegReg
       @freeBlockContinues
-      /rbx /rcx :cmpqRegReg
-      /freeBlockFound :jbeLbl8
+      # rbx == cell we are looking at
+      # rdx == first cell of current block
+      # rsi == last cell we need to allocate
+      /rbx /rsi :cmpqRegReg
+      /freeBlockFound :jbeLbl32
       /rbx :incqReg
+
+      @freeBlockContinuesAfterContinueBlock
+      /rbx /rax :movqRegReg
+      6 /rax :shrqImm8Reg
+      3 /rax :shlqImm8Reg
+      /rax /r8 /rcx :movqMemIndexReg
+      /rax /r9 /rax :movqMemIndexReg
+      /rcx /rax :orqRegReg
+      /rbx /rcx :movqRegReg
+      # 63 /rcx :andqImm8Reg # no need for this, the shrq/shlq bitmasks with 63 anyway
+      /rax :shrqClReg
+      /rax :shlqClReg
+      /rax /rax :bsfqRegReg # rax == lowest bit which is not 0/0, i.e. continue
+      /interestingBitFound :jnzLbl8
+
+      %C0 /rbx :andqImm8Reg
+      64 /rbx :addqImm8Reg
+      /rbx /rsi :cmpqRegReg
+      /freeBlockFound :jbLbl32
+      /freeBlockContinuesAfterContinueBlock :jmpLbl8
+
+      @interestingBitFound
+      %C0 /rbx :andqImm8Reg
+      /rax /rbx :addqRegReg
+      1 neg /rbx /rax :leaqMemDisp8Reg
+      /rax /rsi :cmpqRegReg
+      /freeBlockFound :jbeLbl8
+
       /rbx /r8 :btqRegMem # test block bitmap
       /blockTooSmall :jcLbl8 # block not free
       /rbx /r9 :btrqRegMem # reset mark bit to reconnect free blocks
@@ -583,6 +614,7 @@
       /resumeFreeBlockStartSearch :jmpLbl32
 
       @freeBlockFound
+      /rsi /rbx :movqRegReg
       # rdi == size of block to allocate
       # rbx == last cell of free block of sufficient size
 
