@@ -412,14 +412,14 @@
 
       freeLists /rsi :movqImmReg
       8 /rax /rsi /rcx :leaqMemIndexScaleReg # load correct freelist start
-      /rcx /rax :movqMemReg # load entry
-      /rax /rax :testqRegReg
+      /rax /rax :xorqRegReg
+      /rcx /rax :orqMemReg # load entry
       /freeListUseful :jnzLbl8
 
       3 {
         8 /rcx :addqImm8Reg
-        /rcx /rax :movqMemReg # load entry
-        /rax /rax :testqRegReg
+        /rax /rax :xorqRegReg
+        /rcx /rax :orqMemReg # load entry
         /freeListUseful :jnzLbl8
       } rep # try some larger freelists
 
@@ -534,11 +534,11 @@
       /rdx :notqReg
       /rdx /rax :andqRegReg
       /rbx /rcx :movqRegReg
-      # 63 /rcx :andqImm8Reg
+      # 63 /rcx :andqImm8Reg # no need for this, the shrq/shlq bitmask with 63 anyway
       /rax :shrqClReg
       /rax :shlqClReg
       /rax /rax :bsfqRegReg # rax == lowest bit which denotes free block start
-      /immediateHit :jnzLbl8
+      /freeBlockStartFound :jnzLbl8
 
       %C0 /rbx :andqImm8Reg
       64 /rbx :addqImm8Reg
@@ -546,22 +546,9 @@
       /searchFreeBlockStart :jaLbl8
       /noFreeBlockAvailable :jmpLbl32
 
-      # /rbx /r8 :btqRegMem # test block bitmap
-      # /nonFreeBlockStartFound :jcLbl8 # block not free
-      # /rbx /r9 :btqRegMem # test mark bitmap
-      # /freeBlockStartFound :jcLbl8 # block marked, i.e. truly free block start
-
-      # @nonFreeBlockStartFound
-      # /rbx :incqReg
-      # /rbx /rbp :cmpqRegReg
-      # /searchFreeBlockStart :jaLbl8
-      # /noFreeBlockAvailable :jmpLbl32
-
-      @immediateHit
+      @freeBlockStartFound
       %C0 /rbx :andqImm8Reg
       /rax /rbx :addqRegReg
-
-      @freeBlockStartFound
       /rbx /rdx :movqRegReg
       @freeBlockContinues
       16 /rsi :addqImm8Reg
