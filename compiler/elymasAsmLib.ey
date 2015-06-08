@@ -549,20 +549,26 @@
       @freeBlockStartFound
       %C0 /rbx :andqImm8Reg
       /rax /rbx :addqRegReg
+      8 /rdi /rcx :leaqMemDisp8Reg
+      4 /rcx :shrqImm8Reg # rcx == number of cells needed overall
+      1 neg 1 /rbx /rcx /rcx :leaqMemIndexScaleDisp8Reg # rcx == last cell we need to allocate
+      /rcx /rbp :cmpqRegReg
+      /noFreeBlockAvailable :jbeLbl32 # not enough space remaining on heap
+
       /rbx /rdx :movqRegReg
       @freeBlockContinues
-      16 /rsi :addqImm8Reg
-      /rsi /rdi :cmpqRegReg
+      /rbx /rcx :cmpqRegReg
       /freeBlockFound :jbeLbl8
       /rbx :incqReg
-      /rbx /rbp :cmpqRegReg
-      /noFreeBlockAvailable :jbeLbl32
       /rbx /r8 :btqRegMem # test block bitmap
       /blockTooSmall :jcLbl8 # block not free
       /rbx /r9 :btrqRegMem # reset mark bit to reconnect free blocks
       /freeBlockContinues :jmpLbl8
 
       @blockTooSmall
+      /rbx /rsi :movqRegReg
+      /rdx /rsi :subqRegReg
+      4 /rsi :shlqImm8Reg # rsi == length of free block
       4 /rdx :shlqImm8Reg
       /rax :movqImmOOBReg HEAPBASE
       /rax /rdx :addqRegReg # rdx == start of empty block in heap
@@ -572,15 +578,7 @@
       freeLists /rsi :movqImmReg
       8 /rax /rsi /rcx :leaqMemIndexScaleReg # load correct freelist start
       /rcx /rsi :movqMemReg
-      /rsi /rsi :testqRegReg
-      /freeListEmpty :jzLbl8
-
       /rsi /rdx :movqRegMem # save old freelist start into heap
-      /rdx /rcx :movqRegMem # save freelist entry
-      /resumeFreeBlockStartSearch :jmpLbl32
-
-      @freeListEmpty
-      0 /rdx :andqImm8Mem # put zero into heap to signal end of list
       /rdx /rcx :movqRegMem # save freelist entry
       /resumeFreeBlockStartSearch :jmpLbl32
 
