@@ -355,56 +355,12 @@
     # rax <- address of allocated chunk
     #        chunk will have GC length header initialized correctly
     [[
-      /rbx :pushqReg
-      # /rdi :pushqReg # TODO remove these three lines once load-testing the GC seems unnecessary
-      # /markAndSweep :callqLbl32 # load testing
-      # /rdi :popqReg # load testing
-      /rdi :pushqReg
-      /takeFromFreelist :callqLbl32
-      /rax /rax :andqRegReg
-      /success :jnzLbl32
-
-      markAndSweepCosts /rax :movqImmReg
-      /rax /rdx :movqMemReg
-      /rdx /rdx :testqRegReg
-      /costAlreadyZero :jzLbl8
-      1 /rax :subqImm8Mem
-      @costAlreadyZero
-
-      /searchForFreeBlock :callqLbl32
-      /rax /rax :andqRegReg
-      /success :jnzLbl32
-      /markAndSweep :callqLbl32
-
-      markAndSweepCosts /rax :movqImmReg
-      MARKANDSWEEPCOST /rdx :movqImmReg
-      /rdx /rax :addqRegMem
-
-      MARKANDSWEEPCOST 16 add /rdx :movqImmReg
-      /rdx /rax :cmpqRegMem
-      /allocateFromSystemAtLeastOnce :jaeLbl8
-
-      @allocateFromSystemLoop
-      /rdi :popqReg
-      /rdi :pushqReg
-      /searchForFreeBlock :callqLbl32
-      /rax /rax :andqRegReg
-      /success :jnzLbl32
-
-      @allocateFromSystemAtLeastOnce
-      /allocateFromSystem :callqLbl32
-      /allocateFromSystemLoop :jmpLbl8
-
-      @success
-      /rdi :popqReg
-      /rbx :popqReg
-      :retn
-
       # free lists are accumulated during searchForFreeBlock when small blocks are skipped
       # they are terminated by a null pointer
       # only cells below unusedHeapStart may be present in the free lists
 
-      @takeFromFreelist
+      # freelist code must not modify rbx, rdi # FIXME, find why lib/sys/opt.ey requires unmodified rdi
+      # @takeFromFreelist
       /rdi /rax :movqRegReg
       /rax :decqReg
       /rax /rax :bsrqRegReg # compute log_2(rdi)
@@ -423,7 +379,7 @@
         /freeListUseful :jnzLbl8
       } rep # try some larger freelists
 
-      :retn
+      /takeFromFreeListFailed :jmpLbl32
 
       @freeListUseful
       # rdi == requested size
@@ -476,23 +432,67 @@
 
       /rcx :negqReg
       /rax /rcx :addqRegReg
-      /rcx /rbx :movqRegReg
-      4 /rbx :shrqImm8Reg
+      4 /rcx :shrqImm8Reg
 
       # mark block as used (-> white)
-      /rbx /rdx :btsqRegMem # set block bit
-      /rbx /rsi :btrqRegMem # reset mark bit
+      /rcx /rdx :btsqRegMem # set block bit
+      /rcx /rsi :btrqRegMem # reset mark bit
 
-      8 1 /rdi /rcx /rbx :leaqMemIndexScaleDisp8Reg # compute end of block, adjust 8-byte chunks upwards
-      4 /rbx :shrqImm8Reg # rbx == cell number of first cell of next block
-      /rbx /rbp :cmpqRegReg
+      4 /rcx :shlqImm8Reg
+      8 1 /rdi /rcx /rcx :leaqMemIndexScaleDisp8Reg
+      4 /rcx :shrqImm8Reg # rcx == cell number of first cell of next block
+
+      /rcx /rbp :cmpqRegReg
       /dontSplitAfterFreelist :jbeLbl8
 
-      /rbx /rdx :btqRegMem # the next block already starts here?
+      /rcx /rdx :btqRegMem # the next block already starts here?
       /dontSplitAfterFreelist :jcLbl8 # yes
-      /rbx /rsi :btsqRegMem # set mark bit if block bit was zero
+      /rcx /rsi :btsqRegMem # set mark bit if block bit was zero
 
       @dontSplitAfterFreelist
+      :retn
+
+      # ------- above: taking blocks from freelists, below: other things we try to find free memory
+
+      @takeFromFreeListFailed
+
+      /rbx :pushqReg
+      /rdi :pushqReg
+
+      markAndSweepCosts /rax :movqImmReg
+      /rax /rdx :movqMemReg
+      /rdx /rdx :testqRegReg
+      /costAlreadyZero :jzLbl8
+      1 /rax :subqImm8Mem
+      @costAlreadyZero
+
+      /searchForFreeBlock :callqLbl32
+      /rax /rax :andqRegReg
+      /success :jnzLbl32
+      /markAndSweep :callqLbl32
+
+      markAndSweepCosts /rax :movqImmReg
+      MARKANDSWEEPCOST /rdx :movqImmReg
+      /rdx /rax :addqRegMem
+
+      MARKANDSWEEPCOST 16 add /rdx :movqImmReg
+      /rdx /rax :cmpqRegMem
+      /allocateFromSystemAtLeastOnce :jaeLbl8
+
+      @allocateFromSystemLoop
+      /rdi :popqReg
+      /rdi :pushqReg
+      /searchForFreeBlock :callqLbl32
+      /rax /rax :andqRegReg
+      /success :jnzLbl32
+
+      @allocateFromSystemAtLeastOnce
+      /allocateFromSystem :callqLbl32
+      /allocateFromSystemLoop :jmpLbl8
+
+      @success
+      /rdi :popqReg
+      /rbx :popqReg
       :retn
 
       # run through block bitmap until sufficiently many zeroes are found
