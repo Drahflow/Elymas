@@ -1504,7 +1504,9 @@
         [
           0 traceStart range { logic * } each
           [ CONDITIONALTAIL traceConditions traceCode ]
-          traceStart logic len range { logic * } each
+          traceConditions len 0 neq { # if the integer trace is always triggered, don't bother encoding the other case
+            traceStart logic len range { logic * } each
+          } rep
         ] =logic
       } rep
 
