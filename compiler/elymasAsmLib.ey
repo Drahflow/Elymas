@@ -1289,10 +1289,9 @@
       24 /rdi /rdi :leaqMemDisp8Reg
       24 /rsi /rsi :leaqMemDisp8Reg
 
+      /rax /rax :xorqRegReg
       :repz :cmpsb
-      /different :jneLbl8
-
-      1 /rax :movqImmReg
+      /al :seteReg
       :retn
 
       @different
