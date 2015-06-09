@@ -525,9 +525,8 @@
       @searchFreeBlockStart
       /rbx /rax :movqRegReg
       6 /rax :shrqImm8Reg
-      3 /rax :shlqImm8Reg
-      /rax /r8 /rdx :movqMemIndexReg
-      /rax /r9 /rax :movqMemIndexReg
+      8 /rax /r8 /rdx :movqMemIndexScaleReg
+      8 /rax /r9 /rax :movqMemIndexScaleReg
       /rdx :notqReg
       /rdx /rax :andqRegReg
       /rbx /rcx :movqRegReg
@@ -564,9 +563,8 @@
       @freeBlockContinuesAfterContinueBlock
       /rbx /rax :movqRegReg
       6 /rax :shrqImm8Reg
-      3 /rax :shlqImm8Reg
-      /rax /r8 /rcx :movqMemIndexReg
-      /rax /r9 /rax :movqMemIndexReg
+      8 /rax /r8 /rcx :movqMemIndexScaleReg
+      8 /rax /r9 /rax :movqMemIndexScaleReg
       /rcx /rax :orqRegReg
       /rbx /rcx :movqRegReg
       # 63 /rcx :andqImm8Reg # no need for this, the shrq/shlq bitmasks with 63 anyway
