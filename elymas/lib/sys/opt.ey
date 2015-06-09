@@ -855,6 +855,10 @@
                   consume ==right consume ==left
                   knownStack [ [ /LOGICFUNCTION /AND left right NOREGISTER ] ] cat =knownStack
                 }
+                { called |add ::rawAddress eq }' {
+                  consume ==right consume ==left
+                  knownStack [ [ /ARITHFUNCTION /ADD left right NOREGISTER ] ] cat =knownStack
+                }
                 { 1 } { "Unhandled called function" restartTracing
                   # called dump HINTS
                 }
@@ -905,7 +909,7 @@
       } loop
 
       0 ==registerUsed
-      [ /rcx /rdx /rbx /rbp /rsi /rdi ] ==availableRegisters
+      [ /rcx /rdx /rbx /rsi /rdi ] ==availableRegisters # rbp excluded because SIB irregularities
       [ availableRegisters len { 0 } rep ] ==usedRegisters
       {
         0 ==i /NONE ==reg
@@ -953,6 +957,7 @@
           [
             { 0 entry /INPUT eq } { 2 }
             { 0 entry /LOGICFUNCTION eq } { 4 }
+            { 0 entry /ARITHFUNCTION eq } { 4 }
             { 0 entry STATICTYPED eq } { 5 }
             { 1 } { 0 }
           ] conds
@@ -1286,6 +1291,47 @@
                   ] conds
                 }
                 { 1 } { "AND: unhandled right type" abortTracing }
+              ] conds
+
+              deallocLeft deallocRight
+            }
+
+            { 0 entry /ARITHFUNCTION eq { 1 entry /ADD eq }' andif } { # FIXME: condense with /OR
+              2 entry _ =*left compileExpression =*?deallocLeft
+              3 entry _ =*right compileExpression =*?deallocRight
+              nextRegister _ ==target 4 |entry =[]
+                { target freeRegister NOREGISTER 4 |entry =[] } registerDeallocations ; =registerDeallocations
+
+              [
+                { 0 right PUSH eq { 1 right isIntValue }' andif { 1 right getIntValue %7F le }' andif } {
+                  [
+                    { |left hasRegister } {
+                      |left getRegister ==reg
+                      1 =actualImprovement
+
+                      traceCode [
+                        1 right getIntValue reg target :leaqMemDisp8Reg
+                      ] cat =traceCode
+                    }
+                    { 1 } { "GT: unhandled left type" abortTracing }
+                  ] conds
+                }
+
+                { |right hasRegister } {
+                  |right getRegister ==rreg
+                  [
+                    { |left hasRegister } {
+                      |left getRegister ==lreg
+                      1 =actualImprovement
+
+                      traceCode [
+                        lreg rreg target :leaqMemIndexReg
+                      ] cat =traceCode
+                    }
+                    { 1 } { "ADD: unhandled left type" abortTracing }
+                  ] conds
+                }
+                { 1 } { "ADD: unhandled right type" abortTracing }
               ] conds
 
               deallocLeft deallocRight
@@ -2082,14 +2128,20 @@
 > --
 
 # ensure that the optimizer is run often enough to finish optimize itself
-# while in practice this is also achieved by the next freeze, it should be done explicitely
-100 { scope ==s
-  "{" s sys .executeIdentifier =s
-  1 1
-  "add" s sys .executeIdentifier =s
-  "--" s sys .executeIdentifier =s
-  "}" s sys .executeIdentifier =s
-  *
-} rep
+[ /eq /neq /le /lt /ge /gt /and /or /add ] { ==function
+  10 { scope ==s
+    1
+    "{" s sys .executeIdentifier =s
+    "i"
+    "==" s sys .executeIdentifier =s
+    "i" s sys .executeIdentifier =s
+    1
+    function s sys .executeIdentifier =s
+    "}" s sys .executeIdentifier =s
+    *
+    --
+  } rep
+  function dump
+} each
 
 # vim: syn=elymas
