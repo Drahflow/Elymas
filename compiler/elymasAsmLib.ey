@@ -361,13 +361,11 @@
 
       # freelist code must not modify rbx, rdi # FIXME, find why lib/sys/opt.ey requires unmodified rdi
       # @takeFromFreelist
-      /rdi /rax :movqRegReg
-      /rax :decqReg
+      1 neg /rdi /rax :leaqMemDisp8Reg
       /rax /rax :bsrqRegReg # compute log_2(rdi)
-      /rax :incqReg
 
       freeLists /rsi :movqImmReg
-      8 /rax /rsi /rcx :leaqMemIndexScaleReg # load correct freelist start
+      8 8 /rax /rsi /rcx :leaqMemIndexScaleDisp8Reg # load correct freelist start
       /rax /rax :xorqRegReg
       /rcx /rax :orqMemReg # load entry
       /freeListUseful :jnzLbl8
@@ -394,8 +392,7 @@
       %F0 /rsi :andqImm8Reg # reset lower 4 bit
       /returnFreeListBlock :jzLbl8
 
-      /rax /rdi /rdx :leaqMemIndexReg
-      8 /rdx :addqImm8Reg
+      8 1 /rax /rdi /rdx :leaqMemIndexScaleDisp8Reg
       %F0 /rdx :andqImm8Reg # align on 16 byte cell
 
       # rdx == start of remaining block
