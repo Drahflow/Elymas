@@ -999,6 +999,19 @@ memoryAddressingVariants keys { ==variant memoryAddressingVariants variant . =*p
   i imm16
 } /movwImmMem deff
 
+{ ==mem ==disp ==i
+  mem bit64assert
+  disp 128 lt not { "Disp8 out of range" die } rep
+  i 65536 lt not { "Imm16 too large" die } rep
+
+  width16
+  mem regno %07 gt { 0 /none /none mem rex } rep
+  %C7
+  /zero mem modrm01
+  disp imm8
+  i imm16
+} /movwImmMemDisp8 deff
+
 { ==mem ==i
   mem bit64assert
   i 65536 65536 mul lt not { "Imm32 too large" die } rep

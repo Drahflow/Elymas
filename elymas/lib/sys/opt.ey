@@ -1845,7 +1845,7 @@
     rewriteConstantStar
     rewriteConstantQuestionStar
     rewriteIntegerTrace
-    # rewriteArithmetics # SUPERSEDED BY rewriteIntegerTrace
+    rewriteArithmetics # mostly SUPERSEDED BY rewriteIntegerTrace
     rewriteArithmeticsOptimistic
     rewriteSimpleFunctions
     testAllocatedScopeEscape

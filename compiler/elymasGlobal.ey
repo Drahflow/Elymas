@@ -2833,6 +2833,35 @@
     ]] /ey! defv
   > _ ==globalFunctions3 { defv }' ::allocateOffsetStruct
 
+  [[
+    # the length of the following opcodes needs to fit with the :jmpRel8 below
+    %48 16 /rdi :cmpbImmMemDisp8
+    /nonReplaced :jnzLbl8
+    %B8 17 /rdi :cmpbImmMemDisp8
+    /nonReplaced :jnzLbl8
+    %FF 26 /rdi :cmpbImmMemDisp8
+    /nonReplaced :jnzLbl8
+    %E0 27 /rdi :cmpbImmMemDisp8
+    /nonReplaced :jnzLbl8
+
+    18 /rdi /rdi :movqMemDisp8Reg # use jump target instead of jump pad in new function object
+    16 /rdi :subqImm8Reg
+    /grabRip :callqLbl32 # TODO: use rip-relative addressing
+    @grabRip
+    /rax :popqReg
+    /rdi 45 neg /rax :movqRegMemDisp8 # update the function code object we use
+    [ 46 :jmpRel8 ] _ len 2 neq { "unexpected opcode length" die } rep
+      2 dearray 256 mul add 
+      37 neg /rax :movwImmMemDisp8 # don't do rewrite tests next time
+
+    @nonReplaced
+    /r14 /rsi :movqRegReg
+    /rdx /rdx :xorqRegReg
+    ::internalAllocateFunction /rax :movqImmReg
+    /rax :callqReg
+    /rax :pushqReg
+  ]] ==functionObjectWrapperCode # moved here so [[, ]] work correctly
+
   <
     # quote construction, push begin marker on stack
     [
@@ -3024,13 +3053,7 @@
           10 /rdi :addqImm8Reg
           8 /rbp :addqImm8Reg
 
-          [
-            /r14 /rsi :movqRegReg
-            /rdx /rdx :xorqRegReg
-            ::internalAllocateFunction /rax :movqImmReg
-            /rax :callqReg
-            /rax :pushqReg
-          ] ::unscopingFunctionFooter cat ::loadToRdi
+          functionObjectWrapperCode ::unscopingFunctionFooter cat ::loadToRdi
         } {
           # create constant function from inner code block
           /rax /rdi :movqRegReg
