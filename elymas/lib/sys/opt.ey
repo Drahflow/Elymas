@@ -2102,16 +2102,20 @@
         }
 
         { action CONDITIONALTAIL eq }' {
-          [
-            1 /rax :movqImmReg
-          ] emitOpcodes
-          1 entry emitOpcodes
-          [
-            /rax /rax :testqRegReg
-            2 entry len newFooter len add :jzRel32
-          ] emitOpcodes
-          2 entry emitOpcodes
-          newFooter emitOpcodes
+          1 entry len {
+            [
+              1 /rax :movqImmReg
+            ] emitOpcodes
+            1 entry emitOpcodes
+            [
+              /rax /rax :testqRegReg
+              2 entry len newFooter len add :jzRel32
+            ] emitOpcodes
+            2 entry emitOpcodes
+            newFooter emitOpcodes
+          } {
+            2 entry emitOpcodes # test would always succeed, footer will follow immediately
+          } ? *
         }
 
         { 1 }' {

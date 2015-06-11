@@ -1,5 +1,3 @@
-* exercise the optimizer before freezing optimize
-* why is vp3view crashing?
 * apply the trace extractor to non-tail situations
 * utf8
 * regex substitution
