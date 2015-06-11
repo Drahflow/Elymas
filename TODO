@@ -23,3 +23,4 @@
 * better interactive error handling when interpreting from stdin
 * document ALL THE LIBRARIES
 * consider https://en.wikipedia.org/wiki/Hindley%E2%80%93Milner_type_system and finally make the stuff typed correctly
+* rewrite constant . resolutions to constants

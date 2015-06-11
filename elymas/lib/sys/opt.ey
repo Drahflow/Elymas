@@ -295,13 +295,16 @@
   } /holdsInt deffd
 
   [
-    "|" "=" "/" "?" "[" "]" /cat /dearray /def /die /len
+    "/" "?" "[" "]" /cat /dearray /die /len
     /quoted /range "''" ".?" ".?'" ".|" ";"
+    /keys /dom /add /and /band /bor /bxor /div /eq /ge /gt /le /lt
+    /mod /mul /neq /or /sub /udiv /umod /xor /bnot /neg /not
+  ] { | ::rawCodeAddress } [ 0 ] [ 0 ] '' * ==:SCOPEIGNORANTFUNCTIONS
+  [
+    "|" "=" /def
     /defv /deff /defq /defm /defvs /deffs /defms /defvt
     /defft /defmt /defvst /deffst /defmst /defvc /deffc
     /defmc /defvd /deffd /defmd
-    /keys /dom /add /and /band /bor /bxor /div /eq /ge /gt /le /lt
-    /mod /mul /neq /or /sub /udiv /umod /xor /bnot /neg /not
   ] { | ::rawCodeAddress } [ 0 ] [ 0 ] '' * ==:SCOPETIGHTFUNCTIONS
   [
     /defvs /deffs /defms /defvst /deffst /defmst
@@ -329,29 +332,37 @@
 
     0 ==allocatedScopeMightEscape
     { _ ==logic
+      0 ==needsAScope
+
       logic { ==entry 0 entry * ==action
         [
           { action NOP eq }' { }
           { action PUSH eq }' { }
           { action CALLSCOPED eq }' { }
-          { action STATIC eq }' { }
-          { action STATICTYPED eq }' { }
-          { action STATICWRITE eq }' { }
-          { action STATICDOT eq }' { }
+          { action STATIC eq }' { 1 =needsAScope }
+          { action STATICTYPED eq }' { 1 =needsAScope }
+          { action STATICWRITE eq }' { 1 =needsAScope }
+          { action STATICDOT eq }' { 1 =needsAScope }
           { action ARRAYSTAR eq }' { }
           { action UNTYPEDSCOPEDSTAR eq }' { }
           { action STRINGSTAR eq }' { }
-          { action NATIVENOSCOPE eq }' { }
-          { action CONDITIONALTAIL eq }' { }
+          { action NATIVENOSCOPE eq }' { 1 =needsAScope }
+          { action CONDITIONALTAIL eq }' { 1 =needsAScope }
 
-          { action CALL eq { 1 entry * SCOPETIGHTFUNCTIONS eq any } andif }' { }
+          { action CALL eq { 1 entry * SCOPEIGNORANTFUNCTIONS eq any } andif }' { }
+          { action CALL eq { 1 entry * SCOPETIGHTFUNCTIONS eq any } andif }' { 1 =needsAScope }
 
           # TODO handle more known-harmless unscoped global functions
           { 1 }' {
             1 =allocatedScopeMightEscape
+            1 =needsAScope
           }
         ] conds
       } each
+
+      needsAScope not isScoping and {
+        0 =isScoping
+      } rep
     } /testAllocatedScopeEscape deffst
 
     0 ==templateNametable
@@ -1816,7 +1827,7 @@
       [
         { ref 105553116266496 lt } { } # HEAPBASE # FIXME: use a global constant
         { ref 123145302310912 ge } { } # %700000000000
-        { 1 } { newReferences [ ref ] cat =newReferences }
+        { 1 } { newReferences [ ref ::rawObject ] cat =newReferences }
       ] conds
     } /emitReference deffst
 
