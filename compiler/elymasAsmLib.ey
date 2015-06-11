@@ -392,7 +392,7 @@
       %F0 /rsi :andqImm8Reg # reset lower 4 bit
       /returnFreeListBlock :jzLbl8
 
-      8 1 /rax /rdi /rdx :leaqMemIndexScaleDisp8Reg
+      15 1 /rax /rdi /rdx :leaqMemIndexScaleDisp8Reg
       %F0 /rdx :andqImm8Reg # align on 16 byte cell
 
       # rdx == start of remaining block
@@ -436,7 +436,7 @@
       /rcx /rsi :btrqRegMem # reset mark bit
 
       4 /rcx :shlqImm8Reg
-      8 1 /rdi /rcx /rcx :leaqMemIndexScaleDisp8Reg
+      15 1 /rdi /rcx /rcx :leaqMemIndexScaleDisp8Reg # align on 16 byte cell
       4 /rcx :shrqImm8Reg # rcx == cell number of first cell of next block
 
       /rcx /rbp :cmpqRegReg
@@ -545,7 +545,7 @@
       @freeBlockStartFound
       %C0 /rbx :andqImm8Reg
       /rax /rbx :addqRegReg
-      8 /rdi /rsi :leaqMemDisp8Reg
+      15 /rdi /rsi :leaqMemDisp8Reg # round up align to cells
       4 /rsi :shrqImm8Reg # rsi == number of cells needed overall
       1 neg 1 /rbx /rsi /rsi :leaqMemIndexScaleDisp8Reg # rsi == last cell we need to allocate
       /rsi /rbp :cmpqRegReg
