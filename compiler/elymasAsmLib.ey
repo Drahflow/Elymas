@@ -1522,7 +1522,7 @@
     # rax <- address of allocated integer
     #        chunk will have GC length header initialized correctly
     [[
-      10 /rdi :movqImmReg
+      16 /rdi :movqImmReg
       internalAllocate /rax :movqImmReg
       /rax :jmpqReg
     ]] /internalAllocateInteger defv
@@ -1671,12 +1671,9 @@
       # set type
       %50 7 /rax :orbImmMemDisp8
 
-      /rsi :popqReg
-      /rsi 8 /rax :movqRegMemDisp8
-      /rdx :popqReg
-      /rdx 16 /rax :movqRegMemDisp8
-      /rdi :popqReg
-      /rdi 24 /rax :movqRegMemDisp8
+      8 /rax :popqMemDisp8
+      16 /rax :popqMemDisp8
+      24 /rax :popqMemDisp8
 
       :retn
     ] /internalAllocateFunction defv
