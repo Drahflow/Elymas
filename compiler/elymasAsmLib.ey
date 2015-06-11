@@ -561,11 +561,10 @@
       /rbx :incqReg
 
       @freeBlockContinuesAfterContinueBlock
-      /rbx /rax :movqRegReg
-      6 /rax :shrqImm8Reg
-      8 /rax /r8 /rcx :movqMemIndexScaleReg
-      8 /rax /r9 /rax :movqMemIndexScaleReg
-      /rcx /rax :orqRegReg
+      /rbx /rcx :movqRegReg
+      6 /rcx :shrqImm8Reg
+      8 /rcx /r9 /rax :movqMemIndexScaleReg
+      8 /rcx /r8 /rax :orqMemIndexScaleReg
       /rbx /rcx :movqRegReg
       # 63 /rcx :andqImm8Reg # no need for this, the shrq/shlq bitmasks with 63 anyway
       /rax :shrqClReg
@@ -582,9 +581,8 @@
       @interestingBitFound
       %C0 /rbx :andqImm8Reg
       /rax /rbx :addqRegReg
-      1 neg /rbx /rax :leaqMemDisp8Reg
-      /rax /rsi :cmpqRegReg
-      /freeBlockFound :jbeLbl8
+      /rbx /rsi :cmpqRegReg
+      /freeBlockFound :jbLbl8
 
       /rbx /r8 :btqRegMem # test block bitmap
       /blockTooSmall :jcLbl8 # block not free
