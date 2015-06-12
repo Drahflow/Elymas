@@ -667,13 +667,14 @@
       /r9 :pushqReg
       /r10 :pushqReg
       /r11 :pushqReg
+      /r12 :pushqReg
 
       /r8 :movqImmOOBReg HEAPBASE # constant through mark
       /r9 :movqImmOOBReg BLOCKBASE # constant through mark
       /r10 :movqImmOOBReg MARKBASE # constant through mark
-      heapSize /r11 :movqImmReg
-      /r11 /r11 :movqMemReg # constant through mark
-      /r8 /r11 :addqRegReg # r11 == end of heap
+      heapSize /r12 :movqImmReg
+      0 /r12 /r12 :movqMemDisp8Reg # constant through mark, r12 == heap size
+      1 /r12 /r8 /r11 :leaqMemIndexScaleReg # r11 == end of heap
 
       # zero mark bitmap
       /r11 /rcx :movqRegReg
@@ -763,6 +764,7 @@
       /freeLoop :loopLbl8
       @noFreeNecessary
 
+      /r12 :popqReg
       /r11 :popqReg
       /r10 :popqReg
       /r9 :popqReg
@@ -820,7 +822,7 @@
       # FIXME: clean this up, only skip mark check for function code objects actually
 
       @markObjectDoneFixMarkBit
-      /rdx /r10 :btrqRegMem # reset mark bit (as it was before)
+      /rdi /r10 :btrqRegMem # reset mark bit (as it was before)
 
       @markObjectDone
       :retn
@@ -839,26 +841,27 @@
       # guaranteed not to clobber rcx, rsi (because it is used in many loops)
       @markObject
       # rdi == address of a reachable object or some other random bits
-      /rdi /rdx :movqRegReg
-      /r8 /rdx :subqRegReg
+      /r8 /rdi :subqRegReg
       /markObjectDone :jbLbl32 # pointing below the heap
 
-      /rdi /r11 :cmpqRegReg
+      /rdi /r12 :cmpqRegReg
       /markObjectDone :jbeLbl32 # pointing above the heap
 
-      # rdi == address of a reachable object
-      # rdx == byte offset relative to heap begin
-      4 /rdx :shrqImm8Reg
-      # rdx == cell index of first 16-byte cell of object
+      1 /r8 /rdi /rdx :leaqMemIndexScaleReg
+      # rdx == address of a reachable object
+      # rdi == byte offset relative to heap begin
+      4 /rdi :shrqImm8Reg
+      # rdi == cell index of first 16-byte cell of object
 
-      /rdx /r10 :btsqRegMem # test mark bit
+      /rdi /r10 :btsqRegMem # test mark bit
       /markObjectDone :jcLbl8 # was already marked (or not an object at all)
-      /rdx /r9 :btqRegMem # test block bit
+      /rdi /r9 :btqRegMem # test block bit
       /markObjectDoneFixMarkBit :jncLbl8 # not pointing to an object (... and mark bit should not have been set)
-      15 /dil :testbImmReg
+      15 /dl :testbImmReg
       /markObjectDoneFixMarkBit :jnzLbl32 # pointing to unaligned address (... and mark bit should not have been set)
 
       /rbp /rbp :xorqRegReg # rbp == 0: not from stack exploration, function code references ignored if trivial forward
+      /rdx /rdi :xchgqRegReg # TODO: eliminate via register renaming
       
       @markObjectUnclean
       # rdi == address of a reachable object
