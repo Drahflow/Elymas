@@ -24,6 +24,11 @@ as it comes with all libraries preloaded. Start it and enter
     "Hello World!" dump
 
 this should yield the obvious result or a bug report to the author.
+If `elymas/shared` did not work for some reason or another, you can also use
+
+    elymas/loaded
+
+which has no shared-library support, but should be good enough for most of the tutorial.
 
 
 Simple functions
