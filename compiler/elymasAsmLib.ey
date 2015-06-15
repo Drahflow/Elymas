@@ -1068,19 +1068,15 @@
       # "function type marked\n" outputError
       # /rdi :popqReg
 
-      /rcx :pushqReg
       /rsi :pushqReg
-      /rdi /ecx :movlMemReg
       /rdi /rsi :movqRegReg
-      8 /rcx :subqImm8Reg
-      @markFunctionTypeLoop
-      /rsi /rcx /rdi :movqMemIndexReg
+      8 /rsi /rdi :movqMemDisp8Reg
       /markObject :callqLbl32
-      8 /rcx :subqImm8Reg
-      /markFunctionTypeLoop :jnzLbl8
+      16 /rsi /rdi :movqMemDisp8Reg
+      /markObject :callqLbl32
+      24 /rsi /rdi :movqMemDisp8Reg
       /rsi :popqReg
-      /rcx :popqReg
-      :retn
+      /markObject :jmpLbl32
 
       9 /rax :movqImmReg # dead code for disambiguation in debugging
       @markScope
@@ -1092,6 +1088,9 @@
       /rsi :pushqReg
       /rdi /ecx :movlMemReg
       /rdi /rsi :movqRegReg
+      %40 /rcx :cmpqImm8Reg # TODO: this is dependnet on INITIALSCOPESIZE
+      /markStandardScope :jzLbl8
+
       8 /rcx :subqImm8Reg
       @markScopeLoop
       /rsi /rcx /rdi :movqMemIndexReg
@@ -1101,6 +1100,24 @@
       /rsi :popqReg
       /rcx :popqReg
       :retn
+
+      @markStandardScope
+      8 /rsi /rdi :movqMemDisp8Reg
+      /markObject :callqLbl32
+      16 /rsi /rdi :movqMemDisp8Reg
+      /markObject :callqLbl32
+      24 /rsi /rdi :movqMemDisp8Reg
+      /markObject :callqLbl32
+      32 /rsi /rdi :movqMemDisp8Reg
+      /markObject :callqLbl32
+      40 /rsi /rdi :movqMemDisp8Reg
+      /markObject :callqLbl32
+      48 /rsi /rdi :movqMemDisp8Reg
+      /markObject :callqLbl32
+      56 /rsi /rdi :movqMemDisp8Reg
+      /rsi :popqReg
+      /rcx :popqReg
+      /markObject :jmpLbl32
 
       10 /rax :movqImmReg # dead code for disambiguation in debugging
       @markNameTable
@@ -1112,11 +1129,17 @@
       /rsi :pushqReg
       /rdi /ecx :movlMemReg
       /rdi /rsi :movqRegReg
+      @markNameTableEntryWasEmpty
       16 /rcx :subqImm8Reg
       /markNameTableEmpty :jzLbl8
       @markNameTableLoop
-      /rsi /rcx /rdi :movqMemIndexReg
-      /markObject :callqLbl32
+      /rdi /rdi :xorqRegReg
+      /rsi /rcx /rdi :orqMemIndexReg
+      /markNameTableEntryWasEmpty :jzLbl8
+      /r8 /rdi :subqRegReg
+      /markNameTableEntryWasEmpty :jbLbl8 # reference outside heap (i.e. initial scope)
+      4 /rdi :shrqImm8Reg
+      /rdi /r10 :btsqRegMem # just set mark bit, this is a string and references no further objects
       16 /rcx :subqImm8Reg
       /markNameTableLoop :jnzLbl8
       @markNameTableEmpty
