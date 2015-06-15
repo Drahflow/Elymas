@@ -409,14 +409,20 @@
           { action CALL eq { 1 entry * "|" | ::rawCodeAddress eq }' andif { 0 last * PUSH eq }' andif }' {
             1 last * ::rawObject ==constant
 
-            constant executingScope sys .resolveInfo {
+            constant executingScope sys .resolveInfo _ ==loadedObject {
               ==mode -- ==parentCount 32 add ==offsetInScope ==inExtensionArea
               inExtensionArea { offsetInScope 8 add =offsetInScope } rep
 
-              mode 16 div 1 band {
-                [ STATIC offsetInScope parentCount inExtensionArea ] =last
-                [ NOP ] =entry
-              } { } ? *
+              [
+                { mode 16 div 1 band }' { # static case
+                  [ NOP ] =last
+                  [ STATIC offsetInScope parentCount inExtensionArea ] =entry
+                }
+                { mode 16 div 4 band }' { # constant case
+                  [ NOP ] =last
+                  [ PUSH loadedObject ] =entry
+                }
+              ] conds
             } {
               executingScope dump
               executingScope keys dump
@@ -443,8 +449,8 @@
               inExtensionArea { offsetInScope 8 add =offsetInScope } rep
 
               mode 16 div 1 band {
-                [ STATICWRITE offsetInScope parentCount inExtensionArea ] =last
-                [ NOP ] =entry
+                [ NOP ] =last
+                [ STATICWRITE offsetInScope parentCount inExtensionArea ] =entry
               } { } ? *
             } {
               executingScope dump
@@ -463,8 +469,8 @@
 
               inExtensionArea not { # FIXME: implement the extension area case
                 mode 16 div 1 band {
-                  [ STATICWRITE offsetInScope parentCount inExtensionArea ] =last
-                  [ NOP ] =entry
+                  [ NOP ] =last
+                  [ STATICWRITE offsetInScope parentCount inExtensionArea ] =entry
                 } { } ? *
               } rep
             } {
@@ -492,26 +498,54 @@
             1 last * ::rawObject ==constant
             4 secondLast * ==relevantScope
 
-            constant relevantScope sys .resolveInfo {
+            constant relevantScope sys .resolveInfo _ ==loadedObject {
               ==mode -- ==parentCount 32 add ==offsetInScope ==inExtensionArea
               inExtensionArea { offsetInScope 8 add =offsetInScope } rep
 
-              mode 16 div 1 band {
-                [ STATICDOT offsetInScope parentCount inExtensionArea ] i 1 sub logic =[]
-                [
-                  { mode 16 mod 0 eq }' {
-                    [ NOP ] i logic =[]
-                  } { mode 16 mod 1 eq }' {
-                    [ CALL "*" | ::rawCodeAddress ] i logic =[]
-                  } { 1 }' {
-                    # TODO this might conceivably be legal though...
-                    "Scope keys: " dump relevantScope keys dump
-                    "Constant: " dump constant dump
-                    "Mode: " dump mode dump
-                    "static . resolution resulted in execution mode neither 0 nor 1" die
-                  }
-                ] conds
-              } { } ? *
+              [
+                { mode 16 div 1 band }' { # static case
+                  [
+                    { mode 16 mod 0 eq }' {
+                      [ NOP ] i 1 sub logic =[]
+                      [ STATICDOT offsetInScope parentCount inExtensionArea ] i logic =[]
+                    } { mode 16 mod 1 eq }' {
+                      [ STATICDOT offsetInScope parentCount inExtensionArea ] i 1 sub logic =[]
+                      [ CALL "*" | ::rawCodeAddress ] i logic =[]
+                    } { mode 16 mod 3 eq }' {
+                      # TODO: implement member case one day
+                    } { 1 }' {
+                      # TODO this might conceivably be legal though...
+                      "Scope keys: " dump relevantScope keys dump
+                      "Constant: " dump constant dump
+                      "Mode: " dump mode dump
+                      "static . resolution resulted in execution mode neither 0 nor 1" die
+                    }
+                  ] conds
+                }
+                { mode 16 div 4 band }' { # const case
+                  [
+                    { mode 16 mod 0 eq }' {
+                      [ NOP ] i 2 sub logic =[]
+                      [ NOP ] i 1 sub logic =[]
+                      [ PUSH loadedObject ] i logic =[]
+                    } { mode 16 mod 1 eq }' {
+                      [ NOP ] i 2 sub logic =[]
+                      [ PUSH loadedObject ] i 1 sub logic =[]
+                      [ CALL "*" | ::rawCodeAddress ] i logic =[]
+                    } { mode 16 mod 3 eq }' {
+                      # leave scope on stack as stack content for member call
+                      [ PUSH loadedObject ] i 1 sub logic =[]
+                      [ CALL "*" | ::rawCodeAddress ] i logic =[]
+                    } { 1 }' {
+                      # TODO this might conceivably be legal though...
+                      "Scope keys: " dump relevantScope keys dump
+                      "Constant: " dump constant dump
+                      "Mode: " dump mode dump
+                      "static . resolution resulted in execution mode neither 0 nor 1" die
+                    }
+                  ] conds
+                }
+              ] conds
             } {
               relevantScope dump
               relevantScope keys dump
@@ -842,6 +876,10 @@
                   consume ==right consume ==left
                   knownStack [ [ /LOGICFUNCTION /EQ left right NOREGISTER ] ] cat =knownStack
                 }
+                { called |neq ::rawAddress eq }' {
+                  consume ==right consume ==left
+                  knownStack [ [ /LOGICFUNCTION /NEQ left right NOREGISTER ] ] cat =knownStack
+                }
                 { called |le ::rawAddress eq }' {
                   consume ==right consume ==left
                   knownStack [ [ /LOGICFUNCTION /LE left right NOREGISTER ] ] cat =knownStack
@@ -1094,6 +1132,34 @@
                   ] conds
                 }
                 { 1 } { "EQ: unhandled right type" abortTracing }
+              ] conds
+
+              deallocLeft deallocRight
+            }
+
+            { 0 entry /LOGICFUNCTION eq { 1 entry /NEQ eq }' andif } {
+              2 entry _ =*left compileExpression =*?deallocLeft
+              3 entry _ =*right compileExpression =*?deallocRight
+              nextRegister _ ==target 4 |entry =[]
+                { target freeRegister NOREGISTER 4 |entry =[] } registerDeallocations ; =registerDeallocations
+
+              [
+                { 0 right PUSH eq { 1 right isIntValue }' andif { 1 right getIntValue %7F le }' andif } {
+                  [
+                    { |left hasRegister } {
+                      |left getRegister ==reg
+                      1 =actualImprovement
+
+                      traceCode [
+                        target target :xorqRegReg
+                        1 right getIntValue reg :cmpqImm8Reg
+                        lowByte target . :setneReg
+                      ] cat =traceCode
+                    }
+                    { 1 } { "NEQ: unhandled left type" abortTracing }
+                  ] conds
+                }
+                { 1 } { "NEQ: unhandled right type" abortTracing }
               ] conds
 
               deallocLeft deallocRight
@@ -1529,6 +1595,55 @@
         [
           { action CALL eq
             { 1 entry * "*" | ::rawCodeAddress eq }' andif
+            { 0 last * PUSH eq }' andif
+          }' {
+            1 last * ::rawObject ==executedObject
+            executedObject sys .typed .type ==type
+
+            type [
+              { last dump "failed to optimize 'execution' of integer typed object" die }
+              {
+                [ STRINGSTAR ] i logic =[]
+              }
+              { "failed to optimize 'execution' of float typed object" die }
+              { "objects of type 3 should not appear" die }
+              { "failed to optimize 'execution' of extension area" die }
+              {
+                # TODO think about handling typed functions
+                executedObject sys .typed .inputs len { } {
+                  # handle untyped function
+                  executedObject sys .capturedScope {
+                    -- # ignore concrete scope
+                    [ UNTYPEDSCOPEDSTAR ] i logic =[]
+                  } {
+                    [ NOP ] i 1 sub logic =[]
+                    [ CALL executedObject ::rawCodeAddress ] i logic =[]
+                  } ? *
+                } ? *
+              }
+              { "failed to optimize 'execution' of raw function opcodes object" die }
+              {
+                [ ARRAYSTAR ] i logic =[]
+              }
+              { "failed to optimize 'execution' of function type descriptor" die }
+              { } # TODO optimize scope execution one day
+              { "failed to optimize 'execution' of name table" die }
+              { "objects of type 11 should not appear" die }
+              { } # TODO optimize coroutine execution one day
+              { "objects of type 13 should not appear" die }
+              { "objects of type 14 should not appear" die }
+              { "objects of type 15 should not appear" die }
+            ] * *
+          }
+        ] conds
+      } each
+    } /rewriteTrivialStar deffst
+
+    { _ ==logic
+      1 logic len range { ==i i logic * ==entry 0 entry * ==action i 1 sub logic * ==last
+        [
+          { action CALL eq
+            { 1 entry * "*" | ::rawCodeAddress eq }' andif
             { 0 last * STATICTYPED eq }' andif
           }' {
             4 last * ==executedObject
@@ -1842,6 +1957,7 @@
       rewriteConstantAssignment
     } rep
     rewriteConstantDot
+    rewriteTrivialStar
     rewriteConstantStar
     rewriteConstantQuestionStar
     rewriteIntegerTrace
