@@ -1283,6 +1283,15 @@ memoryAddressingVariants keys { ==variant memoryAddressingVariants variant . =*p
   imm imm32
 } /pushqImm32 deff
 
+memoryAddressingVariants keys { ==variant memoryAddressingVariants variant . =*parse
+  { parse ==mem
+    mem .base regno %07 gt mem .idx regno %07 gt or { 1 /none mem .idx mem .base rex } rep
+    %0F
+    %0D
+    /zero mem .encode
+  } /prefetch variant defOp
+} each
+
 {
   %F3
 } /reprcx deff
