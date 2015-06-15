@@ -5,6 +5,7 @@
     "../compiler/elymasAsmOps.ey" include
   > /ops sys .asm .defv
 
+  1 ==ARRAYMARKER # FIXME unify with elymasGlobal.ey
   4 ==INITIALSCOPESIZE # FIXME take this from the compiler directory
 
   sys .asm .ops ==:sysasmops
@@ -158,6 +159,7 @@
   /UNTYPEDUNSCOPEDSTAR ==:UNTYPEDUNSCOPEDSTAR
   /STRINGSTAR ==:STRINGSTAR
   /CONDITIONALTAIL ==:CONDITIONALTAIL
+  /ARRAYCLEAR ==:ARRAYCLEAR
 
   { =*f ==t
     t { f } { 0 } ? *
@@ -1714,6 +1716,21 @@
       } each
     } /rewriteConstantQuestionStar deffst
 
+    { _ ==logic
+      1 logic len range { ==i i logic * ==entry 0 entry * ==action i 1 sub logic * ==last
+        [
+          { action CALL eq
+            { 1 entry * "--" | ::rawCodeAddress eq }' andif
+            { 0 last * CALL eq }' andif
+            { 1 last * "]" | ::rawCodeAddress eq }' andif
+          }' {
+            [ NOP ] i 1 sub logic =[]
+            [ ARRAYCLEAR ] i logic =[]
+          }
+        ] conds
+      } each
+    } /rewriteArrayClear deffst
+
     { ==logic
       [ NOP ] ==last
       [ logic { ==entry 0 entry * ==action
@@ -1960,6 +1977,7 @@
     rewriteTrivialStar
     rewriteConstantStar
     rewriteConstantQuestionStar
+    rewriteArrayClear
     rewriteIntegerTrace
     rewriteArithmetics # mostly SUPERSEDED BY rewriteIntegerTrace
     rewriteArithmeticsOptimistic
@@ -2232,6 +2250,16 @@
           } {
             2 entry emitOpcodes # test would always succeed, footer will follow immediately
           } ? *
+        }
+
+        { action ARRAYCLEAR eq }' {
+          [[
+            ARRAYMARKER /rax :movqImmReg
+            @search
+            /rdi :popqReg
+            /rdi /rax :cmpqRegReg
+            /search :jneLbl8
+          ]] emitOpcodes
         }
 
         { 1 }' {
