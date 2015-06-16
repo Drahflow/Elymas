@@ -53,9 +53,9 @@
   { ==l [ -01 NONE ]
     l .len {
        _ 1 l .end =[]
-    } {
+    }" {
       _ l .setStart
-    } ? *
+    }" ? *
     l .setEnd
     l .len 1 add l .setLen
   } /append1 defmd
