@@ -2290,15 +2290,15 @@
 
 # ensure that the optimizer is run often enough to finish optimize itself
 [ /eq /neq /le /lt /ge /gt /and /or /add ] { ==function
-  10 { scope ==s
+  10 {
     1
-    "{" s sys .executeIdentifier =s
+    "{" sys .executeIdentifier
     "i"
-    "==" s sys .executeIdentifier =s
-    "i" s sys .executeIdentifier =s
+    "==" sys .executeIdentifier
+    "i" sys .executeIdentifier
     1
-    function s sys .executeIdentifier =s
-    "}" s sys .executeIdentifier =s
+    function sys .executeIdentifier
+    "}" sys .executeIdentifier
     *
     --
   } rep

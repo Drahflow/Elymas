@@ -24,6 +24,21 @@
       /r15 :pushqMem
       8 /r15 :addqImm8Reg
       :retn
+    ]] /eyexecuteIdentifierScoped defv
+
+    # handle an identifier according to current quote level
+    # 0 -> identifier to handle
+    # 0 <- scope after execution
+    [[
+      8 /r15 :subqImm8Reg
+      /r15 :popqMem
+      
+      internalExecuteIdentifier /rax :movqImmReg
+      /rax :callqReg
+
+      /r15 :pushqMem
+      8 /r15 :addqImm8Reg
+      :retn
     ]] /eyexecuteIdentifier defv
 
     # resolve an identifier in a given scope and return full resolve information
