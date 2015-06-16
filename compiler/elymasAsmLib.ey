@@ -1245,7 +1245,28 @@
       # rdi == target address
       # rsi == size in bytes
 
-      # record new block in global allocation list
+      # record new block in global allocation list (or enlarge existing block if some exists)
+      :globalAllocations .base /rax :movqImmReg
+
+      # search existing block
+      /rax /rbp :movqRegReg
+      /rax /rbp :addqMemReg # rbp == address after last block entry
+      @searchAllocBlockLoop
+      16 /rax :addqImm8Reg
+      /rax /rbp :cmpqRegReg
+      /createNewBlock :jbeLbl8
+
+      /rax /rcx :movqMemReg # rcx == start of existing block
+      8 /rax /rcx :addqMemDisp8Reg # rcx == end of existing block
+      /rcx /rdi :cmpqRegReg
+      /enlargeExistingBlock :jzLbl8
+      /searchAllocBlockLoop :jmpLbl8
+
+      @enlargeExistingBlock
+      /rsi 8 /rax :addqRegMemDisp8 # enlarge the block
+      /makeMmapCall :jmpLbl8
+
+      @createNewBlock
       :globalAllocations .base /rax :movqImmReg
       16 /rax :addqImm8Mem
       /rax /rax :addqMemReg
@@ -1253,6 +1274,7 @@
       /rdi /rax :movqRegMem
       /rsi 8 /rax :movqRegMemDisp8
 
+      @makeMmapCall
       SYSCALL .mmap /rax :movqImmReg
       # /rdi already fine
       # /rsi already fine

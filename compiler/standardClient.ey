@@ -980,6 +980,7 @@
 > -- /dump deffd
 
 # TODO: why do we save section information, exactly?
+# FIXME: think real hard whether we can ignore the possibility of new allocations during freeze
 { ==filename # ==f (left on the stack a while and executed from sys .asm .programStart)
   sys .asm .patchProgramStart ==frozenAllocationCount
 
