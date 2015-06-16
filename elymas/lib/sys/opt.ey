@@ -495,10 +495,14 @@
           { action CALL eq
             { 1 entry * "." | ::rawCodeAddress eq }' andif
             { 0 last * PUSH eq }' andif
-            { 0 secondLast * STATICTYPED eq }' andif
+            { 0 secondLast * STATICTYPED eq 0 secondLast * PUSH eq or }' andif
           }' {
             1 last * ::rawObject ==constant
-            4 secondLast * ==relevantScope
+            0 secondLast * STATICTYPED eq {
+              4 secondLast *
+            } {
+              1 secondLast * ::rawObject
+            } ? * ==relevantScope
 
             constant relevantScope sys .resolveInfo _ ==loadedObject {
               ==mode -- ==parentCount 32 add ==offsetInScope ==inExtensionArea
@@ -1788,6 +1792,11 @@
                 [ NOP ] =last
               } ? *
             } ? *
+          }
+          { action CALL eq { 1 entry * "[" | ::rawCodeAddress eq }' andif }' {
+            [ NATIVENOSCOPE [
+              ARRAYMARKER :pushqImm32
+            ] ] =entry
           }
         ] conds
 

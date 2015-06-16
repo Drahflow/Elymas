@@ -1,15 +1,16 @@
 <
-  { { .v -01 . }_ [ 0 ] [ 0 ] '' * } "#*" defmd
-  { [ 0 ] } "#in" deffd
-  { [ 0 ] } "#out" deffd
-  { .v keys } "#dom" defmd
-  { .v ==v =*f v keys { v -01 . f } each } "#each" defmd
+  0 ==m # placeholder, zero value is never read
+  { { =m m .v -01 . }_ [ 0 ] [ 0 ] '' * }' "#*" defmd
+  { [ 0 ] }" "#in" deffd
+  { [ 0 ] }" "#out" deffd
+  { =m m .v keys }' "#dom" defmd
+  { =m m .v ==v =*f v keys { v -01 . f }' each }' "#each" defmd
   { 0 } "#istart" deffd
-  { .v keys len eq } "#iend" defmd
-  { 1 add } "#istep" deffd
-  { .v keys * } "#itrans" defmd
-  { .v -01 .?' } /has defmd
-  { .v ==v "#iclone" | * ==n v keys { _ v -01 . -01 n =[] } each n } /clone defmd
+  { =m m .v keys len eq }' "#iend" defmd
+  { 1 add }" "#istep" deffd
+  { =m m .v keys * }' "#itrans" defmd
+  { =m m .v -01 .?' }' /has defmd
+  { =m m .v ==v "#iclone" | * ==n v keys { _ v -01 . -01 n =[] } each n }' /clone defmd
   { < < { defv }' > ==v "#=[]" =* > } _ "#iclone" deffd
 > -- /map deffd
 
