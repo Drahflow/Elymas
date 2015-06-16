@@ -580,7 +580,9 @@
     # correct number of things from the stack to make the sys .freeze execution transparent
     # TODO: actually do this (e.g. by recoding the freeze startup in assembly)
     # TODO: ... for now just flush the call stack on freeze
-    # returns the number of allocations according to frozen alloc list fill state
+    # returns
+    # 0 <- the number of allocations according to frozen alloc list fill state
+    # 1 <- the current heap size (to detect re-allocs during freeze)
     [[
       /rbx :popqReg
 
@@ -611,6 +613,18 @@
       /rdx :pushqReg # store allocation count for later return value
       /rdx 101 /rax :movqRegMemDisp8
       /r13 114 /rax :movqRegMemDisp8
+
+      ::heapSize /rdx :movqImmReg
+      /rdx /rdx :movqMemReg
+      /rdx :pushqReg # store heap size for later return value
+
+      ::internalAllocateInteger /rax :movqImmReg
+      /rax :callqReg
+      8 /rax :popqMemDisp8 # save heap size to return integer
+
+      /rdx :popqReg
+      /rax :pushqReg
+      /rdx :pushqReg # shuffle stack to access alloc count
 
       ::internalAllocateInteger /rax :movqImmReg
       /rax :callqReg
