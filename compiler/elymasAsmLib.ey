@@ -457,11 +457,7 @@
       /rdi :pushqReg
 
       markAndSweepCosts /rax :movqImmReg
-      /rax /rdx :movqMemReg
-      /rdx /rdx :testqRegReg
-      /costAlreadyZero :jzLbl8
-      1 /rax :subqImm8Mem
-      @costAlreadyZero
+      1 /rax :addqImm8Mem
 
       /searchForFreeBlock :callqLbl32
       /rax /rax :andqRegReg
@@ -470,11 +466,9 @@
 
       markAndSweepCosts /rax :movqImmReg
       MARKANDSWEEPCOST /rdx :movqImmReg
-      /rdx /rax :addqRegMem
-
-      MARKANDSWEEPCOST 16 add /rdx :movqImmReg
       /rdx /rax :cmpqRegMem
-      /allocateFromSystemAtLeastOnce :jaeLbl8
+      /allocateFromSystemAtLeastOnce :jbLbl8
+      0 /rax :andqImm8Mem
 
       @allocateFromSystemLoop
       /rdi :popqReg
@@ -484,6 +478,8 @@
       /success :jnzLbl32
 
       @allocateFromSystemAtLeastOnce
+      markAndSweepCosts /rax :movqImmReg
+      0 /rax :andqImm8Mem
       /allocateFromSystem :callqLbl32
       /allocateFromSystemLoop :jmpLbl8
 
