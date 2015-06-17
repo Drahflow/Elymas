@@ -1,10 +1,11 @@
 <
   [ ] ==:NONE
+  0 ==l # placeholder, zero value is never read
 
-  { -102 .len -021 ? } "#?" defmd
-  { .len } "#len" defmd
-  { 0 -01 .len range } "#dom" defmd
-  { [ 0 ] } _ "#in" deffd "#out" deffd
+  { -102 .len -021 ? }" "#?" defmd
+  { .len }" "#len" defmd
+  { 0 -01 .len range }" "#dom" defmd
+  { [ 0 ] }" _ "#in" deffd "#out" deffd
   { ==m ==l
     l .len {
       l .start l .len 1 sub { 1 -01 * } rep
@@ -24,7 +25,7 @@
   } "#cat" defmd
   { ==l =*f
     l .start ==n
-    l .len { n 2 dearray =n f } rep
+    l .len { n 2 dearray =n f }" rep
   } "#each" defmd
   { ==l l .len mod ==i
     l .start i { 1 -01 * } rep
@@ -45,12 +46,12 @@
     } { } ? *
     m
   } "#iclone" defmd
-  { 0 } "#istart" deffd
-  { .len eq } "#iend" defmd
-  { } "#itrans" deffd
-  { 1 add } "#istep" deffd
+  { 0 }" "#istart" deffd
+  { .len eq }" "#iend" defmd
+  { }" "#itrans" deffd
+  { 1 add }" "#istep" deffd
 
-  { ==l [ -01 NONE ]
+  { =l [ -01 NONE ]
     l .len {
        _ 1 l .end =[]
     }" {
@@ -58,9 +59,9 @@
     }" ? *
     l .setEnd
     l .len 1 add l .setLen
-  } /append1 defmd
+  }' /append1 defmd
 
-  { ==l
+  { =l
     l .len 2 ge {
       l .start
       l .len _ 1 sub l .setLen
@@ -72,15 +73,15 @@
       NONE l .setStart
       NONE l .setEnd
     } ? *
-  } /pop defmd
+  }' /pop defmd
 
   { { .append1 }_ '0. * } /append defmd
 
   { <
-    0 ==len { =len } =*setLen
-    NONE ==start { =start } =*setStart
-    NONE ==end { =end } =*setEnd
-  > }
+    0 ==len { =len }' =*setLen
+    NONE ==start { =start }' =*setStart
+    NONE ==end { =end }' =*setEnd
+  > }'
 > -- /list deffd
 
 # vim: syn=elymas
