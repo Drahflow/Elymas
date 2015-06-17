@@ -1288,6 +1288,9 @@
     # rsi -> second string
     # rax <- 1 if both strings are equal, 0 otherwise
     [[
+      /rdi /rsi :cmpqRegReg
+      /identical :jzLbl8
+
       # compare lengths
       16 /rdi /rax :movqMemDisp8Reg
       16 /rsi /rax :cmpqMemDisp8Reg
@@ -1334,6 +1337,10 @@
 
       @different
       /rax /rax :xorqRegReg
+      :retn
+
+      @identical
+      1 /rax :movqImmReg
       :retn
     ]] /internalCompareString defv
   > { defv }' allocateOffsetStruct
