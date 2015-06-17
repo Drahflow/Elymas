@@ -977,18 +977,14 @@
       # "function marked\n" outputError
       # /rdi :popqReg
 
-      /rdi :pushqReg
-      /rdi :pushqReg
-      8 /rdi :addqImm8Reg
-      /rdi /rdi :movqMemReg
+      /rsi :pushqReg
+      /rdi /rsi :movqRegReg
+      8 /rsi /rdi :movqMemDisp8Reg
       /markObject :callqLbl32
-      /rdi :popqReg
-      16 /rdi :addqImm8Reg
-      /rdi /rdi :movqMemReg
+      16 /rsi /rdi :movqMemDisp8Reg
       /markObject :callqLbl32
-      /rdi :popqReg
-      24 /rdi :addqImm8Reg
-      /rdi /rdi :movqMemReg
+      24 /rsi /rdi :movqMemDisp8Reg
+      /rsi :popqReg
       /markObject :jmpLbl32
 
       6 /rax :movqImmReg # dead code for disambiguation in debugging
