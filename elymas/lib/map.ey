@@ -11,7 +11,7 @@
   { =m m .v keys * }' "#itrans" defmd
   { =m m .v -01 .?' }' /has defmd
   { =m m .v ==v "#iclone" | * ==n v keys { _ v -01 . -01 n =[] } each n }' /clone defmd
-  { < < { defv }' > ==v "#=[]" =* > } _ "#iclone" deffd
+  { < < { defv }' > ==v "#=[]" =* > }' _ "#iclone" deffd
 > -- /map deffd
 
 # vim: syn=elymas
