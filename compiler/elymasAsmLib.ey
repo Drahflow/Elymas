@@ -1028,6 +1028,7 @@
       /markFunctionCodeFull :jnzLbl8
       1 [ /rax :jmpqReg ] * 27 /rdi :cmpbImmMemDisp8
       /markFunctionCodeFull :jnzLbl8
+      # TODO: This would be good moment to forward the incoming reference (which is on the stack somewhere), actually
       18 /rdi /rdi :movqMemDisp8Reg
       16 /rdi :subqImm8Reg
       /markObject :jmpLbl32

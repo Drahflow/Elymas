@@ -358,6 +358,7 @@
           { action STATICWRITE eq }' { 1 =needsAScope }
           { action STATICDOT eq }' { 1 =needsAScope }
           { action ARRAYSTAR eq }' { }
+          { action ARRAYCLEAR eq }' { }
           { action UNTYPEDSCOPEDSTAR eq }' { }
           { action STRINGSTAR eq }' { }
           { action NATIVENOSCOPE eq }' { 1 =needsAScope }
