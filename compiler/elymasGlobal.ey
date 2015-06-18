@@ -2413,7 +2413,7 @@
 
       /rsi :popqReg # fetch identifier
       /rdi :popqReg # fetch scope
-      ::internalResolve /rax :movqImmReg
+      ::internalResolve /rax :movqImmReg # FIXME: Inform internalResolve not to follow parents
       /rax :callqReg
 
       /rax /rax :testqRegReg

@@ -1,4 +1,6 @@
+{ { defv }' scope }
 <
+  /generate deffd
   0 ==m # placeholder, zero value is never read
   { m .v -01 . }' [ 0 ] [ 0 ] '' /access deffd
   { =m access }' "#*" defmd
@@ -12,7 +14,7 @@
   { =m m .v keys * }' "#itrans" defmd
   { =m m .v -01 .?' }' /has defmd
   { =m m .v ==v "#iclone" | * ==n v keys { _ v -01 . -01 n =[] } each n }' /clone defmd
-  { < < { defv }' > ==v "#=[]" =* > }' _ "#iclone" deffd
+  { < generate ==v "#=[]" =* > }' _ "#iclone" deffd
 > -- /map deffd
 
 # vim: syn=elymas
