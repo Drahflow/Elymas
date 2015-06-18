@@ -127,48 +127,57 @@
 { %66 } /width16 deff
 
 # label handling
-< { defv }' /put deff > ==labels
-[ ] ==labelHoles
+<
+  < { defv }' /put deff > ==labels
+  [ ] ==labelHoles { =labelHoles }' =*setLabelHoles
+  < > ==outer
+> ==labelStack
 
 { ==l
-  ] _ len l labels .put [ -011 len dearray
+  ] _ len l labelStack .labels .put [ -011 len dearray
 } /label deff
 
 { ==l
   ] _ len ==offset
-  labelHoles [ {
-    labels l . offset 1 add sub
+  labelStack .labelHoles [ {
+    labelStack .labels l . offset 1 add sub
     _ 128 lt not { "8 bit relative label out of range: " l cat die } rep
     _ 128 neg ge not { "8 bit relative label out of range: " l cat die } rep
-    imm8 offset -102 =[] } ] cat =labelHoles
+    imm8 offset -102 =[] } ] cat labelStack .setLabelHoles
   [ -011 len dearray %00
 } /labelRel8 deff
 
 { ==l
   ] _ len ==offset
-  labelHoles [ {
-    labels l . offset 2 add sub
+  labelStack .labelHoles [ {
+    labelStack .labels l . offset 2 add sub
     _ 32768 lt not { "16 bit relative label out of range: " l cat die } rep
     _ 32768 neg ge not { "16 bit relative label out of range: " l cat die } rep
-    imm16 offset [ 0 1 ] add 2 dearray -204314 =[] =[] } ] cat =labelHoles
+    imm16 offset [ 0 1 ] add 2 dearray -204314 =[] =[] } ] cat labelStack .setLabelHoles
   [ -011 len dearray %00 %00
 } /labelRel16 deff
 
 { ==l
   ] _ len ==offset
-  labelHoles [ {
-    labels l . offset 4 add sub
+  labelStack .labelHoles [ {
+    labelStack .labels l . offset 4 add sub
     _ 2147483648 lt not { "32 bit relative label out of range: " l cat die } rep
     _ 2147483648 neg ge not { "32 bit relative label out of range" l cat die } rep
-    imm32 offset [ 0 1 2 3 ] add 4 dearray -408518628738 =[] =[] =[] =[] } ] cat =labelHoles
+    imm32 offset [ 0 1 2 3 ] add 4 dearray -408518628738 =[] =[] =[] =[] } ] cat labelStack .setLabelHoles
   [ -011 len dearray %00 %00 %00 %00
 } /labelRel32 deff
 
-{ ==opcodes
-  labelHoles { opcodes -01 * } each
+{
+  <
+    < { defv }' /put deff > ==labels
+    [ ] ==labelHoles { =labelHoles }' =*setLabelHoles
+    labelStack ==outer
+  > =labelStack
+} /labelRecord deff
 
-  < { defv }' /put deff > =labels
-  [ ] =labelHoles
+{ ==opcodes
+  labelStack .labelHoles { opcodes -01 * } each
+  labelStack .outer =labelStack
 
   opcodes
 } /labelResolve deff

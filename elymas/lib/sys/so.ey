@@ -10,7 +10,7 @@
   sys .asm .|peek =*:peek
   sys .asm .|poke =*:poke
 
-  { [ } "[[" deff
+  { :labelRecord [ } "[[" deff
   { ] :labelResolve } "]]" deff
 
   # hex decoding

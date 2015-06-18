@@ -6,7 +6,7 @@
   assembler .|label "@" deff
   "%" _ : -01 deff
 
-  { [ } "[[" deff
+  { :labelRecord [ } "[[" deff
   { ] :labelResolve ::stringResolve } "]]" deff
 
   # elymas functions, stack based ABI
