@@ -1,6 +1,7 @@
 <
   0 ==m # placeholder, zero value is never read
-  { { =m m .v -01 . }_ [ 0 ] [ 0 ] '' * }' "#*" defmd
+  { m .v -01 . }' [ 0 ] [ 0 ] '' =*:access
+  { =m access }' "#*" defmd
   { [ 0 ] }" "#in" deffd
   { [ 0 ] }" "#out" deffd
   { =m m .v keys }' "#dom" defmd
