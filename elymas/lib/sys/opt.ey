@@ -1628,10 +1628,11 @@
                 # TODO think about handling typed functions
                 executedObject sys .typed .inputs len { } {
                   # handle untyped function
-                  executedObject sys .capturedScope {
-                    -- # ignore concrete scope
-                    [ UNTYPEDSCOPEDSTAR ] i logic =[] # TODO: scope will stay constant, optimize further
-                    /UNTYPEDSCOPEDSTAR_suboptimal dump
+                  executedObject sys .capturedScope { ==scope
+                    [ NOP ] i 1 sub logic =[]
+                    [ CALLSCOPED executedObject ::rawCodeAddress scope ::rawAddress ] i logic =[]
+                    /CALLSCOPED_case_optimized dump
+                    scope dump
                   } {
                     [ NOP ] i 1 sub logic =[]
                     [ CALL executedObject ::rawCodeAddress ] i logic =[]
@@ -1709,7 +1710,6 @@
             # the captured scope of the function is the same one rep is called in, no need to change scope
             [ NOP ] i 1 sub logic =[]
             [ RAWCONSTREPTHISSCOPE functionBody 16 add ] i logic =[]
-            /RAWCONSTREP_on_FUNCTIONCREATE dump
           }
         ] conds
       } each
