@@ -170,6 +170,8 @@
   /ARRAYCLEAR ==:ARRAYCLEAR
   /RAWCONSTREP ==:RAWCONSTREP
   /RAWCONSTREPTHISSCOPE ==:RAWCONSTREPTHISSCOPE
+  /INLINEQUESTIONSTARTHISSCOPE ==:INLINEQUESTIONSTARTHISSCOPE
+  /INLINEQUESTIONSTARUNSCOPEDCONST ==:INLINEQUESTIONSTARUNSCOPEDCONST
 
   { =*f ==t
     t { f } { 0 } ? *
@@ -1631,8 +1633,6 @@
                   executedObject sys .capturedScope { ==scope
                     [ NOP ] i 1 sub logic =[]
                     [ CALLSCOPED executedObject ::rawCodeAddress scope ::rawAddress ] i logic =[]
-                    /CALLSCOPED_case_optimized dump
-                    scope dump
                   } {
                     [ NOP ] i 1 sub logic =[]
                     [ CALL executedObject ::rawCodeAddress ] i logic =[]
@@ -1684,7 +1684,6 @@
                   } {
                     [ NOP ] i 1 sub logic =[]
                     [ RAWCONSTREP executedObject ::rawCodeAddress ] i logic =[]
-                    /RAWCONSTREP_optimized dump
                   } ? *
                 } ? *
               }
@@ -1770,6 +1769,25 @@
             { 1 entry * "*" | ::rawCodeAddress eq }' andif
             { 0 last * CALL eq }' andif
             { 1 last * "?" | ::rawCodeAddress eq }' andif
+            { 0 secondLast * FUNCTIONCREATE eq }' andif
+            { 0 thirdLast * FUNCTIONCREATE eq }' andif
+          }' {
+            [ NOP ] i 3 sub logic =[]
+            [ NOP ] i 2 sub logic =[]
+            [ NOP ] i 1 sub logic =[]
+            [ INLINEQUESTIONSTARTHISSCOPE 2 thirdLast * 16 add 2 secondLast * 16 add ] i logic =[]
+          }
+        ] conds
+      } each
+    } /rewriteInlineQuestionStar deffst
+
+    { _ ==logic
+      3 logic len range { ==i i logic * ==entry 0 entry * ==action i 1 sub logic * ==last i 2 sub logic * ==secondLast i 3 sub logic * ==thirdLast
+        [
+          { action CALL eq
+            { 1 entry * "*" | ::rawCodeAddress eq }' andif
+            { 0 last * CALL eq }' andif
+            { 1 last * "?" | ::rawCodeAddress eq }' andif
             { 0 secondLast * PUSH eq }' andif
             { 0 thirdLast * PUSH eq }' andif
             { 1 secondLast * ::rawObject sys .typed .type 5 eq }' andif
@@ -1783,7 +1801,10 @@
             hasScope {
               [ UNTYPEDSCOPEDSTAR ] i logic =[]
             } {
-              [ UNTYPEDUNSCOPEDSTAR ] i logic =[]
+              [ NOP ] i 3 sub logic =[]
+              [ NOP ] i 2 sub logic =[]
+              [ NOP ] i 1 sub logic =[]
+              [ INLINEQUESTIONSTARUNSCOPEDCONST 1 thirdLast * ::rawObject ::rawCodeAddress 1 secondLast * ::rawObject ::rawCodeAddress ] i logic =[]
             } ? *
           }
         ] conds
@@ -2062,6 +2083,7 @@
     rewriteTrivialStar
     rewriteTrivialRep
     rewriteConstantStar
+    rewriteInlineQuestionStar
     rewriteConstantQuestionStar
     rewriteArrayClear
     rewriteIntegerTrace
@@ -2395,17 +2417,82 @@
             @repLoop
             0 /r15 :cmpqImm8Mem
             /repFinished :jzLbl8
-            8 /r15 /r14 :movqMemDisp8Reg
             1 /r15 :subqImm8Mem
             1 entry /rax :movqImmReg
             /rax :callqReg
+            8 /r15 /r14 :movqMemDisp8Reg
             /repLoop :jmpLbl8
             @repFinished
-            8 /r15 /r14 :movqMemDisp8Reg
             16 /r15 :addqImm8Reg
           ]] emitOpcodes
 
           1 entry 16 sub emitReference
+        }
+
+        { action INLINEQUESTIONSTARTHISSCOPE eq }' {
+          [[
+            /rax :popqReg
+            63 /rax :btrqImm8Reg
+            /unboxedInt :jcLbl8
+            /rax :pushqReg
+
+            # TODO: maybe handle boxed ints one day
+            1 entry /rax :movqImmReg
+            /rax :pushqReg
+            2 entry /rax :movqImmReg
+            /rax :pushqReg
+            "?" | ::rawCodeAddress /rax :movqImmReg
+            /rax :callqReg
+            /rdx :popqReg
+            /callCreatedFunction :jmpLbl8
+
+            @unboxedInt
+            1 entry /rcx :movqImmReg
+            2 entry /rdx :movqImmReg
+            /rax /rax :testqRegReg
+            /rcx /rdx :cmovnzqRegReg
+
+            @callCreatedFunction
+            8 /r15 :subqImm8Reg
+            /r14 /r15 :movqRegMem
+            /rdx :callqReg
+            /r15 /r14 :movqMemReg
+            8 /r15 :addqImm8Reg
+          ]] emitOpcodes
+
+          1 entry 16 sub emitReference
+          2 entry 16 sub emitReference
+        }
+
+        { action INLINEQUESTIONSTARUNSCOPEDCONST eq }' {
+          [[
+            /rax :popqReg
+            63 /rax :btrqImm8Reg
+            /unboxedInt :jcLbl8
+            /rax :pushqReg
+
+            # TODO: maybe handle boxed ints one day
+            1 entry /rax :movqImmReg
+            /rax :pushqReg
+            2 entry /rax :movqImmReg
+            /rax :pushqReg
+            "?" | ::rawCodeAddress /rax :movqImmReg
+            /rax :callqReg
+            /rdx :popqReg
+            /callCreatedFunction :jmpLbl8
+
+            @unboxedInt
+            1 entry /rcx :movqImmReg
+            2 entry /rdx :movqImmReg
+            /rax /rax :testqRegReg
+            /rcx /rdx :cmovnzqRegReg
+
+            @callCreatedFunction
+            /rdx :callqReg
+          ]] emitOpcodes
+
+          1 entry 16 sub emitReference
+          2 entry 16 sub emitReference
         }
 
         { 1 }' {
