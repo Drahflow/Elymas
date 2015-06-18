@@ -1,4 +1,6 @@
 * apply the trace extractor to non-tail situations
+* implement the GC-based function opcode forwarding
+* allow stack manipulation at site of uppermost ARRAYMARKER
 * utf8
 * regex substitution
 * asm-based regex engine
@@ -6,7 +8,6 @@
 * txt .consume .u sollte nicht negative Zahlen liefern
   * evtl. BigNums bauen und die Int-Funktionen entsprechend machen
 * trigonometrics
-* make jmp-pads after optimization rewrite call site if ... /rax movqImmReg; /rax :callqReg pattern
 
 * testsuite (incl. coverage test)
 

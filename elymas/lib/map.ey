@@ -1,6 +1,6 @@
 <
   0 ==m # placeholder, zero value is never read
-  { m .v -01 . }' [ 0 ] [ 0 ] '' =*:access
+  { m .v -01 . }' [ 0 ] [ 0 ] '' /access deffd
   { =m access }' "#*" defmd
   { [ 0 ] }" "#in" deffd
   { [ 0 ] }" "#out" deffd
