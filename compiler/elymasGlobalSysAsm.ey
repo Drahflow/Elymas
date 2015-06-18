@@ -266,7 +266,7 @@
       /rsi /ecx :movlMemReg
       8 /rsi :addqImm8Reg
       3 /rcx :shrqImm8Reg
-      :repnz :movsq
+      :reprcx :movsq
 
       /rbp /rdi :xchgqRegReg
 

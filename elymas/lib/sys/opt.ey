@@ -249,13 +249,44 @@
     /rdx :pushqReg
     /rcx :pushqReg
 
-    |and ::rawAddress /rax :movqImmReg
+    |or ::rawAddress /rax :movqImmReg
     /rax :pushqReg
     "*" | ::rawCodeAddress /rax :movqImmReg
     /rax :callqReg
 
     @done
   ]] ] ==:INLINEBLOCKOR
+
+  [ NATIVENOSCOPE [[
+    /rcx :popqReg
+    /rcx /rax :movqRegReg
+
+    63 /rax :btrqImm8Reg
+    /nonInlineCase :jncLbl8
+
+    /rcx /rcx :xorqRegReg
+    /rax /rax :testqRegReg
+    /cl :seteReg
+    63 /rcx :btsqImm8Reg
+    /rcx :pushqReg
+    /done :jmpLbl8
+
+    @positive
+    1 /rax :movqImmReg
+    63 /rax :btsqImm8Reg
+    /rax :pushqReg
+    /done :jmpLbl8
+
+    @nonInlineCase
+    /rcx :pushqReg
+
+    |not ::rawAddress /rax :movqImmReg
+    /rax :pushqReg
+    "*" | ::rawCodeAddress /rax :movqImmReg
+    /rax :callqReg
+
+    @done
+  ]] ] ==:INLINEBLOCKNOT
 
   { ==negatedOpcodeName ==functionName
     [ NATIVENOSCOPE [[
@@ -754,6 +785,7 @@
           [
             { 1 last * |and ::rawAddress eq }' { INLINEBLOCKAND i logic =[] [ NOP ] i 1 sub logic =[] }
             { 1 last * |or ::rawAddress eq }' { INLINEBLOCKOR i logic =[] [ NOP ] i 1 sub logic =[] }
+            { 1 last * |not ::rawAddress eq }' { INLINEBLOCKNOT i logic =[] [ NOP ] i 1 sub logic =[] }
 
             { 1 last * |eq ::rawAddress eq }' { INLINEBLOCKEQ i logic =[] [ NOP ] i 1 sub logic =[] }
             { 1 last * |neq ::rawAddress eq }' { INLINEBLOCKNEQ i logic =[] [ NOP ] i 1 sub logic =[] }
