@@ -15,7 +15,7 @@ roughly connect to various topics as follows:
 * `)`: -
 * `*`: Function execution
 * `+`: -
-* `,`: -
+* `,`: Position markers
 * `-`: Stack manipulation
 * `.`: Field dereference
 * `/`: Keyword-like strings
