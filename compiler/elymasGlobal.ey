@@ -1111,7 +1111,7 @@
       :retn
     ]] /ey,-- defv
 
-    # move topmost position marker left/upwards and shift stack
+    # move topmost position marker left/downwards and shift stack
     [[
       /rbx :popqReg
       /rsp /rsi :movqRegReg
@@ -1130,7 +1130,7 @@
       :retn
     ]] /ey--, defv
 
-    # access element left (higher up in stack) of topmost position marker
+    # access element left (below in stack) of topmost position marker
     [[
       /rbx :popqReg
       /rsp /rdi :movqRegReg
@@ -1143,7 +1143,7 @@
       :retn
     ]] /ey_, defv
 
-    # access element right (lower in stack) of topmost position marker
+    # access element right (above in stack) of topmost position marker
     [[
       /rbx :popqReg
       /rsp /rdi :movqRegReg

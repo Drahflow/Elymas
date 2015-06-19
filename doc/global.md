@@ -909,3 +909,33 @@ Takes two integers. Returns the larger one.
 -----
 
 Takes two integers. Returns the smaller one.
+
+
+`,`
+---
+Puts a position marker on the stack.
+
+
+`,--`
+-----
+Deletes the topmost position marker within the stack and compacts the stack contents to cover the hole.
+
+
+`--,`
+-----
+Deletes whatever is below the topmost position marker in the stack and compacts the stack contents to cover the hole.
+
+
+`_,`
+----
+Copies the stack element below the topmost position marker to the top of the stack.
+
+
+`,_`
+----
+Copies the stack element above the topmost position marker to the top of the stack.
+
+
+`,---`
+------
+Deletes all stack contents up to and including the topmost position marker.
