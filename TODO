@@ -1,6 +1,8 @@
+* allow stack manipulation at site of position tags
 * apply the trace extractor to non-tail situations
 * implement the GC-based function opcode forwarding
-* allow stack manipulation at site of uppermost ARRAYMARKER
+* inline loop similar to each
+* forward scope-cannot-escape information
 * utf8
 * regex substitution
 * asm-based regex engine
@@ -8,6 +10,7 @@
 * txt .consume .u sollte nicht negative Zahlen liefern
   * evtl. BigNums bauen und die Int-Funktionen entsprechend machen
 * trigonometrics
+* document new , functions
 
 * testsuite (incl. coverage test)
 

@@ -13,6 +13,7 @@
 
   1 ==ARRAYMARKER
   2 ==QUOTEMARKER
+  3 ==POSITIONMARKER
 
   <
     [
@@ -1083,6 +1084,89 @@
       8 /r15 :addqImm8Reg
       :retn
     ]] /eyrange defv
+
+    # put a position marker onto the stack
+    [[
+      /rax :popqReg
+      POSITIONMARKER :pushqImm32
+      /rax :pushqReg
+      :retn
+    ]] /ey, defv
+
+    # delete topmost position marker and shift stack
+    [[
+      /rbx :popqReg
+      /rsp /rsi :movqRegReg
+      POSITIONMARKER /rax :movqImmReg
+      /rdx :popqReg
+      /rax /rdx :cmpqRegReg
+      /done :jzLbl8
+      @loop
+      8 /rsi :addqImm8Reg
+      /rdx /rsi :xchgqRegMem
+      /rax /rdx :cmpqRegReg
+      /loop :jnzLbl8
+      @done
+      /rbx :pushqReg
+      :retn
+    ]] /ey,-- defv
+
+    # move topmost position marker left/upwards and shift stack
+    [[
+      /rbx :popqReg
+      /rsp /rsi :movqRegReg
+      POSITIONMARKER /rax :movqImmReg
+      /rdx :popqReg
+      /rax /rdx :cmpqRegReg
+      /done :jzLbl8
+      @loop
+      8 /rsi :addqImm8Reg
+      /rdx /rsi :xchgqRegMem
+      /rax /rdx :cmpqRegReg
+      /loop :jnzLbl8
+      @done
+      /rdx 8 /rsi :movqRegMemDisp8
+      /rbx :pushqReg
+      :retn
+    ]] /ey--, defv
+
+    # access element left (higher up in stack) of topmost position marker
+    [[
+      /rbx :popqReg
+      /rsp /rdi :movqRegReg
+      POSITIONMARKER /rax :movqImmReg
+      /rcx /rcx :xorqRegReg
+      /rcx :decqReg
+      :repnz :scasq
+      /rdi :pushqMem
+      /rbx :pushqReg
+      :retn
+    ]] /ey_, defv
+
+    # access element right (lower in stack) of topmost position marker
+    [[
+      /rbx :popqReg
+      /rsp /rdi :movqRegReg
+      POSITIONMARKER /rax :movqImmReg
+      /rcx /rcx :xorqRegReg
+      /rcx :decqReg
+      :repnz :scasq
+      16 neg /rdi :pushqMemDisp8
+      /rbx :pushqReg
+      :retn
+    ]] /ey,_ defv
+
+    # delete stack up to and including topmost position marker
+    [[
+      /rbx :popqReg
+      POSITIONMARKER /rax :movqImmReg
+      @loop
+      /rdx :popqReg
+      /rax /rdx :cmpqRegReg
+      /loop :jnzLbl8
+      /rbx :pushqReg
+      :retn
+    ]] /ey,--- defv
 
     # create a new scope capturing the current one
     [

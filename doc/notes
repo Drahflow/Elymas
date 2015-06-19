@@ -70,11 +70,11 @@ $: <open>
 %: <open>
 &: <open>
 ': type assignment
-(: tuple begin
-): tuple end
+(: <open>
+): <open>
 *: apply function
 +: <open>
-,: <open>
+,: position markers
 -: stack manipulation
 .: field dereference
 /: stringify
