@@ -1,4 +1,3 @@
-* allow stack manipulation at site of position tags
 * apply the trace extractor to non-tail situations
 * implement the GC-based function opcode forwarding
 * inline loop similar to each

@@ -1534,6 +1534,89 @@
       :retn
     ]] /internalResolve defv
 
+    # check whether scope directly contains an element
+    # rdi -> address of scope on the heap
+    # rsi -> address of element name on the heap
+    # rax <- 1 if scope contains the given key, 0 otherwise
+    [[
+      /rdi :pushqReg
+      /rsi :pushqReg
+      8 /rsi /rcx :movqMemDisp8Reg
+      /rcx /rcx :testqRegReg
+      /hashComputed :jnzLbl8
+
+      /rsi /rdi :movqRegReg
+      internalHashString /rax :movqImmReg
+      /rax :callqReg
+      /rax /rcx :movqRegReg
+
+      0 /rsp /rsi :movqMemDisp8Reg
+      /rax 8 /rsi :movqRegMemDisp8 # cache hash value in string
+      8 /rsp /rdi :movqMemDisp8Reg
+
+      @hashComputed
+
+      8 /rdi /rbp :movqMemDisp8Reg # load name table
+      /rbp /rbp :testqRegReg
+      /end :jzLbl32 # no name table present - empty scope
+
+      <
+        {
+          # rcx == hash value of key to resolve
+          # rbp == nametable to resolve in
+          # 0 /rsp == key to find
+
+          /ecx /eax :movlRegReg
+          0 /rbp /esi :movlMemDisp8Reg # load table length
+          16 /rsi :subqImm8Reg # substract header length
+          4 /rsi :shrqImm8Reg # divide by slot length
+          /rdx /rdx :xorqRegReg
+          /rsi :divqReg
+
+          # rdx == remainder, i.e. slot index
+          4 /rdx :shlqImm8Reg # multiply by slot length
+          16 1 /rbp /rdx /rax :leaqMemIndexScaleDisp8Reg # load key from bucket
+          0 /rax :cmpqImm8Mem
+          /end :jzLbl32 # empty slot found, key is not present
+
+          0 /rsp /rdi :movqMemDisp8Reg
+          /rax /rsi :movqMemReg
+          /rax :pushqReg
+          /rcx :pushqReg
+          /rbp :pushqReg
+          internalCompareString /rax :movqImmReg
+          /rax :callqReg
+          /rbp :popqReg
+          /rcx :popqReg
+          /rax /rax :testqRegReg
+          /found :jnzLbl32
+
+          /rax :popqReg
+        } /trySlot deff
+
+        :HASHPOSITIONS 1 sub {
+          trySlot
+
+          /rcx /rax :movqRegReg
+          32 /rax :shrqImm8Reg
+          /rax /rcx :addqRegReg # derive a new hash value
+        } rep
+
+        trySlot
+      > --
+
+      @end
+      # not found at all
+      16 /rsp :addqImm8Reg
+      /rax /rax :xorqRegReg
+      :retn
+
+      @found
+      24 /rsp :addqImm8Reg
+      1 /rax :movqImmReg
+      :retn
+    ]] /internalHasKeyShallow defv
+
     # return a pointer to start of object
     # rdi -> pointer somewhere into an object (or outside of heap)
     # rax <- pointer to start of object, zero if outside of heap

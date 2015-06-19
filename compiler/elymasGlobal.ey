@@ -2497,23 +2497,11 @@
 
       /rsi :popqReg # fetch identifier
       /rdi :popqReg # fetch scope
-      ::internalResolve /rax :movqImmReg # FIXME: Inform internalResolve not to follow parents
+      ::internalHasKeyShallow /rax :movqImmReg
       /rax :callqReg
 
-      /rax /rax :testqRegReg
-      /unresolvedZero :jzLbl8
-      /rdi /rdi :testqRegReg
-      /unresolved :jnzLbl8
-      1 /rax :movqImmReg
-      /resolved :jmpLbl8
-
-      @unresolved
-      /rax /rax :xorqRegReg
-      @unresolvedZero
-      @resolved
       63 /rax :btsqImm8Reg
       /rax :pushqReg
-
       /r15 :pushqMem
       8 /r15 :addqImm8Reg
       :retn
