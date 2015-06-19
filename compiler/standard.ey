@@ -28,8 +28,8 @@
   [ 1 -1202 1 add range { -110 sub a -01 }' each -- ] # TODO: rethink this one, seems overly complicated
 } /reverse deffd
 
-{ _ len { |or fold  } { 0 } ? * } /any deffd
-{ _ len { |and fold } { 1 } ? * } /all deffd
+{ _ len { |or fold  }' { 0 }' ? * }' /any deffd
+{ _ len { |and fold }' { 1 }' ? * }' /all deffd
 
 { =*p {
   [ -01 { _ p { } { -- } ? * } each ]
@@ -55,17 +55,17 @@
 } /assert deffd
 
 { ==s
-  [ s keys { s -01 . } each ]
+  [ s keys { s -01 . }' each ]
 } /values deffd
 
 { _ =*conds len ==max
-  0 ==i { i max lt } {
-    i conds * { i 1 add conds * max =i } { } ? *
+  0 ==i { i max lt }" {
+    i conds * { i 1 add conds * max =i }" { }" ? *
     i 2 add =i
-  } loop
+  }" loop
 } /conds deffd
 
-{ -1010 gt -021 ? } /max deffd
-{ -1010 lt -021 ? } /min deffd
+{ -1010 gt -021 ? }' /max deffd
+{ -1010 lt -021 ? }' /min deffd
 
 # vim: syn=elymas
