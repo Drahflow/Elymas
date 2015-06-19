@@ -172,6 +172,7 @@
   /RAWCONSTREP ==:RAWCONSTREP
   /RAWCONSTREPTHISSCOPE ==:RAWCONSTREPTHISSCOPE
   /RAWCONSTEACHTHISSCOPE ==:RAWCONSTEACHTHISSCOPE
+  /RAWCONSTLOOPTHISSCOPE ==:RAWCONSTLOOPTHISSCOPE
   /INLINEQUESTIONSTARTHISSCOPE ==:INLINEQUESTIONSTARTHISSCOPE
   /INLINEQUESTIONSTARUNSCOPEDCONST ==:INLINEQUESTIONSTARUNSCOPEDCONST
 
@@ -1753,60 +1754,44 @@
     { _ ==logic
       1 logic len range { ==i i logic * ==entry 0 entry * ==action i 1 sub logic * ==last
         [
-#FIXME handle constant cases, too
-#           { action CALL eq
-#             { 1 entry * "rep" | ::rawCodeAddress eq }' andif
-#             { 0 last * PUSH eq }' andif
-#           }' {
-#             1 last * ::rawObject ==executedObject
-#             executedObject sys .typed .type ==type
-# 
-#             type [
-#               { last dump "failed to optimize 'execution' of integer typed object" die }
-#               { } # TODO let's not optimize repeated string executions for now
-#               { "failed to optimize 'execution' of float typed object" die }
-#               { "objects of type 3 should not appear" die }
-#               { "failed to optimize 'execution' of extension area" die }
-#               {
-#                 # TODO think about handling typed functions
-#                 executedObject sys .typed .inputs len { } {
-#                   # handle untyped function
-#                   executedObject sys .capturedScope {
-#                     -- # ignore concrete scope
-#                     # [ UNTYPEDSCOPEDREP ] i logic =[]
-#                     /TODO_UNTYPEDSCOPEDREP_needed dump
-#                   } {
-#                     [ NOP ] i 1 sub logic =[]
-#                     [ RAWCONSTREP executedObject ::rawCodeAddress ] i logic =[]
-#                   } ? *
-#                 } ? *
-#               }
-#               { "failed to optimize 'execution' of raw function opcodes object" die }
-#               { } # TODO let's not optimize repeated array executions for now
-#               { "failed to optimize 'execution' of function type descriptor" die }
-#               { } # TODO optimize scope execution one day
-#               { "failed to optimize 'execution' of name table" die }
-#               { "objects of type 11 should not appear" die }
-#               { } # TODO optimize coroutine execution one day
-#               { "objects of type 13 should not appear" die }
-#               { "objects of type 14 should not appear" die }
-#               { "objects of type 15 should not appear" die }
-#             ] * *
-#           }
-# 
+          # FIXME handle constant cases, too
+
           { action CALL eq
             { 1 entry * "each" | ::rawCodeAddress eq }' andif
             { 0 last * FUNCTIONCREATE eq }' andif
           }' { # FIXME consider detecting the containter type iterated over and specialize
             2 last * ==functionBody
 
-            # the captured scope of the function is the same one rep is called in, no need to change scope
+            # the captured scope of the function is the same one each is called in, no need to change scope
             [ NOP ] i 1 sub logic =[]
             [ RAWCONSTEACHTHISSCOPE functionBody 16 add 1 last * ] i logic =[]
           }
         ] conds
       } each
     } /rewriteTrivialEach deffst
+
+    { _ ==logic
+      2 logic len range { ==i i logic * ==entry 0 entry * ==action i 1 sub logic * ==last i 2 sub logic * ==secondLast
+        [
+          # FIXME handle constant cases, too
+
+          { action CALL eq
+            { 1 entry * "loop" | ::rawCodeAddress eq }' andif
+            { 0 last * FUNCTIONCREATE eq }' andif
+            { 0 secondLast * FUNCTIONCREATE eq }' andif
+          }' {
+            2 last * ==loopBody
+            2 secondLast * ==headerBody
+
+            # the captured scope of the function is the same one loop is called in, no need to change scope
+            [ NOP ] i 2 sub logic =[]
+            [ NOP ] i 1 sub logic =[]
+            [ RAWCONSTLOOPTHISSCOPE headerBody 16 add loopBody 16 add ] i logic =[]
+            /RAWCONSTLOOPTHISSCOPE dump
+          }
+        ] conds
+      } each
+    } /rewriteTrivialLoop deffst
 
     { _ ==logic
       1 logic len range { ==i i logic * ==entry 0 entry * ==action i 1 sub logic * ==last
@@ -2242,6 +2227,7 @@
     rewriteTrivialStar
     rewriteTrivialRep
     rewriteTrivialEach
+    rewriteTrivialLoop
     rewriteConstantStar
     rewriteInlineQuestionStar
     rewriteConstantQuestionStar
@@ -2671,6 +2657,35 @@
             @end
 
             32 /r15 :addqImm8Reg
+          ]] emitOpcodes
+
+          1 entry 16 sub emitReference
+          2 entry 16 sub emitReference
+        }
+
+        { action RAWCONSTLOOPTHISSCOPE eq }' {
+          [[
+            8 /r15 :subqImm8Reg
+            /r14 /r15 :movqRegMem
+            @loop
+            1 entry /rax :movqImmReg
+            /rax :callqReg
+            /r15 /r14 :movqMemReg
+
+            /rax :popqReg
+            63 /rax :btrqImm8Reg
+            /unboxedInt :jcLbl8
+            8 /rax /rax :movqMemDisp8Reg
+            @unboxedInt
+            /rax /rax :testqRegReg
+            /done :jzLbl8
+
+            2 entry /rax :movqImmReg
+            /rax :callqReg
+            /r15 /r14 :movqMemReg
+            /loop :jmpLbl8
+            @done
+            8 /r15 :addqImm8Reg
           ]] emitOpcodes
 
           1 entry 16 sub emitReference

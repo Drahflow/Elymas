@@ -1,6 +1,5 @@
 * apply the trace extractor to non-tail situations
 * implement the GC-based function opcode forwarding
-* inline loop similar to each
 * forward scope-cannot-escape information
 * utf8
 * regex substitution
