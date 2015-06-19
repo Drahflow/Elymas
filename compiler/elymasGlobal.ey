@@ -1482,7 +1482,9 @@
         :retn
       ] ::loadToRdi
 
-      /rdx 0 /rbp :movqRegMemDisp8 # save object reference
+      /rcx 0 /rbp :movqRegMemDisp8 # save scope reference
+      16 /rbx :subqImm8Reg
+      /rbx 8 /rbp :movqRegMemDisp8 # ... and code reference (in case the function object is ever updated)
 
       8 /r15 /rdi :movqMemDisp8Reg
       16 /rdi :addqImm8Reg
@@ -1515,7 +1517,8 @@
       [
         /rax :jmpqReg
       ] ::loadToRdi
-      /rdx 0 /rbp :movqRegMemDisp8 # save the address for the GC
+      16 /rcx :subqImm8Reg
+      /rcx 0 /rbp :movqRegMemDisp8 # save code address for the GC
 
       8 /r15 /rdi :movqMemDisp8Reg
       16 /rdi :addqImm8Reg
@@ -1527,19 +1530,23 @@
 
       @patchConstantPassive
       8 /r15 /rdi :movqMemDisp8Reg
-      # TODO: could reset string reference here
+      8 /rdi /rbp :movqMemDisp8Reg
+      16 1 /rbp /rdi /rbp :leaqMemIndexScaleDisp8Reg
       16 /rdi :addqImm8Reg
 
       [
         /rbx :popqReg
         /rax :movqImmOOBReg
       ] ::loadToRdi
-      /rdi :popqMem
+      /rdx :popqReg
+      /rdx /rdi :movqRegMem
       8 /rdi :addqImm8Reg
       [
         /rax :pushqReg
         /rbx :jmpqReg
       ] ::loadToRdi
+
+      /rdx 0 /rbp :movqRegMemDisp8 # save constant address for the GC
 
       8 /r15 /rdi :movqMemDisp8Reg
       16 /rdi :addqImm8Reg
@@ -1825,7 +1832,8 @@
       /rsi /rdi :movqRegMem
       /rsi 0 /rbp :movqRegMemDisp8
       8 /rdi :addqImm8Reg
-      8 /rbp :addqImm8Reg
+      16 /rbp :addqImm8Reg # we only save 1 reference here, but some cases need 2 after patching
+      0 8 neg /rbp :andqImm8MemDisp8
 
       [
         /rax :pushqReg

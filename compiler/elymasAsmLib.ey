@@ -664,6 +664,7 @@
       /r10 :pushqReg
       /r11 :pushqReg
       /r12 :pushqReg
+      /r13 :pushqReg
 
       /r8 :movqImmOOBReg HEAPBASE # constant through mark
       /r9 :movqImmOOBReg BLOCKBASE # constant through mark
@@ -693,12 +694,13 @@
       /resetMarkLoop :loopLbl8
       @noResetNecessary
 
-      # start from current scope and mark all reachable blocks
-      /r14 /rdi :movqRegReg
+      # start from current coroutine and mark all reachable blocks
+      /r13 /rdi :movqRegReg # r13 must be checked first because we use it in markObject
+      /r13 /r13 :xorqRegReg
       /markObject :callqLbl32
 
-      # start from current coroutine and mark all reachable blocks
-      /r13 /rdi :movqRegReg
+      # start from current scope and mark all reachable blocks
+      /r14 /rdi :movqRegReg
       /markObject :callqLbl32
 
       # start from stack and mark all reachable blocks
@@ -760,6 +762,7 @@
       /freeLoop :loopLbl8
       @noFreeNecessary
 
+      /r13 :popqReg
       /r12 :popqReg
       /r11 :popqReg
       /r10 :popqReg
@@ -984,6 +987,7 @@
       16 /rsi /rdi :movqMemDisp8Reg
       /markObject :callqLbl32
       24 /rsi /rdi :movqMemDisp8Reg
+      /rsi /r13 :movqRegReg # optimistically inform the mark on the code object of our location
       /rsi :popqReg
       /markObject :jmpLbl32
 
@@ -1028,7 +1032,18 @@
       /markFunctionCodeFull :jnzLbl8
       1 [ /rax :jmpqReg ] * 27 /rdi :cmpbImmMemDisp8
       /markFunctionCodeFull :jnzLbl8
-      # TODO: This would be good moment to forward the incoming reference (which is on the stack somewhere), actually
+
+      /r13 /r13 :testqRegReg # check whether r13 contains something (a function object)
+      /noRewritePossible :jzLbl8
+      24 /r13 /rdi :cmpqMemDisp8Reg # ... which points to the forwarding function code object
+      /noRewritePossible :jnzLbl8
+
+      18 /rdi /rdi :movqMemDisp8Reg
+      16 /rdi :subqImm8Reg
+      /rdi 24 /r13 :movqRegMemDisp8 # if so, rewrite the originating function object while we are at it
+      /markObject :jmpLbl32
+
+      @noRewritePossible
       18 /rdi /rdi :movqMemDisp8Reg
       16 /rdi :subqImm8Reg
       /markObject :jmpLbl32

@@ -360,6 +360,9 @@
   ] { | ::rawCodeAddress } [ 0 ] [ 0 ] '' * ==:STATICDEFININGFUNCTIONS
 
   { ==o ==executingScope
+    [ ] ==fragileReferences # things the GC should leave alone while we are working on it
+    { [ -01 ] fragileReferences cat =fragileReferences } /protectReference deffst
+
     0 ==containsScopeModifications
     { _ ==logic
       logic { ==entry 0 entry * ==action
@@ -1670,9 +1673,11 @@
                   executedObject sys .capturedScope { ==scope
                     [ NOP ] i 1 sub logic =[]
                     [ CALLSCOPED executedObject ::rawCodeAddress scope ::rawAddress ] i logic =[]
+                    executedObject ::rawCodeAddress 16 sub ::rawObject protectReference
                   } {
                     [ NOP ] i 1 sub logic =[]
                     [ CALL executedObject ::rawCodeAddress ] i logic =[]
+                    executedObject ::rawCodeAddress 16 sub ::rawObject protectReference
                   } ? *
                 } ? *
               }
@@ -1721,6 +1726,7 @@
                   } {
                     [ NOP ] i 1 sub logic =[]
                     [ RAWCONSTREP executedObject ::rawCodeAddress ] i logic =[]
+                    executedObject ::rawCodeAddress 16 sub ::rawObject protectReference
                   } ? *
                 } ? *
               }
@@ -1787,7 +1793,6 @@
             [ NOP ] i 2 sub logic =[]
             [ NOP ] i 1 sub logic =[]
             [ RAWCONSTLOOPTHISSCOPE headerBody 16 add loopBody 16 add ] i logic =[]
-            /RAWCONSTLOOPTHISSCOPE dump
           }
         ] conds
       } each
@@ -1884,6 +1889,8 @@
               [ NOP ] i 2 sub logic =[]
               [ NOP ] i 1 sub logic =[]
               [ INLINEQUESTIONSTARUNSCOPEDCONST 1 thirdLast * ::rawObject ::rawCodeAddress 1 secondLast * ::rawObject ::rawCodeAddress ] i logic =[]
+              1 thirdLast * ::rawObject ::rawCodeAddress 16 sub ::rawObject protectReference
+              1 secondLast * ::rawObject ::rawCodeAddress 16 sub ::rawObject protectReference
             } ? *
           }
         ] conds
@@ -2072,11 +2079,14 @@
           [ s 2 add _ 8 add range peek each ] 256 math .unbase ==pushedConstant
 
           [ PUSH pushedConstant ] emitLogic
+          pushedConstant ::rawObject protectReference
         }
 
         { callConstantPattern match }' {
           [ s 2 add _ 8 add range peek each ] 256 math .unbase ==calledAddress
           calledAddress ==j
+          calledAddress 16 sub ::rawObject protectReference
+
           { { j }' { =j }' peek generalMatch }' /callTargetMatch deffst
           [
             { calledAddress 105553116266496 lt }' { # HEAPBASE # FIXME: should use global constant
@@ -2088,6 +2098,7 @@
 
               [ PUSH calledConstant ] emitLogic
               [ CALL "*" | ::rawCodeAddress ] emitLogic
+              calledConstant 16 sub ::rawObject protectReference
             }
 
             { constantNormalFunctionScopedUntypedPattern callTargetMatch }' {
@@ -2095,18 +2106,22 @@
               [ calledAddress 23 add _ 8 add range peek each ] 256 math .unbase ==finalAddress
 
               [ CALLSCOPED finalAddress functionScope ] emitLogic
+              finalAddress 16 sub ::rawObject protectReference
+              functionScope ::rawObject protectReference
             }
 
             { constantNormalFunctionUnscopedUntypedPattern callTargetMatch }' {
               [ calledAddress 2 add _ 8 add range peek each ] 256 math .unbase ==finalAddress
 
               [ CALL finalAddress ] emitLogic
+              finalAddress 16 sub ::rawObject protectReference
             }
 
             { constantPassivePattern callTargetMatch }' {
               [ calledAddress 3 add _ 8 add range peek each ] 256 math .unbase ==pushedConstant
 
               [ PUSH pushedConstant ] emitLogic
+              pushedConstant ::rawObject protectReference
             }
 
             { staticLoadPattern callTargetMatch }' {
@@ -2132,6 +2147,7 @@
                   [ calledAddress exampleObjectOffset add _ 8 add range peek each ] 256 math .unbase ::rawObject ==exampleObject
 
                   [ STATICTYPED offsetInScope parentCount 0 exampleObject ] emitLogic
+                  exampleObject protectReference
                 }
 
                 { staticLoadFromExtensionPattern callTargetMatch }' {
@@ -2140,6 +2156,7 @@
                   [ calledAddress exampleObjectOffset add _ 8 add range peek each ] 256 math .unbase ::rawObject ==exampleObject
                   
                   [ STATICTYPED offsetInScope parentCount 1 exampleObject ] emitLogic
+                  exampleObject protectReference
                 }
 
                 { 1 }' {
@@ -2172,12 +2189,14 @@
               [ calledAddress 9 add _ 8 add range peek each ] 256 math .unbase ==pushedConstant
 
               [ PUSH pushedConstant ] emitLogic
+              pushedConstant ::rawObject protectReference
             }
 
             { customFunctionObjectCreationHeaderPattern callTargetMatch }' {
               [ calledAddress 9 add _ 8 add range peek each ] 256 math .unbase ==functionBody # function code object address
 
               [ FUNCTIONCREATE calledAddress functionBody ] emitLogic
+              functionBody ::rawObject protectReference
             }
 
             { customFunctionHeaderPattern callTargetMatch }' {

@@ -1,6 +1,6 @@
 * apply the trace extractor to non-tail situations
-* implement the GC-based function opcode forwarding
 * forward scope-cannot-escape information
+* inline trivial functions when optimizer generates ... /rax :movqImmReg /rax :callqReg sequence
 * utf8
 * regex substitution
 * asm-based regex engine
