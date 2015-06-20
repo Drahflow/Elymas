@@ -173,6 +173,7 @@
   /RAWCONSTREPTHISSCOPE ==:RAWCONSTREPTHISSCOPE
   /RAWCONSTEACHTHISSCOPE ==:RAWCONSTEACHTHISSCOPE
   /RAWCONSTLOOPTHISSCOPE ==:RAWCONSTLOOPTHISSCOPE
+  /RAWCONSTCONDSTHISSCOPE ==:RAWCONSTCONDSTHISSCOPE
   /INLINEQUESTIONSTARTHISSCOPE ==:INLINEQUESTIONSTARTHISSCOPE
   /INLINEQUESTIONSTARUNSCOPEDCONST ==:INLINEQUESTIONSTARUNSCOPEDCONST
 
@@ -1799,6 +1800,46 @@
     } /rewriteTrivialLoop deffst
 
     { _ ==logic
+      2 logic len range { ==i i logic * ==entry 0 entry * ==action
+        [
+          # FIXME handle constant cases, too
+
+          { action CALLSCOPED eq
+            { 1 entry * "conds" | ::rawCodeAddress eq }' andif
+            # { 0 last * FUNCTIONCREATE eq }' andif
+          }' {
+            [ ] ==collectedFunctions
+
+            i 1 sub logic * ==arrayclose
+            0 ==arrayStart
+            0 arrayclose * CALL eq { 1 arrayclose * "]" | ::rawCodeAddress eq }' andif ==canRewrite
+
+            i 2 sub ==j
+            { canRewrite { j 0 ge }' andif }' {
+              j logic * ==item
+
+              [
+                { 0 item * CALL eq { 1 item * "[" | ::rawCodeAddress eq }' andif }' { j =arrayStart 1 neg =j }' # array start reached
+                { 0 item * FUNCTIONCREATE eq }' { [ item ] collectedFunctions cat =collectedFunctions }'
+                { 1 }' { 1 neg =j 1 neg =arrayStart /RAWCONSTLOOPTHISSCOPE_failed dump item dump } # something fancy is happening
+              ] conds
+              j 1 sub =j
+            } loop
+
+            arrayStart 0 ge canRewrite and =canRewrite
+
+            # the captured scope of the function is the same one conds is called in, no need to change scope
+            canRewrite {
+              arrayStart i range { ==j [ NOP ] j logic =[] } each
+              [ RAWCONSTCONDSTHISSCOPE collectedFunctions ] i logic =[]
+              /RAWCONSTCONDSTHISSCOPE dump
+            }' rep
+          }
+        ] conds
+      } each
+    } /rewriteTrivialConds deffst
+
+    { _ ==logic
       1 logic len range { ==i i logic * ==entry 0 entry * ==action i 1 sub logic * ==last
         [
           { action CALL eq
@@ -2055,13 +2096,13 @@
     { =*ops =*set =*get ==pattern
       1 ==found
       get ==j
-      pattern { _ j ops -01 { eq not { 0 =found }' rep }" { -- -- }" ? * j 1 add =j }' each
-      found _ { j set }' { }" ? *
+      pattern { _ j ops -01 { eq not { 0 =found }' rep }' { -- -- }' ? * j 1 add =j }' each
+      found _ { j set }' { }' ? *
     } /generalMatch deffst
 
     { { i }' { =i }' peek generalMatch }' /match deffst
 
-    generalHeaderPattern match not { "failure while matching generalHeaderPattern" die }" rep
+    generalHeaderPattern match not { "failure while matching generalHeaderPattern" die }' rep
     scopingHeaderPattern match ==isScoping
 
     1 ==continueParsing
@@ -2247,6 +2288,7 @@
     rewriteTrivialRep
     rewriteTrivialEach
     rewriteTrivialLoop
+    rewriteTrivialConds
     rewriteConstantStar
     rewriteInlineQuestionStar
     rewriteConstantQuestionStar
@@ -2272,7 +2314,7 @@
           /rax :callqReg
           /rax /r14 :movqRegReg
         ] emitOpcodes
-      }" {
+      }' {
         # allocate scope directly on the call stack
         # this works even though we cannot GC the scope object anymore, because
         # the stack contents are tracked anyway
@@ -2294,7 +2336,7 @@
           %96 7 /r15 :orbImmMemDisp8 # set type and existence of all pointers
           /r15 /r14 :movqRegReg
         ] emitOpcodes
-      }" ? *
+      }' ? *
 
       templateNametable {
         [
@@ -2304,12 +2346,12 @@
 
         templateNametable emitReference
       } { } ? *
-    }" {
+    }' {
       [
         8 /r15 :subqImm8Reg
         /r15 :popqMem
       ] emitOpcodes
-    }" ? *
+    }' ? *
 
     isScoping {
       allocatedScopeMightEscape {
@@ -2318,20 +2360,20 @@
           16 /r15 :addqImm8Reg
           8 neg /r15 :jmpqMemDisp8
         ]
-      }" {
+      }' {
         [
           48 /r15 /r14 :movqMemDisp8Reg
           48 INITIALSCOPESIZE 16 mul add /r15 :addqImm8Reg
           8 neg /r15 :jmpqMemDisp8
         ]
-      }" ? *
-    }" {
+      }' ? *
+    }' {
       [
         /r15 :pushqMem
         8 /r15 :addqImm8Reg
         :retn
       ]
-    }" ? * ==newFooter
+    }' ? * ==newFooter
 
     { =*entry 0 entry ==action
       [
@@ -2775,6 +2817,48 @@
 
           1 entry 16 sub emitReference
           2 entry 16 sub emitReference
+        }
+
+        { action RAWCONSTCONDSTHISSCOPE eq }' {
+          1 entry _ dump ==functions
+
+          { =*function
+            [
+              { 0 function FUNCTIONCREATE eq }' {
+                2 function 16 add /rax :movqImmReg
+                /rax :callqReg
+                /r15 /r14 :movqMemReg
+
+                2 function emitReference
+              }'
+              { 1 }' { |function dump "invalid entry while assembling RAWCONSTCONDSTHISSCOPE" die }'
+            ] conds
+          } /call deffst
+
+          [[
+            8 /r15 :subqImm8Reg
+            /r14 /r15 :movqRegMem
+
+            0 ==i
+            { i functions len lt }' {
+              i txt .produce .u ==lbl
+              i functions * call
+              /rax :popqReg
+              63 /rax :btrqImm8Reg
+              lbl "_unboxed" cat :jcLbl8
+              8 /rax /rax :movqMemDisp8Reg
+              lbl "_unboxed" cat @
+              /rax /rax :testqRegReg
+              lbl "_no" cat :jzLbl8
+              i 1 add functions * call
+              /end :jmpLbl32
+              lbl "_no" cat @
+              i 2 add =i
+            } loop
+
+            @end
+            8 /r15 :addqImm8Reg
+          ]] emitOpcodes
         }
 
         { 1 }' {
