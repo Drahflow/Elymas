@@ -150,6 +150,13 @@
   [
     8 /r15 :subqImm8Reg
     /r15 :popqMem
+    0 /rdi :movqImmReg
+    0 :jmpRel8
+  ] ==:customFunctionObjectCreationHeaderPatternPatched
+
+  [
+    8 /r15 :subqImm8Reg
+    /r15 :popqMem
   ] ==:customFunctionHeaderPattern
 
   /NOP ==:NOP
@@ -1832,7 +1839,6 @@
             canRewrite {
               arrayStart i range { ==j [ NOP ] j logic =[] } each
               [ RAWCONSTCONDSTHISSCOPE collectedFunctions ] i logic =[]
-              /RAWCONSTCONDSTHISSCOPE dump
             }' rep
           }
         ] conds
@@ -2234,6 +2240,13 @@
             }
 
             { customFunctionObjectCreationHeaderPattern callTargetMatch }' {
+              [ calledAddress 9 add _ 8 add range peek each ] 256 math .unbase ==functionBody # function code object address
+
+              [ FUNCTIONCREATE calledAddress functionBody ] emitLogic
+              functionBody ::rawObject protectReference
+            }
+
+            { customFunctionObjectCreationHeaderPatternPatched callTargetMatch }' {
               [ calledAddress 9 add _ 8 add range peek each ] 256 math .unbase ==functionBody # function code object address
 
               [ FUNCTIONCREATE calledAddress functionBody ] emitLogic
@@ -2820,7 +2833,7 @@
         }
 
         { action RAWCONSTCONDSTHISSCOPE eq }' {
-          1 entry _ dump ==functions
+          1 entry ==functions
 
           { =*function
             [
