@@ -1,10 +1,10 @@
-* rewrite [ ... ] conds when everything is inline
 * apply the trace extractor to non-tail situations
 * forward scope-cannot-escape information
 * inline trivial functions when optimizer generates ... /rax :movqImmReg /rax :callqReg sequence
 * parse }" created constant pushers into PUSH in optimizer
 * hunt the }"s down
-* RAWCONSTCONDSTHISSCOPE could also work with PUSH
+* don't allocate ints for syscalls if not necessary
+* *THISSCOPE could also work with PUSH
 * utf8
 * regex substitution
 * asm-based regex engine

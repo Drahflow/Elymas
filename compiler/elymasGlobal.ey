@@ -1468,12 +1468,12 @@
       /rcx /rdi :movqRegMem
       8 /rdi :addqImm8Reg
       [
-        /rdi :movqImmOOBReg
+        /rax :movqImmOOBReg
       ] ::loadToRdi
       /rbx /rdi :movqRegMem
       8 /rdi :addqImm8Reg
       [
-        /rdi :callqReg
+        /rax :callqReg
 
         /r15 /r14 :movqMemReg
 

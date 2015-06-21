@@ -73,8 +73,8 @@
     8 /r15 :popqMemDisp8
     /r14 /r15 :movqRegMem
     0 /r14 :movqImmReg
-    0 /rdi :movqImmReg
-    /rdi :callqReg
+    0 /rax :movqImmReg
+    /rax :callqReg
     /r15 /r14 :movqMemReg
     8 /r15 :pushqMemDisp8
     16 /r15 :addqImm8Reg
@@ -2423,8 +2423,8 @@
             /r14 /r15 :movqRegMem
 
             2 entry /r14 :movqImmReg
-            1 entry /rdi :movqImmReg
-            /rdi :callqReg
+            1 entry /rax :movqImmReg
+            /rax :callqReg
 
             /r15 /r14 :movqMemReg
             8 /r15 :addqImm8Reg
