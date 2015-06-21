@@ -1828,7 +1828,7 @@
               [
                 { 0 item * CALL eq { 1 item * "[" | ::rawCodeAddress eq }' andif }' { j =arrayStart 1 neg =j }' # array start reached
                 { 0 item * FUNCTIONCREATE eq }' { [ item ] collectedFunctions cat =collectedFunctions }'
-                { 1 }' { 1 neg =j 1 neg =arrayStart /RAWCONSTLOOPTHISSCOPE_failed dump item dump } # something fancy is happening
+                { 1 }' { 1 neg =j 1 neg =arrayStart } # something fancy is happening
               ] conds
               j 1 sub =j
             } loop
@@ -2094,6 +2094,17 @@
       } each last ]
     } /rewriteSimpleFunctions deffst
 
+    { ==someCodeAddress
+      someCodeAddress peek * %48 eq
+      { someCodeAddress 1 add peek * %b8 eq }' andif
+      { someCodeAddress 10 add peek * %ff eq }' andif
+      { someCodeAddress 11 add peek * %e0 eq }' andif
+      {
+        [ someCodeAddress 2 add _ 8 add range peek each ] 256 math .unbase forwardJumpPad
+      } { someCodeAddress } ? *
+      -- someCodeAddress # FIXME: figure out why it is faster(!) not to forward jumppads
+    } /forwardJumpPad deffst
+
     o ::rawAddress ==addr
     [ addr       _ 4 add range peek each ] 256 math .unbase ==totalLength
     [ addr 8 add _ 4 add range peek each ] 256 math .unbase ==codeLength
@@ -2150,7 +2161,7 @@
 
             { constantNormalFunctionScopedUntypedPattern callTargetMatch }' {
               [ calledAddress 13 add _ 8 add range peek each ] 256 math .unbase ==functionScope
-              [ calledAddress 23 add _ 8 add range peek each ] 256 math .unbase ==finalAddress
+              [ calledAddress 23 add _ 8 add range peek each ] 256 math .unbase forwardJumpPad ==finalAddress
 
               [ CALLSCOPED finalAddress functionScope ] emitLogic
               finalAddress 16 sub ::rawObject protectReference
@@ -2158,7 +2169,7 @@
             }
 
             { constantNormalFunctionUnscopedUntypedPattern callTargetMatch }' {
-              [ calledAddress 2 add _ 8 add range peek each ] 256 math .unbase ==finalAddress
+              [ calledAddress 2 add _ 8 add range peek each ] 256 math .unbase forwardJumpPad ==finalAddress
 
               [ CALL finalAddress ] emitLogic
               finalAddress 16 sub ::rawObject protectReference
@@ -2240,14 +2251,14 @@
             }
 
             { customFunctionObjectCreationHeaderPattern callTargetMatch }' {
-              [ calledAddress 9 add _ 8 add range peek each ] 256 math .unbase ==functionBody # function code object address
+              [ calledAddress 9 add _ 8 add range peek each ] 256 math .unbase 16 add forwardJumpPad 16 sub ==functionBody # function code object address
 
               [ FUNCTIONCREATE calledAddress functionBody ] emitLogic
               functionBody ::rawObject protectReference
             }
 
             { customFunctionObjectCreationHeaderPatternPatched callTargetMatch }' {
-              [ calledAddress 9 add _ 8 add range peek each ] 256 math .unbase ==functionBody # function code object address
+              [ calledAddress 9 add _ 8 add range peek each ] 256 math .unbase 16 add forwardJumpPad 16 sub ==functionBody # function code object address
 
               [ FUNCTIONCREATE calledAddress functionBody ] emitLogic
               functionBody ::rawObject protectReference
