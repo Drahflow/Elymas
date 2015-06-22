@@ -168,6 +168,7 @@
   /STATICTYPED ==:STATICTYPED
   /STATICWRITE ==:STATICWRITE
   /STATICDOT ==:STATICDOT
+  /STATICTYPEDDOT ==:STATICTYPEDDOT
   /NATIVE ==:NATIVE
   /NATIVENOSCOPE ==:NATIVENOSCOPE
   /ARRAYSTAR ==:ARRAYSTAR
@@ -403,6 +404,7 @@
           { action STATICTYPED eq }' { 1 =needsAScope }
           { action STATICWRITE eq }' { 1 =needsAScope }
           { action STATICDOT eq }' { 1 =needsAScope }
+          { action STATICTYPEDDOT eq }' { 1 =needsAScope }
           { action ARRAYSTAR eq }' { }
           { action ARRAYCLEAR eq }' { }
           { action UNTYPEDSCOPEDSTAR eq }' { }
@@ -554,10 +556,10 @@
           { action CALL eq
             { 1 entry * "." | ::rawCodeAddress eq }' andif
             { 0 last * PUSH eq }' andif
-            { 0 secondLast * STATICTYPED eq 0 secondLast * PUSH eq or }' andif
+            { 0 secondLast * STATICTYPED eq 0 secondLast * STATICTYPEDDOT eq or 0 secondLast * PUSH eq or }' andif
           }' {
             1 last * ::rawObject ==constant
-            0 secondLast * STATICTYPED eq {
+            0 secondLast * STATICTYPED eq 0 secondLast * STATICTYPEDDOT eq or {
               4 secondLast *
             } {
               1 secondLast * ::rawObject
@@ -572,8 +574,15 @@
                   [
                     { mode 16 mod 0 eq }' {
                       [ NOP ] i 1 sub logic =[]
-                      [ STATICDOT offsetInScope parentCount inExtensionArea ] i logic =[]
+                      mode 16 div 2 band {
+                        [ STATICTYPEDDOT offsetInScope parentCount inExtensionArea loadedObject ::rawObject ] i logic =[]
+                      } {
+                        [ STATICDOT offsetInScope parentCount inExtensionArea ] i logic =[]
+                      } ? *
                     } { mode 16 mod 1 eq }' {
+                      # mode 16 div 2 band {
+                      #   "FIXME: optimize to call type on typed case" dump
+                      # } rep
                       [ STATICDOT offsetInScope parentCount inExtensionArea ] i 1 sub logic =[]
                       [ CALL "*" | ::rawCodeAddress ] i logic =[]
                     } { mode 16 mod 3 eq }' {
@@ -2102,7 +2111,6 @@
       {
         [ someCodeAddress 2 add _ 8 add range peek each ] 256 math .unbase forwardJumpPad
       } { someCodeAddress } ? *
-      -- someCodeAddress # FIXME: figure out why it is faster(!) not to forward jumppads
     } /forwardJumpPad deffst
 
     o ::rawAddress ==addr
@@ -2161,7 +2169,7 @@
 
             { constantNormalFunctionScopedUntypedPattern callTargetMatch }' {
               [ calledAddress 13 add _ 8 add range peek each ] 256 math .unbase ==functionScope
-              [ calledAddress 23 add _ 8 add range peek each ] 256 math .unbase forwardJumpPad ==finalAddress
+              [ calledAddress 23 add _ 8 add range peek each ] 256 math .unbase ==finalAddress
 
               [ CALLSCOPED finalAddress functionScope ] emitLogic
               finalAddress 16 sub ::rawObject protectReference
@@ -2169,7 +2177,7 @@
             }
 
             { constantNormalFunctionUnscopedUntypedPattern callTargetMatch }' {
-              [ calledAddress 2 add _ 8 add range peek each ] 256 math .unbase forwardJumpPad ==finalAddress
+              [ calledAddress 2 add _ 8 add range peek each ] 256 math .unbase ==finalAddress
 
               [ CALL finalAddress ] emitLogic
               finalAddress 16 sub ::rawObject protectReference
@@ -2251,14 +2259,14 @@
             }
 
             { customFunctionObjectCreationHeaderPattern callTargetMatch }' {
-              [ calledAddress 9 add _ 8 add range peek each ] 256 math .unbase 16 add forwardJumpPad 16 sub ==functionBody # function code object address
+              [ calledAddress 9 add _ 8 add range peek each ] 256 math .unbase ==functionBody # function code object address
 
               [ FUNCTIONCREATE calledAddress functionBody ] emitLogic
               functionBody ::rawObject protectReference
             }
 
             { customFunctionObjectCreationHeaderPatternPatched callTargetMatch }' {
-              [ calledAddress 9 add _ 8 add range peek each ] 256 math .unbase 16 add forwardJumpPad 16 sub ==functionBody # function code object address
+              [ calledAddress 9 add _ 8 add range peek each ] 256 math .unbase ==functionBody # function code object address
 
               [ FUNCTIONCREATE calledAddress functionBody ] emitLogic
               functionBody ::rawObject protectReference
@@ -2412,7 +2420,7 @@
 
         { action CALL eq }' {
           [
-            1 entry /rax :movqImmReg
+            1 entry forwardJumpPad /rax :movqImmReg
             /rax :callqReg
           ] emitOpcodes
 
@@ -2421,7 +2429,7 @@
 
         { action FUNCTIONCREATE eq }' {
           [
-            1 entry /rax :movqImmReg
+            1 entry forwardJumpPad /rax :movqImmReg
             /rax :callqReg
           ] emitOpcodes
 
@@ -2434,7 +2442,7 @@
             /r14 /r15 :movqRegMem
 
             2 entry /r14 :movqImmReg
-            1 entry /rax :movqImmReg
+            1 entry forwardJumpPad /rax :movqImmReg
             /rax :callqReg
 
             /r15 /r14 :movqMemReg
@@ -2499,7 +2507,7 @@
           ] emitOpcodes
         }
 
-        { action STATICDOT eq }' {
+        { action [ STATICDOT STATICTYPEDDOT ] eq any }' {
           [
             /rax :popqReg
             2 entry { 16 /rax /rax :movqMemDisp8Reg } rep
@@ -2624,7 +2632,7 @@
             0 /r15 :cmpqImm8Mem
             /repFinished :jzLbl8
             1 /r15 :subqImm8Mem
-            1 entry /rax :movqImmReg
+            1 entry forwardJumpPad /rax :movqImmReg
             /rax :callqReg
             /repLoop :jmpLbl8
             @repFinished
@@ -2649,7 +2657,7 @@
             0 /r15 :cmpqImm8Mem
             /repFinished :jzLbl8
             1 /r15 :subqImm8Mem
-            1 entry /rax :movqImmReg
+            1 entry forwardJumpPad /rax :movqImmReg
             /rax :callqReg
             8 /r15 /r14 :movqMemDisp8Reg
             /repLoop :jmpLbl8
@@ -2675,7 +2683,7 @@
 
             # revert to original code for complicated (e.g. scope) cases
             /rax :pushqReg
-            2 entry /rax :movqImmReg
+            2 entry forwardJumpPad /rax :movqImmReg
             /rax :callqReg
             |each ::rawCodeAddress /rax :movqImmReg
             /rax :callqReg
@@ -2704,7 +2712,7 @@
             /end :jnbLbl8
 
             /rax :pushqMem # push array element
-            1 entry /rax :movqImmReg
+            1 entry forwardJumpPad /rax :movqImmReg
             /rax :callqReg
 
             8 /r15 :addqImm8Mem
@@ -2731,7 +2739,7 @@
             /rdx /rdx :movzxMem8Reg64
             63 /rdx :btsqImm8Reg
             /rdx :pushqReg
-            1 entry /rax :movqImmReg
+            1 entry forwardJumpPad /rax :movqImmReg
             /rax :callqReg
 
             16 /r15 /r14 :movqMemDisp8Reg
@@ -2753,7 +2761,7 @@
             8 /r15 :subqImm8Reg
             /r14 /r15 :movqRegMem
             @loop
-            1 entry /rax :movqImmReg
+            1 entry forwardJumpPad /rax :movqImmReg
             /rax :callqReg
             /r15 /r14 :movqMemReg
 
@@ -2765,7 +2773,7 @@
             /rax /rax :testqRegReg
             /done :jzLbl8
 
-            2 entry /rax :movqImmReg
+            2 entry forwardJumpPad /rax :movqImmReg
             /rax :callqReg
             /r15 /r14 :movqMemReg
             /loop :jmpLbl8
@@ -2795,8 +2803,8 @@
             /callCreatedFunction :jmpLbl8
 
             @unboxedInt
-            1 entry /rcx :movqImmReg
-            2 entry /rdx :movqImmReg
+            1 entry forwardJumpPad /rcx :movqImmReg
+            2 entry forwardJumpPad /rdx :movqImmReg
             /rax /rax :testqRegReg
             /rcx /rdx :cmovnzqRegReg
 
@@ -2820,9 +2828,9 @@
             /rax :pushqReg
 
             # TODO: maybe handle boxed ints one day
-            1 entry /rax :movqImmReg
+            1 entry forwardJumpPad /rax :movqImmReg
             /rax :pushqReg
-            2 entry /rax :movqImmReg
+            2 entry forwardJumpPad /rax :movqImmReg
             /rax :pushqReg
             "?" | ::rawCodeAddress /rax :movqImmReg
             /rax :callqReg
@@ -2830,8 +2838,8 @@
             /callCreatedFunction :jmpLbl8
 
             @unboxedInt
-            1 entry /rcx :movqImmReg
-            2 entry /rdx :movqImmReg
+            1 entry forwardJumpPad /rcx :movqImmReg
+            2 entry forwardJumpPad /rdx :movqImmReg
             /rax /rax :testqRegReg
             /rcx /rdx :cmovnzqRegReg
 
@@ -2849,7 +2857,7 @@
           { =*function
             [
               { 0 function FUNCTIONCREATE eq }' {
-                2 function 16 add /rax :movqImmReg
+                2 function 16 add forwardJumpPad /rax :movqImmReg
                 /rax :callqReg
                 /r15 /r14 :movqMemReg
 
