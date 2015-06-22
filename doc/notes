@@ -238,6 +238,7 @@ Overhead: 1/32.
   bit 63-60: 0 1 1 0
   bit 59: reserved for GC
   bit 58: optimized or being optimized or excluded from optimization
+  bit 57: determined not to leak scope (i.e. scope can reside on stack)
 * Length of opcode block (rounded to 8 byte)
 * [ <opcode> ]*
 * [ <object pointer> ]*

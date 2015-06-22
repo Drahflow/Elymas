@@ -397,21 +397,42 @@
         [
           { action NOP eq }' { }
           { action PUSH eq }' { }
+          { action CALL eq { 1 entry * SCOPEIGNORANTFUNCTIONS eq any } andif }' { }
+          { action CALL eq { 1 entry * SCOPETIGHTFUNCTIONS eq any } andif }' { 1 =needsAScope }
+          { action CALL eq { 1 entry * 16 sub 7 add peek * %02 band } andif }' { 1 =needsAScope }
           { action CALLSCOPED eq }' { }
           { action STATIC eq }' { 1 =needsAScope }
           { action STATICTYPED eq }' { 1 =needsAScope }
           { action STATICWRITE eq }' { 1 =needsAScope }
           { action STATICDOT eq }' { 1 =needsAScope }
           { action STATICTYPEDDOT eq }' { 1 =needsAScope }
+          { action NATIVENOSCOPE eq }' { 1 =needsAScope }
           { action ARRAYSTAR eq }' { }
-          { action ARRAYCLEAR eq }' { }
           { action UNTYPEDSCOPEDSTAR eq }' { }
           { action STRINGSTAR eq }' { }
-          { action NATIVENOSCOPE eq }' { 1 =needsAScope }
           { action CONDITIONALTAIL eq }' { 1 =needsAScope }
-
-          { action CALL eq { 1 entry * SCOPEIGNORANTFUNCTIONS eq any } andif }' { }
-          { action CALL eq { 1 entry * SCOPETIGHTFUNCTIONS eq any } andif }' { 1 =needsAScope }
+          { action ARRAYCLEAR eq }' { }
+          { action RAWCONSTREP eq { 1 entry * 16 sub 7 add peek * %02 band } andif }' { 1 =needsAScope }
+          { action RAWCONSTREPTHISSCOPE eq { 1 entry * 16 sub 7 add peek * %02 band } andif }' { 1 =needsAScope }
+          { action RAWCONSTEACHTHISSCOPE eq { 1 entry * 16 sub 7 add peek * %02 band } andif }' { 1 =needsAScope }
+          { action RAWCONSTLOOPTHISSCOPE eq
+            { 1 entry * 16 sub 7 add peek * %02 band } andif
+            { 2 entry * 16 sub 7 add peek * %02 band } andif
+          }' { 1 =needsAScope }
+          # TODO: this is useless currently, as we don't get evaluation on all branches before optimizing here
+          # { action RAWCONSTCONDSTHISSCOPE eq
+          #   { [ 1 entry * { ==function
+          #     0 function * FUNCTIONCREATE eq { 2 function * 7 add peek * %02 band }' andif
+          #   } each ] all }' andif
+          # }' { /RAWCONSTCONDSTHISSCOPE_tight dump 1 =needsAScope }
+          # { action INLINEQUESTIONSTARTHISSCOPE eq
+          #   { 1 entry * 16 sub 7 add peek * %02 band } andif
+          #   { 2 entry * 16 sub 7 add peek * %02 band } andif
+          # }' { /INLINEQUESTIONSTARTHISSCOPE_tight dump 1 =needsAScope }
+          # { action INLINEQUESTIONSTARUNSCOPEDCONST eq
+          #   { 1 entry * 16 sub 7 add peek * %02 band } andif
+          #   { 2 entry * 16 sub 7 add peek * %02 band } andif
+          # }' { /INLINEQUESTIONSTARUNSCOPEDCONST_tight dump 1 =needsAScope }
 
           # TODO handle more known-harmless unscoped global functions
           { 1 }' {
@@ -1727,7 +1748,7 @@
                   executedObject sys .capturedScope {
                     -- # ignore concrete scope
                     # [ UNTYPEDSCOPEDREP ] i logic =[]
-                    /TODO_UNTYPEDSCOPEDREP_needed dump
+                    # TODO: /TODO_UNTYPEDSCOPEDREP_needed dump # also handle const, but scoped function objects
                   } {
                     [ NOP ] i 1 sub logic =[]
                     [ RAWCONSTREP executedObject ::rawCodeAddress ] i logic =[]
@@ -2343,16 +2364,16 @@
           /r15 :popqMem
           8 /r15 :subqImm8Reg
           /r14 /r15 :movqRegMem
-          32 INITIALSCOPESIZE 16 mul add /r15 :subqImm8Reg
+          INITIALSCOPESIZE 8 mul 32 add /r15 :subqImm8Reg
           /rax /rax :xorqRegReg
           /rax 0 /r15 :andqRegMemDisp8
           /rax 8 /r15 :andqRegMemDisp8
           /r14 16 /r15 :movqRegMemDisp8 # save parent scope
           /rax 24 /r15 :andqRegMemDisp8
           0 INITIALSCOPESIZE range { ==i
-            /rax 32 i 16 mul add /r15 :andqRegMemDisp8
+            /rax i 8 mul 32 add /r15 :andqRegMemDisp8
           } each
-          32 INITIALSCOPESIZE 16 mul add /r15 :orbImmMem # set length
+          INITIALSCOPESIZE 8 mul 32 add /r15 :orbImmMem # set length
           %96 7 /r15 :orbImmMemDisp8 # set type and existence of all pointers
           /r15 /r14 :movqRegReg
         ] emitOpcodes
@@ -2382,8 +2403,8 @@
         ]
       }' {
         [
-          48 /r15 /r14 :movqMemDisp8Reg
-          48 INITIALSCOPESIZE 16 mul add /r15 :addqImm8Reg
+          INITIALSCOPESIZE 8 mul 48 add /r15 :addqImm8Reg
+          16 neg /r15 /r14 :movqMemDisp8Reg
           8 neg /r15 :jmpqMemDisp8
         ]
       }' ? *
@@ -2881,6 +2902,13 @@
     newFooter emitOpcodes
 
     newOpcodes newReferences o ::replace
+
+    allocatedScopeMightEscape not {
+      addr 7 add _ sys .asm .peek %02 bor -01 sys .asm .poke # set scope-cannot-escape bit
+      [ addr 18 add _ 8 add range peek each ] 256 math .unbase ==targetAddress
+      targetAddress 16 sub 7 add _ sys .asm .peek %02 bor -01 sys .asm .poke # set scope-cannot-escape bit on jump target
+    } rep
+
     1 executingScope # return something different from o to signal successful optimization
 
     [ ] _ =newOpcodes
