@@ -900,78 +900,80 @@
 
   [ 0 11 range {
     sys .asm .intToFloat
-  } each ] =*:FLOAT
+  }' each ] =*:FLOAT
 
-  { _ 0 lt { neg "-" } { "" } ? * -01
-    [ -01 16 { _ 16 umod base16digits * -01 16 udiv } rep -- ] reverse str .fromArray cat
-  } /base16encode64 deffd
+  { _ 0 lt { neg "-" }' { "" }' ? * -01
+    [ -01 16 { _ 16 umod base16digits * -01 16 udiv }' rep -- ] reverse str .fromArray cat
+  }' /base16encode64 deffd
+
+  { "unknown type in dump" die }" /unknown defvd
+  { "invalid type in dump" die }" /invalid defvd
+
+  [
+    { o base16encode64 sys .err .writeall }" # integer
+    { "\"" o "\"" cat cat sys .err .writeall }" # string
+    { o { ==f 0 ==e "+" ==s 0 ==i
+      f 0 FLOAT lt { 0 FLOAT f sub =f "-" =s }' rep
+      { f 1 FLOAT lt i 500 lt and }' { f 10 FLOAT mul =f e 1 sub =e i 1 add =i }' loop
+      { f 10 FLOAT ge i 500 lt and }' { f 10 FLOAT div =f e 1 add =e i 1 add =i }' loop
+
+      i 500 eq {
+        s
+        f 1 FLOAT lt "0.0e0" "inf" ?
+        cat sys .err .writeall
+      }' {
+        {
+          0 ==d
+          1 10 range { ==i f i FLOAT gt { i =d }' rep } each
+          f d sub =f
+          f 10 FLOAT mul =f
+          d base10digits *
+        } /extractDigit deffst
+
+        [
+          0 s *
+          extractDigit
+          0 "." *
+          10 |extractDigit rep
+          0 "e" *
+          e 0 lt {
+            0 e sub =e
+            0 "-" *
+          } rep
+          e 0 eq {
+            0 "0" *
+          } rep
+          [
+            { e } {
+              e 10 mod base10digits *
+              e 10 div =e
+            } loop
+          ] reverse _ len dearray
+        ] str .fromArray sys .err .writeall
+      }' ? *
+    } * }" # float
+    unknown
+    invalid # extension area
+    { "<function: " o sys .asm .rawAddress base16encode64 cat ">" cat sys .err .writeall }"
+    { "<function code: " o sys .asm .rawAddress base16encode64 cat ">" cat sys .err .writeall }"
+    {
+      "[\n" sys .err .writeall
+      o { indent 1 add dumpIndented }' each
+      "" indent { "  " cat }' rep "]" cat sys .err .writeall
+    }" # array
+    invalid # function type
+    { "<scope: " o sys .asm .rawAddress base16encode64 cat ">" cat sys .err .writeall }"
+    invalid # name table
+    invalid # stack
+    { "<coroutine: " o sys .asm .rawAddress base16encode64 cat ">" cat sys .err .writeall }"
+    unknown
+    unknown
+    unknown
+  ] /dumpActions deffd
 
   { ==indent _ ==o
-    { "unknown type in dump" die } ==unknown
-    { "invalid type in dump" die } ==invalid
-        
-    "" indent { "  " cat } rep sys .err .writeall
-    sys .typed .type [
-      { o base16encode64 sys .err .writeall } # integer
-      { "\"" o "\"" cat cat sys .err .writeall } # string
-      { o ==f 0 ==e "+" ==s 0 ==i
-        f 0 FLOAT lt { 0 FLOAT f sub =f "-" =s } rep
-        { f 1 FLOAT lt i 500 lt and } { f 10 FLOAT mul =f e 1 sub =e i 1 add =i } loop
-        { f 10 FLOAT ge i 500 lt and } { f 10 FLOAT div =f e 1 add =e i 1 add =i } loop
-
-        i 500 eq {
-          s
-          f 1 FLOAT lt "0.0e0" "inf" ?
-          cat sys .err .writeall
-        } {
-          {
-            0 ==d
-            1 10 range { ==i f i FLOAT gt { i =d } rep } each
-            f d sub =f
-            f 10 FLOAT mul =f
-            d base10digits *
-          } /extractDigit deffst
-
-          [
-            0 s *
-            extractDigit
-            0 "." *
-            10 |extractDigit rep
-            0 "e" *
-            e 0 lt {
-              0 e sub =e
-              0 "-" *
-            } rep
-            e 0 eq {
-              0 "0" *
-            } rep
-            [
-              { e } {
-                e 10 mod base10digits *
-                e 10 div =e
-              } loop
-            ] reverse _ len dearray
-          ] str .fromArray sys .err .writeall
-        } ? *
-      } # float
-      unknown
-      invalid # extension area
-      { "<function: " o sys .asm .rawAddress base16encode64 cat ">" cat sys .err .writeall }
-      { "<function code: " o sys .asm .rawAddress base16encode64 cat ">" cat sys .err .writeall }
-      {
-        "[\n" sys .err .writeall
-        o { indent 1 add dumpIndented } each
-        "" indent { "  " cat } rep "]" cat sys .err .writeall
-      } # array
-      invalid # function type
-      { "<scope: " o sys .asm .rawAddress base16encode64 cat ">" cat sys .err .writeall }
-      invalid # name table
-      invalid # stack
-      { "<coroutine: " o sys .asm .rawAddress base16encode64 cat ">" cat sys .err .writeall }
-      unknown
-      unknown
-      unknown
-    ] * *
+    "" indent { "  " cat }' rep sys .err .writeall
+    sys .typed .type dumpActions *
     "\n" sys .err .writeall
   } /dumpIndented deffd
 
