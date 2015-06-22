@@ -108,10 +108,8 @@
 
   [
     24 /rax /rcx :movqMemDisp8Reg # load extension area pointer
-    /rax /edx :movlMemReg # load scope length
-    /rdx :negqReg # prepare for substraction
     /rbx :popqReg
-    0 1 /rdx /rcx /rax :movqMemIndexScaleDisp32Reg # load entry
+    0 /rcx /rax :movqMemDisp32Reg # load entry
   ] ==:staticLoadFromExtensionPattern
 
   [
@@ -474,7 +472,7 @@
 
             constant executingScope sys .resolveInfo _ ==loadedObject {
               ==mode -- ==parentCount 32 add ==offsetInScope ==inExtensionArea
-              inExtensionArea { offsetInScope 8 add =offsetInScope } rep
+              inExtensionArea 0 gt { offsetInScope inExtensionArea sub 8 add =offsetInScope 1 =inExtensionArea } rep
 
               [
                 { mode 16 div 1 band }' { # static case
@@ -509,7 +507,7 @@
 
             constant executingScope sys .resolveInfo {
               ==mode -- ==parentCount 32 add ==offsetInScope ==inExtensionArea
-              inExtensionArea { offsetInScope 8 add =offsetInScope } rep
+              inExtensionArea 0 gt { offsetInScope inExtensionArea sub 8 add =offsetInScope 1 =inExtensionArea } rep
 
               mode 16 div 1 band {
                 [ NOP ] =last
@@ -528,9 +526,9 @@
 
             constant executingScope sys .resolveInfo {
               ==mode -- ==parentCount 32 add ==offsetInScope ==inExtensionArea
-              inExtensionArea { offsetInScope 8 add =offsetInScope } rep
+              inExtensionArea 0 gt { offsetInScope inExtensionArea sub 8 add =offsetInScope 1 =inExtensionArea } rep
 
-              inExtensionArea not { # FIXME: implement the extension area case
+              inExtensionArea not { # FIXME: implement the extension area case, needs to create extension area on write
                 mode 16 div 1 band {
                   [ NOP ] =last
                   [ STATICWRITE offsetInScope parentCount inExtensionArea ] =entry
@@ -567,7 +565,7 @@
 
             constant relevantScope sys .resolveInfo _ ==loadedObject {
               ==mode -- ==parentCount 32 add ==offsetInScope ==inExtensionArea
-              inExtensionArea { offsetInScope 8 add =offsetInScope } rep
+              inExtensionArea 0 gt { offsetInScope inExtensionArea sub 8 add =offsetInScope 1 =inExtensionArea } rep
 
               [
                 { mode 16 div 1 band }' { # static case
@@ -1158,19 +1156,15 @@
                   2 entry 1 sub { 16 target target :movqMemDisp8Reg } rep
 
                   3 entry {
-                    target /eax :movlMemReg # load scope length
                     24 target target :movqMemDisp8Reg # load extension area pointer
-                    /rax :negqReg # prepare for substraction # TODO the length calculation could be done beforehand
-                    1 entry 1 /rax target target :movqMemIndexScaleDisp32Reg
+                    1 entry target target :movqMemDisp32Reg
                   } {
                     1 entry target target :movqMemDisp32Reg
                   } ? *
                 } {
                   3 entry {
-                    /r14 /eax :movlMemReg # load scope length
                     24 /r14 target :movqMemDisp8Reg # load extension area pointer
-                    /rax :negqReg # prepare for substraction # TODO the length calculation could be done beforehand
-                    1 entry 1 /rax target target :movqMemIndexScaleDisp32Reg
+                    1 entry target target :movqMemDisp32Reg
                   } {
                     1 entry /r14 target :movqMemDisp32Reg
                   } ? *
@@ -1507,7 +1501,7 @@
                 { 0 source PUSH eq } {
                   /rax =reg
                   traceCode [
-                    1 source /rax :movqImmReg
+                    1 source tmpreg :movqImmReg
                   ] cat =traceCode
                 }
                 { |source hasRegister } {
@@ -1559,11 +1553,8 @@
 
                 3 entry {
                   traceCode [
-                    tmpreg :pushqReg
-                    24 /rax tmpreg :movqMemDisp8Reg # load extension area pointer
-                    /rax /eax :movlMemReg # load scope length
-                    /rax :negqReg # prepare for substraction
-                    1 entry 1 /rax tmpreg :popqMemIndexScaleDisp32 # load entry from stack
+                    24 /rax /rax :movqMemDisp8Reg # load extension area pointer
+                    tmpreg 1 entry /rax :movqRegMemDisp32 # write entry
                   ] cat =traceCode
                 } {
                   traceCode [
@@ -1573,11 +1564,8 @@
               } {
                 3 entry {
                   traceCode [
-                    tmpreg :pushqReg
-                    24 /r14 tmpreg :movqMemDisp8Reg # load extension area pointer
-                    /r14 /eax :movlMemReg # load scope length
-                    /rax :negqReg # prepare for substraction
-                    1 entry 1 /rax tmpreg :popqMemIndexScaleDisp32 # load entry from stack
+                    24 /r14 /rax :movqMemDisp8Reg # load extension area pointer
+                    tmpreg 1 entry /rax :movqRegMemDisp32 # write entry
                   ] cat =traceCode
                 } {
                   traceCode [
@@ -2217,11 +2205,11 @@
                 }
 
                 { staticLoadFromExtensionPattern callTargetMatch }' {
-                  [ loadStart 14 add _ 4 add range peek each ] 256 math .unbase ==offsetInScope
+                  [ loadStart 8 add _ 4 add range peek each ] 256 math .unbase ==offsetInExtensionArea
                   [ calledAddress 8 sub _ 8 add range peek each ] 256 math .unbase ==exampleObjectOffset
                   [ calledAddress exampleObjectOffset add _ 8 add range peek each ] 256 math .unbase ::rawObject ==exampleObject
                   
-                  [ STATICTYPED offsetInScope parentCount 1 exampleObject ] emitLogic
+                  [ STATICTYPED offsetInExtensionArea parentCount 1 exampleObject ] emitLogic
                   exampleObject protectReference
                 }
 
@@ -2461,18 +2449,14 @@
 
               3 entry {
                 24 /rax /rcx :movqMemDisp8Reg # load extension area pointer
-                /rax /edx :movlMemReg # load scope length
-                /rdx :negqReg # prepare for substraction # TODO the length calculation could be done beforehand
-                1 entry 1 /rdx /rcx :pushqMemIndexScaleDisp32 # push loaded entry to stack
+                1 entry /rcx :pushqMemDisp32 # push loaded entry to stack
               } {
                 1 entry /rax :pushqMemDisp32
               } ? *
             } {
               3 entry {
                 24 /r14 /rcx :movqMemDisp8Reg # load extension area pointer
-                /r14 /edx :movlMemReg # load scope length
-                /rdx :negqReg # prepare for substraction # TODO the length calculation could be done beforehand
-                1 entry 1 /rdx /rcx :pushqMemIndexScaleDisp32 # push loaded entry to stack
+                1 entry /rcx :pushqMemDisp32 # push loaded entry to stack
               } {
                 1 entry /r14 :pushqMemDisp32
               } ? *
@@ -2488,18 +2472,14 @@
 
               3 entry {
                 24 /rax /rcx :movqMemDisp8Reg # load extension area pointer
-                /rax /edx :movlMemReg # load scope length
-                /rdx :negqReg # prepare for substraction
-                1 entry 1 /rdx /rcx :popqMemIndexScaleDisp32 # load entry from stack
+                1 entry /rcx :popqMemDisp32 # load entry from stack
               } {
                 1 entry /rax :popqMemDisp32
               } ? *
             } {
               3 entry {
                 24 /r14 /rcx :movqMemDisp8Reg # load extension area pointer
-                /r14 /edx :movlMemReg # load scope length
-                /rdx :negqReg # prepare for substraction
-                1 entry 1 /rdx /rcx :popqMemIndexScaleDisp32 # load entry from stack
+                1 entry /rcx :popqMemDisp32 # load entry from stack
               } {
                 1 entry /r14 :popqMemDisp32
               } ? *
@@ -2514,9 +2494,7 @@
 
             3 entry {
               24 /rax /rcx :movqMemDisp8Reg # load extension area pointer
-              /rax /edx :movlMemReg # load scope length
-              /rdx :negqReg # prepare for substraction
-              1 entry 1 /rdx /rcx :pushqMemIndexScaleDisp32 # push loaded entry to stack
+              1 entry /rcx :pushqMemDisp32 # push loaded entry to stack
             } {
               1 entry /rax :pushqMemDisp32
             } ? *

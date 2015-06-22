@@ -1623,7 +1623,7 @@
       /patchStaticFollowParents :loopLbl8
       @patchStaticNoFollowParents
 
-      %01 /bpl :testbImmReg
+      /rbp /rbp :testqRegReg
       /patchStaticLoadFromExtensionArea :jnzLbl8
 
       # @patchStaticLoadFromScope
@@ -1639,11 +1639,10 @@
       40 /rsi :addqImm8Reg # now: rsi == offset of entry in extension area + scope length
       [
         24 /rax /rcx :movqMemDisp8Reg # load extension area pointer
-        /rax /edx :movlMemReg # load scope length
-        /rdx :negqReg # prepare for substraction
         /rbx :popqReg
-        %EE 1 /rdx /rcx /rax :movqMemIndexScaleDisp32Reg # load entry
+        %EE /rcx /rax :movqMemDisp32Reg # load entry
       ] ::loadToRdi
+      /rbp /rsi :subqRegReg # substract scope object length
       /esi 4 neg /rdi :movlRegMemDisp8 # patch offset
 
       @patchStaticLoadTail

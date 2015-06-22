@@ -1398,7 +1398,7 @@
     # rdi <- number of parent pointers followed
     # rsi <- entry index * 8 within scope
     # rbp <- 0 if within scope data area
-    #        1 if within extension area
+    #        scope object length if within extension area
     [[
       /rax /rax :xorqRegReg
       /rax :pushqReg
@@ -1529,11 +1529,11 @@
       /ecx /rdi :cmplRegMem # TODO this fails for > 4 GB scopes
       /inDataArea :jaLbl8
 
+      /rdi /ebp :movlMemReg # load scope length
       /rdi /ecx :sublMemReg # substract scope length
       24 /rdi /rdi :movqMemDisp8Reg # load extension area pointer
       /rdi /rdi :testqRegReg
       /outsideExtensionArea :jzLbl8
-      /rbp :incqReg
       8 /rcx :addqImm8Reg # add extension area header length
 
       @inDataArea
