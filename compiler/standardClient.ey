@@ -515,7 +515,7 @@
     { ==object
       { object dump "unknown type in typeStack" die } ==unknown
       { object dump "invalid type in typeStack" die } ==invalid
-      { [ object 0 1 neg ] } ==literal
+      { [ object 0 1 neg 0 ] } ==literal
 
       object sys .typed .type [
         literal # integer
@@ -525,13 +525,20 @@
         invalid # extension area
         { object sys .typed .inputs ==in
           in len 1 neq { "multi-input function in typeStack" die } rep
-          [ 0 in * 0 1 neg ]
+          [ 0 in * 0 1 neg 0 ]
           object sys .typed .outputs ==out
           out len 1 neq { "multi-output function in typeStack" die } rep
           0 out * typeStackInternal
         } # function
         invalid # function code
-        { [ 1 0 object len 1 sub ] 0 object * typeStackInternal } # array
+        {
+          [ 1 0 object len 1 sub 1 ]
+          object len {
+            0 object * typeStackInternal
+          } {
+            [ 0 0 1 neg 0 ] # fake some integer entries
+          } ? *
+        } # array
         invalid # function type
         {
           [
@@ -539,7 +546,7 @@
               object "#dom" . ==d
               object "#in" . ==in
               in len 1 neq { "multi-input scope (with #dom) in typeStack" die } rep
-              [ 0 in * 0 d len 1 sub ]
+              [ 0 in * 0 d len 1 sub 1 ]
               object "#out" . ==out
               out len 1 neq { "multi-output scope (with #dom) in typeStack" die } rep
               0 out * typeStackInternal
@@ -547,7 +554,7 @@
             { object "#*" .? } {
               object "#in" . ==in
               in len 1 neq { "multi-input scope in typeStack" die } rep
-              [ 0 in * 0 1 neg ]
+              [ 0 in * 0 1 neg 0 ]
               object "#out" . ==out
               out len 1 neq { "multi-output scope in typeStack" die } rep
               0 out * typeStackInternal
@@ -569,9 +576,9 @@
     { -- 0 } /isVariableType deff
 
     { ==t
-      t len 3 neq { "complex execution type non-triple" die } rep
+      t len 4 neq { "complex execution type non-triple" die } rep
 
-      2 t * 1 t * ge
+      3 t *
     } /isIterableType deff
 
     { =*a =*b
