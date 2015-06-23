@@ -2544,12 +2544,22 @@
         }
 
         { action ARRAYSTAR eq }' {
-          [
+          [[
             /rsi :popqReg
             /rax :popqReg
             63 /rax :btrqImm8Reg
-            [ 8 /rax /rax :movqMemDisp8Reg ] len :jcRel8
+            /unboxedInteger :jcLbl8
+            %f0 7 /rax :andbImmMemDisp8
+            /boxedInteger :jzLbl8
+            /rax :pushqReg
+            /rsi :pushqReg
+            "*" | ::rawCodeAddress /rax :movqImmReg
+            /rax :callqReg
+            /done :jmpLbl8
+
+            @boxedInteger
             8 /rax /rax :movqMemDisp8Reg
+            @unboxedInteger
             /rsi /ecx :movlMemReg
             3 /rcx :shrqImm8Reg
             /rcx :decqReg
@@ -2559,16 +2569,28 @@
             [ /rcx /rdx :addqRegReg ] len :jgeRel8
             /rcx /rdx :addqRegReg
             8 8 /rdx /rsi :pushqMemIndexScaleDisp8
-          ] emitOpcodes
+
+            @done
+          ]] emitOpcodes
         }
 
         { action STRINGSTAR eq }' {
-          [
+          [[
             /rsi :popqReg
             /rax :popqReg
             63 /rax :btrqImm8Reg
-            [ 8 /rax /rax :movqMemDisp8Reg ] len :jcRel8
+            /unboxedInteger :jcLbl8
+            %f0 7 /rax :andbImmMemDisp8
+            /boxedInteger :jzLbl8
+            /rax :pushqReg
+            /rsi :pushqReg
+            "*" | ::rawCodeAddress /rax :movqImmReg
+            /rax :callqReg
+            /done :jmpLbl8
+
+            @boxedInteger
             8 /rax /rax :movqMemDisp8Reg
+            @unboxedInteger
             16 /rsi /rcx :movqMemDisp8Reg
             :cqo
             /rcx :idivqReg
@@ -2578,7 +2600,9 @@
             24 1 /rdx /rsi /rbx :movzxMem8IndexScaleDisp8Reg64
             63 /rbx :btsqImm8Reg
             /rbx :pushqReg
-          ] emitOpcodes
+
+            @done
+          ]] emitOpcodes
         }
 
         { action [ NATIVE NATIVENOSCOPE ] eq any }' {
