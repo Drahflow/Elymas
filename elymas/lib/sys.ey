@@ -33,7 +33,7 @@
         { c 0 "?" * eq } { "." { } each }
         { 1 } { c }
       ] conds
-    } each ] str .fromArray ==rx
+    } each ] str .fromArray "^" -01 cat "$" cat ==rx
     dir sys .readdir { rx regex } grep
   } /glob sys .deff
 
