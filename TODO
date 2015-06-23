@@ -1,4 +1,5 @@
 * apply the trace extractor to non-tail situations
+* reduze ./optimized binary size (clean up lib/sys/opt.ey code)
 * inline trivial functions when optimizer generates ... /rax :movqImmReg /rax :callqReg sequence
 * parse }" created constant pushers into PUSH in optimizer
 * hunt the }"s down

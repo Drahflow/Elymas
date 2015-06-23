@@ -264,7 +264,7 @@
   # 137 ==:STATFS
   # 168 ==:SWAPOFF
   # 167 ==:SWAPON
-  # 88  ==:SYMLINK
+  88  ==:SYMLINK
   # 266 ==:SYMLINKAT
   # 162 ==:SYNC
   # 277 ==:SYNCFILERANGE
@@ -290,7 +290,7 @@
   # 95  ==:UMASK
   # 166 ==:UMOUNT2
   63  ==:UNAME # TODO: not implemented here
-  # 87  ==:UNLINK
+  87  ==:UNLINK
   # 263 ==:UNLINKAT
   # 272 ==:UNSHARE
   # 134 ==:USELIB
@@ -684,6 +684,10 @@
       fd SOLSOCKET SOREUSEADDR "" value <-u32 4 0 SETSOCKOPT sys .asm .syscall =errno
     } /reuseAddr deffd
   > /setsockopt defvd
+
+  { 0 0 0 0 SYMLINK } /symlink defStdSyscall
+
+  { 0 0 0 0 0 UNLINK } /unlink defStdSyscall
 
   # 0 -> options
   # 1 -> pid to wait for
