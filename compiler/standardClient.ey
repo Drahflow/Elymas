@@ -103,7 +103,7 @@
 
   {
     0 ==?currentCapture
-    
+
     { # "(parse) re: " -101 cat dump
 
       seq ==?a
@@ -312,7 +312,7 @@
           position maxPosition eq { pc 1 add thread cloneThread iPush }" rep
         }"
       ] =*codeSemantics
-      
+
       0 ==i
       { position maxPosition le }" {
         0 =i
@@ -399,7 +399,7 @@
 
   2 ==:MAPPRIVATE
   32 ==:MAPANONYMOUS
-  
+
   0 ==:READ
   1 ==:WRITE
   2 ==:OPEN
@@ -423,7 +423,7 @@
       { flags OTRUNC bor =flags } /truncating deff
 
       { ==path
-        fd 0 ge { "file already open" die } rep 
+        fd 0 ge { "file already open" die } rep
         path "\0" cat flags mode 0 0 0 OPEN sys .asm .syscall -- _ =fd
         0 lt { "cannot open " path cat die } rep
       } /open deff
@@ -432,19 +432,19 @@
         0 lt { "bad things happened to your close call" die } rep
       } /close deff
       { ==count
-        fd 0 lt { "file not open" die } rep 
+        fd 0 lt { "file not open" die } rep
         count str .alloc ==buf
         fd buf count 0 0 0 READ sys .asm .syscall -- _
         0 lt { "read failed" die } rep
         buf str .inplacePrefix
       } /read deff
       { ==buf
-        fd 0 lt { "file not open" die } rep 
+        fd 0 lt { "file not open" die } rep
         fd buf _ len 0 0 0 WRITE sys .asm .syscall -- _
         0 lt { "write failed" die } rep
       } /write deff
       { ==buf
-        fd 0 lt { "file not open" die } rep 
+        fd 0 lt { "file not open" die } rep
         { buf len } {
           fd buf _ len 0 0 0 WRITE sys .asm .syscall -- _
           0 lt { "write failed" die } rep
@@ -628,7 +628,7 @@
     { ==arr
       arr sys .typed .type 7 eq { 0 arr len range } { arr "#iclone" . } ? *
     } /cloneForLoop deff
-    
+
     { ==arr ==i
       arr sys .typed .type 7 eq { i } { i arr "#itrans" . } ? *
     } /transformLoopIndex deff
@@ -805,7 +805,7 @@
         # argTypes dump
         # "loops: " dump
         # loops dump
-        
+
         { ==loops ==argTypes ==stageCalls ==concreteArgs
           stageCalls len not {
             concreteArgs _ len dearray f
@@ -858,6 +858,210 @@
       } ? *
     } /execute sys .typed .deff
   > --
+
+  # TODO: why do we save section information, exactly?
+  { ==filename # ==f (left on the stack a while and executed from sys .asm .programStart)
+    sys .asm .patchProgramStart ==frozenAllocationCount ==heapSize
+
+    # hex decoding
+    { ==strNumber
+      strNumber len 2 neq { "not a valid hex-string" die } rep
+      1 0 { strNumber * 48 sub [ 0 1 2 3 4 5 6 7 8 9  0 0 0 0 0 0 0  10 11 12 13 14 15 ] * } -20*10* 16 mul add
+    } "%" defq
+
+    {                                               8 { _ 256 umod -01 256 udiv } rep -- } /uint64 deffd
+    { _ 0 lt { 4294967296 add } rep 4294967295 band 4 { _ 256 umod -01 256 udiv } rep -- } /uint32 deffd
+    { _ 0 lt { 65536 add } rep 65535 band           2 { _ 256 umod -01 256 udiv } rep -- } /uint16 deffd
+    { _ 0 lt { 256 add } rep 255 band } /uint8 deffd
+
+    { ==align ==value
+      align value align umod sub align umod
+    } /alignUpto deff
+
+    sys .file ==out
+    filename out _ .creating _ .writeonly .open
+
+    [
+      <
+        ".null" ==?name
+        0 ==?nameOffset { =nameOffset } /setNameOffset deff
+        0 ==?dataOffset { =dataOffset } /setDataOffset deff
+        0 ==?type # reserved first section
+        0 ==?flags # none
+        0 ==?addr # not loaded
+        0 ==?link # no associated section
+        0 ==?entsize # no entries
+        [ ] ==?data
+        0 ==?dataSize
+      > <
+        ".strtab" ==?name
+        0 ==?nameOffset { =nameOffset } /setNameOffset deff
+        0 ==?dataOffset { =dataOffset } /setDataOffset deff
+        3 ==?type # string table
+        0 ==?flags # none
+        0 ==?addr # not loaded
+        0 ==?link # no associated section
+        0 ==?entsize # no entries
+        [ ] ==?data # to be filled later
+        0 ==?dataSize # to be filled later
+        { _ =data len =dataSize } /setData deff
+      > _ ==?stringTable
+    ] ==metaSections
+
+    [
+      0 frozenAllocationCount range { ==i
+        <
+          ".[1;31m-[33m=[32m#[34m=[35m-[0m" ==?name
+          0 ==?nameOffset { =nameOffset } /setNameOffset deff
+          0 ==?dataOffset { =dataOffset } /setDataOffset deff
+          1 ==?type # program data
+          7 ==?flags # writable, allocated, executable
+          i sys .asm .globalAllocBase ==?addr # address where this section will be loaded
+          0 ==?link # no associated section
+          0 ==?entsize # no entries
+          i sys .asm .globalAllocBase ==?dataBase
+          i sys .asm .globalAllocSize ==?dataSize
+        >
+      } each
+    ] ==allocSections
+
+    4096 ==:PAGESIZE
+
+    < 1 ==?nameOffset
+      [
+        %00 # initial zero byte of string table
+        ### section names
+
+        [ metaSections allocSections ] { { ==?s
+          s .name ==?n
+          0 n len range { n * } each %00
+          nameOffset s .setNameOffset
+          nameOffset n len add 1 add =nameOffset
+        } each } each
+      ] stringTable .setData
+    > -- <
+      # %40 ==? section header size, %38 == program header size
+      metaSections len allocSections len add %40 mul
+                       allocSections len     %38 mul add
+                                             %40     add ==?dataOffset
+      metaSections { ==s
+        dataOffset s .setDataOffset
+        dataOffset s .dataSize add =dataOffset
+      } each
+
+      dataOffset _ 4096 alignUpto add =dataOffset
+
+      allocSections { ==s
+        dataOffset s .setDataOffset
+        dataOffset s .dataSize add _ PAGESIZE alignUpto add =dataOffset
+      } each
+    > --
+
+    [
+      ### elf header
+      # unsigned char e_ident[16]; /* ELF identification */
+      %7F 0 1 2 "ELF" -30*20*10*  # elf identifier
+      %02                         # elfclass64
+      %01                         # elf version
+      %01                         # little endian encoding
+      %00 %00                     # Sys-V ABI
+      %00 %00 %00 %00 %00 %00 %00 # padding
+      # Elf64_Half    e_type;      /* Object file type */
+      %02 %00                     # executable file
+      # Elf64_Half    e_machine;   /* Machine type */
+      %3E %00                     # whatever, /bin/ls has this
+      # Elf64_Word    e_version;   /* Object file version */
+      %01 %00 %00 %00             # always 1
+      # Elf64_Addr    e_entry;     /* Entry point address */
+      sys .asm .|programStart sys .asm .rawCodeAddress uint64
+      # Elf64_Off     e_phoff;     /* Program header offset */
+      metaSections len allocSections len add %40 mul
+                                             %40     add uint64
+      # Elf64_Off     e_shoff;     /* Section header offset */
+      %40 uint64
+      # Elf64_Word    e_flags;     /* Processor-specific flags */
+      %00 %00 %00 %00 # taken from from /bin/ls
+      # Elf64_Half    e_ehsize;    /* ELF header size */
+      %40 %00
+      # Elf64_Half    e_phentsize; /* Size of program header entry */
+      %38 %00
+      # Elf64_Half    e_phnum;     /* Number of program header entries */
+      allocSections len uint16
+      # Elf64_Half    e_shentsize; /* Size of section header entry */
+      %40 %00
+      # Elf64_Half    e_shnum;     /* Number of section header entries */
+      metaSections len allocSections len add uint16
+      # Elf64_Half    e_shstrndx;  /* Section name string table index */
+      %01 %00 # section header name table index in section headers table
+
+      [ metaSections allocSections ] { { ==s
+        ### section header
+        # Elf64_Word  sh_name;      /* Section name */
+        s .nameOffset uint32
+        # Elf64_Word  sh_type;      /* Section type */
+        s .type uint32
+        # Elf64_Xword sh_flags;     /* Section attributes */
+        s .flags uint64
+        # Elf64_Addr  sh_addr;      /* Virtual address in memory */
+        s .addr uint64
+        # Elf64_Off   sh_offset;    /* Offset in file */
+        s .dataOffset uint64
+        # Elf64_Xword sh_size;      /* Size of section */
+        s .dataSize uint64
+        # Elf64_Word  sh_link;      /* Link to other section */
+        s .link uint32
+        # Elf64_Word  sh_info;      /* Miscellaneous information */
+        0 uint32
+        # Elf64_Xword sh_addralign; /* Address alignment boundary */
+        1 uint64
+        # Elf64_Xword sh_entsize;   /* Size of entries, if section has table */
+        0 uint64
+      } each } each
+
+      allocSections { ==s
+        ### program header
+        # Elf64_Word       p_type;          /* Type of segment */
+        %01 %00 %00 %00 # loadable segment
+        # Elf64_Word       p_flags;         /* Segment attributes */
+        %07 %00 %00 %00 # read | write | execute
+        # Elf64_Off        p_offset;        /* Offset in file */
+        s .dataOffset uint64
+        # Elf64_Addr       p_vaddr;         /* Virtual address in memory */
+        s .dataBase uint64
+        # Elf64_Addr       p_paddr;         /* Reserved */
+        %00 %00 %00 %00 %00 %00 %00 %00
+        # Elf64_Xword      p_filesz;        /* Size of segment in file */
+        s .dataSize uint64
+        # Elf64_Xword      p_memsz;         /* Size of segment in memory */
+        s .dataSize uint64
+        # Elf64_Xword      p_align;         /* Alignment of segment */
+        %01 %00 %00 %00 %00 %00 %00 %00 # alignment
+      } each
+    ] ==fileHeaders
+
+    0 ==fileOffset
+    [ fileHeaders metaSections { .data } each ] { ==data
+      fileOffset data len add =fileOffset
+      data str .fromArray out .writeall
+    } each
+
+    allocSections { ==section
+      section .dataOffset fileOffset sub str .alloc out .writeall
+      section .dataOffset section .dataSize add =fileOffset
+
+      out .fd section .dataBase section .dataSize 0 0 0 WRITE sys .asm .syscall --
+      section .dataSize neq { "write failed" die } rep
+    } each
+
+    out .close
+
+    ==f
+
+    sys .asm .patchProgramStart -- heapSize neq {
+      "freezing allocated new memory chunks, retrying..." dump
+      f filename sys .freeze
+    } rep
+  } /freeze sys .deff
 > --
 
 { _ ==f _ sys .typed .inputs ==inputs
@@ -988,212 +1192,6 @@
   { 0 dumpIndented }
 > -- /dump deffd
 
-# TODO: why do we save section information, exactly?
-{ ==filename # ==f (left on the stack a while and executed from sys .asm .programStart)
-  sys .asm .patchProgramStart ==frozenAllocationCount ==heapSize
-
-  # hex decoding
-  { ==strNumber
-    strNumber len 2 neq { "not a valid hex-string" die } rep
-    1 0 { strNumber * 48 sub [ 0 1 2 3 4 5 6 7 8 9  0 0 0 0 0 0 0  10 11 12 13 14 15 ] * } -20*10* 16 mul add
-  } "%" defq
-
-  {                                               8 { _ 256 umod -01 256 udiv } rep -- } /uint64 deffd
-  { _ 0 lt { 4294967296 add } rep 4294967295 band 4 { _ 256 umod -01 256 udiv } rep -- } /uint32 deffd
-  { _ 0 lt { 65536 add } rep 65535 band           2 { _ 256 umod -01 256 udiv } rep -- } /uint16 deffd
-  { _ 0 lt { 256 add } rep 255 band } /uint8 deffd
-
-  { ==align ==value
-    align value align umod sub align umod
-  } /alignUpto deff
-
-  sys .file ==out
-  filename out _ .creating _ .writeonly .open
-
-  [
-    <
-      ".null" ==?name
-      0 ==?nameOffset { =nameOffset } /setNameOffset deff
-      0 ==?dataOffset { =dataOffset } /setDataOffset deff
-      0 ==?type # reserved first section
-      0 ==?flags # none
-      0 ==?addr # not loaded
-      0 ==?link # no associated section
-      0 ==?entsize # no entries
-      [ ] ==?data
-      0 ==?dataSize
-    > <
-      ".strtab" ==?name
-      0 ==?nameOffset { =nameOffset } /setNameOffset deff
-      0 ==?dataOffset { =dataOffset } /setDataOffset deff
-      3 ==?type # string table
-      0 ==?flags # none
-      0 ==?addr # not loaded
-      0 ==?link # no associated section
-      0 ==?entsize # no entries
-      [ ] ==?data # to be filled later
-      0 ==?dataSize # to be filled later
-      { _ =data len =dataSize } /setData deff
-    > _ ==?stringTable
-  ] ==metaSections
-
-  [
-    0 frozenAllocationCount range { ==i
-      <
-        ".[1;31m-[33m=[32m#[34m=[35m-[0m" ==?name
-        0 ==?nameOffset { =nameOffset } /setNameOffset deff
-        0 ==?dataOffset { =dataOffset } /setDataOffset deff
-        1 ==?type # program data
-        7 ==?flags # writable, allocated, executable
-        i sys .asm .globalAllocBase ==?addr # address where this section will be loaded
-        0 ==?link # no associated section
-        0 ==?entsize # no entries
-        i sys .asm .globalAllocBase ==?dataBase
-        i sys .asm .globalAllocSize ==?dataSize
-      >
-    } each
-  ] ==allocSections
-
-  4096 ==:PAGESIZE
-
-  < 1 ==?nameOffset
-    [
-      %00 # initial zero byte of string table
-      ### section names
-
-      [ metaSections allocSections ] { { ==?s
-        s .name ==?n
-        0 n len range { n * } each %00
-        nameOffset s .setNameOffset
-        nameOffset n len add 1 add =nameOffset
-      } each } each
-    ] stringTable .setData
-  > -- <
-    # %40 ==? section header size, %38 == program header size
-    metaSections len allocSections len add %40 mul
-                     allocSections len     %38 mul add
-                                           %40     add ==?dataOffset
-    metaSections { ==s
-      dataOffset s .setDataOffset
-      dataOffset s .dataSize add =dataOffset
-    } each
-
-    dataOffset _ 4096 alignUpto add =dataOffset
-
-    allocSections { ==s
-      dataOffset s .setDataOffset
-      dataOffset s .dataSize add _ PAGESIZE alignUpto add =dataOffset
-    } each
-  > --
-
-  [
-    ### elf header
-    # unsigned char e_ident[16]; /* ELF identification */
-    %7F 0 1 2 "ELF" -30*20*10*  # elf identifier
-    %02                         # elfclass64
-    %01                         # elf version
-    %01                         # little endian encoding
-    %00 %00                     # Sys-V ABI
-    %00 %00 %00 %00 %00 %00 %00 # padding
-    # Elf64_Half    e_type;      /* Object file type */
-    %02 %00                     # executable file
-    # Elf64_Half    e_machine;   /* Machine type */
-    %3E %00                     # whatever, /bin/ls has this
-    # Elf64_Word    e_version;   /* Object file version */
-    %01 %00 %00 %00             # always 1
-    # Elf64_Addr    e_entry;     /* Entry point address */
-    sys .asm .|programStart sys .asm .rawCodeAddress uint64
-    # Elf64_Off     e_phoff;     /* Program header offset */
-    metaSections len allocSections len add %40 mul
-                                           %40     add uint64
-    # Elf64_Off     e_shoff;     /* Section header offset */
-    %40 uint64
-    # Elf64_Word    e_flags;     /* Processor-specific flags */
-    %00 %00 %00 %00 # taken from from /bin/ls
-    # Elf64_Half    e_ehsize;    /* ELF header size */
-    %40 %00
-    # Elf64_Half    e_phentsize; /* Size of program header entry */
-    %38 %00
-    # Elf64_Half    e_phnum;     /* Number of program header entries */
-    allocSections len uint16
-    # Elf64_Half    e_shentsize; /* Size of section header entry */
-    %40 %00
-    # Elf64_Half    e_shnum;     /* Number of section header entries */
-    metaSections len allocSections len add uint16
-    # Elf64_Half    e_shstrndx;  /* Section name string table index */
-    %01 %00 # section header name table index in section headers table
-
-    [ metaSections allocSections ] { { ==s
-      ### section header
-      # Elf64_Word  sh_name;      /* Section name */
-      s .nameOffset uint32
-      # Elf64_Word  sh_type;      /* Section type */
-      s .type uint32
-      # Elf64_Xword sh_flags;     /* Section attributes */
-      s .flags uint64
-      # Elf64_Addr  sh_addr;      /* Virtual address in memory */
-      s .addr uint64
-      # Elf64_Off   sh_offset;    /* Offset in file */
-      s .dataOffset uint64
-      # Elf64_Xword sh_size;      /* Size of section */
-      s .dataSize uint64
-      # Elf64_Word  sh_link;      /* Link to other section */
-      s .link uint32
-      # Elf64_Word  sh_info;      /* Miscellaneous information */
-      0 uint32
-      # Elf64_Xword sh_addralign; /* Address alignment boundary */
-      1 uint64
-      # Elf64_Xword sh_entsize;   /* Size of entries, if section has table */
-      0 uint64
-    } each } each
-
-    allocSections { ==s
-      ### program header
-      # Elf64_Word       p_type;          /* Type of segment */
-      %01 %00 %00 %00 # loadable segment
-      # Elf64_Word       p_flags;         /* Segment attributes */
-      %07 %00 %00 %00 # read | write | execute
-      # Elf64_Off        p_offset;        /* Offset in file */
-      s .dataOffset uint64
-      # Elf64_Addr       p_vaddr;         /* Virtual address in memory */
-      s .dataBase uint64
-      # Elf64_Addr       p_paddr;         /* Reserved */
-      %00 %00 %00 %00 %00 %00 %00 %00
-      # Elf64_Xword      p_filesz;        /* Size of segment in file */
-      s .dataSize uint64
-      # Elf64_Xword      p_memsz;         /* Size of segment in memory */
-      s .dataSize uint64
-      # Elf64_Xword      p_align;         /* Alignment of segment */
-      %01 %00 %00 %00 %00 %00 %00 %00 # alignment
-    } each
-  ] ==fileHeaders
-
-  0 ==fileOffset
-  [ fileHeaders metaSections { .data } each ] { ==data
-    fileOffset data len add =fileOffset
-    data str .fromArray out .writeall
-  } each
-
-  1 ==:WRITE
-
-  allocSections { ==section
-    section .dataOffset fileOffset sub str .alloc out .writeall
-    section .dataOffset section .dataSize add =fileOffset
-
-    out .fd section .dataBase section .dataSize 0 0 0 WRITE sys .asm .syscall --
-    section .dataSize neq { "write failed" die } rep
-  } each
-
-  out .close
-
-  ==f
-
-  sys .asm .patchProgramStart -- heapSize neq {
-    "freezing allocated new memory chunks, retrying..." dump
-    f filename sys .freeze
-  } rep
-} /freeze sys .deff
-
 # no long-term stack use here as the executed program uses it as well
 { scope
   0 "0" * ==:zero
@@ -1217,7 +1215,7 @@
       m1 { zero sub m1f 10 FLOAT mul add =m1f } each
       0 FLOAT ==m2f
       [ m2 { } each ] reverse { zero sub m2f add 10 FLOAT div =m2f } each
-      
+
       m1f m2f add ==result
 
       0 ==ei
