@@ -16,8 +16,8 @@
   > ==MMAP
 
   <
-    9 ==mmap
     1 ==write
+    9 ==mmap
   > ==SYSCALL
 
   0 ==constantAllocBegin
