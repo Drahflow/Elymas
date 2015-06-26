@@ -17,6 +17,7 @@
 
   <
     9 ==mmap
+    1 ==write
   > ==SYSCALL
 
   0 ==constantAllocBegin
@@ -155,7 +156,7 @@
       24 /rdi /rsi :leaqMemDisp8Reg
       16 /rdi /rdx :movqMemDisp8Reg
       2 /rdi :movqImmReg
-      1 /rax :movqImmReg
+      SYSCALL .write /rax :movqImmReg
       :syscall
       :retn
     ] /internalDumpErrorString defv
