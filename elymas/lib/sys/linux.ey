@@ -364,7 +364,7 @@
               ->u16 =dreclen
               ->u8 ==dtype
               --
-          0 19 dreclen 2 sub buf str .infix "\0" str .split * ==dname 
+          0 19 dreclen 1 sub buf str .infix "\0" str .split * ==dname
           dreclen buf str .postfix =buf
           toparse dreclen sub =toparse
         >
