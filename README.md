@@ -115,13 +115,12 @@ Features
 
 * non-braindead stack manipulation, e.g. `-021` specifies "top element, then third, then second"
 * concatenative language syntax, e.g. `data modifyOne modifyTwo modifyThree`
-* sufficiently powerful to code a webserver in
-  * 15 lines, when using the server library
-  * which is 131 lines
+* trivial to build DSLs
 * compact code
   * more readable than APL though
   * unless you don't want it to be
-* trivial to build DSLs
+* acceptable performance (and you can always switch to assembly if necessary)
+* I actually use it for non-trivial projects
 
 Documentation
 -------------
