@@ -807,11 +807,11 @@
     <
       [
         dlopenAddress rawContentAddress uint64
-        7 uint32 # R_X86_64_JUMP_SLOT
+        6 uint32 # R_X86_64_GLOB_DAT
         1 uint32
         0 uint64
         dlsymAddress rawContentAddress uint64
-        7 uint32 # R_X86_64_JUMP_SLOT
+        6 uint32 # R_X86_64_GLOB_DAT
         2 uint32
         0 uint64
       ] relocationTable .setData
