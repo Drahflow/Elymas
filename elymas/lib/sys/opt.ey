@@ -1199,271 +1199,97 @@
               ] cat =traceCode
             }
 
-            { 0 entry /LOGICFUNCTION eq { 1 entry /EQ eq }' andif } {
-              2 entry _ =*left compileExpression =*?deallocLeft
-              3 entry _ =*right compileExpression =*?deallocRight
-              nextRegister _ ==target 4 |entry =[]
-                { target freeRegister NOREGISTER 4 |entry =[] } registerDeallocations ; =registerDeallocations
+            { ==tag ==setInstruction
+              { 0 entry /LOGICFUNCTION eq { 1 entry tag eq }' andif } {
+                2 entry _ =*left compileExpression =*?deallocLeft
+                3 entry _ =*right compileExpression =*?deallocRight
+                nextRegister _ ==target 4 |entry =[]
+                  { target freeRegister NOREGISTER 4 |entry =[] } registerDeallocations ; =registerDeallocations
 
-              [
-                { 0 right PUSH eq { 1 right isIntValue }' andif { 1 right getIntValue %7F le }' andif } {
-                  [
-                    { |left hasRegister } {
-                      |left getRegister ==reg
-                      1 =actualImprovement
+                [
+                  { 0 right PUSH eq { 1 right isIntValue }' andif { 1 right getIntValue %7F le }' andif } {
+                    [
+                      { |left hasRegister } {
+                        |left getRegister ==reg
+                        1 =actualImprovement
 
-                      traceCode [
-                        target target :xorqRegReg
-                        1 right getIntValue reg :cmpqImm8Reg
-                        lowByte target . :seteReg
-                      ] cat =traceCode
-                    }
-                    { 1 } { "EQ: unhandled left type" abortTracing }
-                  ] conds
-                }
-                { 1 } { "EQ: unhandled right type" abortTracing }
-              ] conds
-
-              deallocLeft deallocRight
-            }
-
-            { 0 entry /LOGICFUNCTION eq { 1 entry /NEQ eq }' andif } {
-              2 entry _ =*left compileExpression =*?deallocLeft
-              3 entry _ =*right compileExpression =*?deallocRight
-              nextRegister _ ==target 4 |entry =[]
-                { target freeRegister NOREGISTER 4 |entry =[] } registerDeallocations ; =registerDeallocations
-
-              [
-                { 0 right PUSH eq { 1 right isIntValue }' andif { 1 right getIntValue %7F le }' andif } {
-                  [
-                    { |left hasRegister } {
-                      |left getRegister ==reg
-                      1 =actualImprovement
-
-                      traceCode [
-                        target target :xorqRegReg
-                        1 right getIntValue reg :cmpqImm8Reg
-                        lowByte target . :setneReg
-                      ] cat =traceCode
-                    }
-                    { 1 } { "NEQ: unhandled left type" abortTracing }
-                  ] conds
-                }
-                { 1 } { "NEQ: unhandled right type" abortTracing }
-              ] conds
-
-              deallocLeft deallocRight
-            }
-
-            { 0 entry /LOGICFUNCTION eq { 1 entry /LE eq }' andif } { # FIXME: condense with /EQ
-              2 entry _ =*left compileExpression =*?deallocLeft
-              3 entry _ =*right compileExpression =*?deallocRight
-              nextRegister _ ==target 4 |entry =[]
-                { target freeRegister NOREGISTER 4 |entry =[] } registerDeallocations ; =registerDeallocations
-
-              [
-                { 0 right PUSH eq { 1 right isIntValue }' andif { 1 right getIntValue %7F le }' andif } {
-                  [
-                    { |left hasRegister } {
-                      |left getRegister ==reg
-                      1 =actualImprovement
-
-                      traceCode [
-                        target target :xorqRegReg
-                        1 right getIntValue reg :cmpqImm8Reg
-                        lowByte target . :setleReg
-                      ] cat =traceCode
-                    }
-                    { 1 } { "LE: unhandled left type" abortTracing }
-                  ] conds
-                }
-                { 1 } { "LE: unhandled right type" abortTracing }
-              ] conds
-
-              deallocLeft deallocRight
-            }
-
-            { 0 entry /LOGICFUNCTION eq { 1 entry /GE eq }' andif } { # FIXME: condense with /EQ
-              2 entry _ =*left compileExpression =*?deallocLeft
-              3 entry _ =*right compileExpression =*?deallocRight
-              nextRegister _ ==target 4 |entry =[]
-                { target freeRegister NOREGISTER 4 |entry =[] } registerDeallocations ; =registerDeallocations
-
-              [
-                { 0 right PUSH eq { 1 right isIntValue }' andif { 1 right getIntValue %7F le }' andif } {
-                  [
-                    { |left hasRegister } {
-                      |left getRegister ==reg
-                      1 =actualImprovement
-
-                      traceCode [
-                        target target :xorqRegReg
-                        1 right getIntValue reg :cmpqImm8Reg
-                        lowByte target . :setgeReg
-                      ] cat =traceCode
-                    }
-                    { 1 } { "GE: unhandled left type" abortTracing }
-                  ] conds
-                }
-                { 1 } { "GE: unhandled right type" abortTracing }
-              ] conds
-
-              deallocLeft deallocRight
-            }
-
-            { 0 entry /LOGICFUNCTION eq { 1 entry /LT eq }' andif } { # FIXME: condense with /EQ
-              2 entry _ =*left compileExpression =*?deallocLeft
-              3 entry _ =*right compileExpression =*?deallocRight
-              nextRegister _ ==target 4 |entry =[]
-                { target freeRegister NOREGISTER 4 |entry =[] } registerDeallocations ; =registerDeallocations
-
-              [
-                { 0 right PUSH eq { 1 right isIntValue }' andif { 1 right getIntValue %7F le }' andif } {
-                  [
-                    { |left hasRegister } {
-                      |left getRegister ==reg
-                      1 =actualImprovement
-
-                      traceCode [
-                        target target :xorqRegReg
-                        1 right getIntValue reg :cmpqImm8Reg
-                        lowByte target . :setlReg
-                      ] cat =traceCode
-                    }
-                    { 1 } { "LT: unhandled left type" abortTracing }
-                  ] conds
-                }
-                { 1 } { "LT: unhandled right type" abortTracing }
-              ] conds
-
-              deallocLeft deallocRight
-            }
-
-            { 0 entry /LOGICFUNCTION eq { 1 entry /GT eq }' andif } { # FIXME: condense with /EQ
-              2 entry _ =*left compileExpression =*?deallocLeft
-              3 entry _ =*right compileExpression =*?deallocRight
-              nextRegister _ ==target 4 |entry =[]
-                { target freeRegister NOREGISTER 4 |entry =[] } registerDeallocations ; =registerDeallocations
-
-              [
-                { 0 right PUSH eq { 1 right isIntValue }' andif { 1 right getIntValue %7F le }' andif } {
-                  [
-                    { |left hasRegister } {
-                      |left getRegister ==reg
-                      1 =actualImprovement
-
-                      traceCode [
-                        target target :xorqRegReg
-                        1 right getIntValue reg :cmpqImm8Reg
-                        lowByte target . :setgReg
-                      ] cat =traceCode
-                    }
-                    { 1 } { "GT: unhandled left type" abortTracing }
-                  ] conds
-                }
-                { 1 } { "GT: unhandled right type" abortTracing }
-              ] conds
-
-              deallocLeft deallocRight
-            }
-
-            { 0 entry /LOGICFUNCTION eq { 1 entry /OR eq }' andif } {
-              2 entry _ =*left compileExpression =*?deallocLeft
-              3 entry _ =*right compileExpression =*?deallocRight
-              nextRegister _ ==target 4 |entry =[]
-                { target freeRegister NOREGISTER 4 |entry =[] } registerDeallocations ; =registerDeallocations
-
-              [
-                { |right hasRegister } {
-                  |right getRegister ==rreg
-                  [
-                    { |left hasRegister } {
-                      |left getRegister ==lreg
-                      1 =actualImprovement
-
-                      |left canProduceNonBooleans {
                         traceCode [
                           target target :xorqRegReg
-                          lreg lreg :testqRegReg
-                          lowByte target . :setneReg
-                          rreg rreg :testqRegReg
-                          /al :setneReg
-                          /al lowByte target . :orbRegReg
+                          1 right getIntValue reg :cmpqImm8Reg
+                          lowByte target . setInstruction :
                         ] cat =traceCode
-                      } {
-                        |right canProduceNonBooleans {
+                      }
+                      { 1 } { tag ": unhandled left type" cat abortTracing }
+                    ] conds
+                  }
+                  { 1 } { tag ": unhandled right type" cat abortTracing }
+                ] conds
+
+                deallocLeft deallocRight
+              }
+            } /comparisonFunction deffst
+
+            /seteReg /EQ comparisonFunction
+            /setneReg /NEQ comparisonFunction
+            /setleReg /LE comparisonFunction
+            /setgeReg /GE comparisonFunction
+            /setlReg /LT comparisonFunction
+            /setgReg /GT comparisonFunction
+
+            { ==tag ==combineInstruction
+              { 0 entry /LOGICFUNCTION eq { 1 entry tag eq }' andif } {
+                2 entry _ =*left compileExpression =*?deallocLeft
+                3 entry _ =*right compileExpression =*?deallocRight
+                nextRegister _ ==target 4 |entry =[]
+                  { target freeRegister NOREGISTER 4 |entry =[] } registerDeallocations ; =registerDeallocations
+
+                [
+                  { |right hasRegister } {
+                    |right getRegister ==rreg
+                    [
+                      { |left hasRegister } {
+                        |left getRegister ==lreg
+                        1 =actualImprovement
+
+                        |left canProduceNonBooleans {
                           traceCode [
-                            lreg target :movqRegReg
+                            target target :xorqRegReg
+                            lreg lreg :testqRegReg
+                            lowByte target . :setneReg
                             rreg rreg :testqRegReg
                             /al :setneReg
-                            /al lowByte target . :orbRegReg
+                            /al lowByte target . combineInstruction :
                           ] cat =traceCode
                         } {
-                          traceCode [
-                            lreg target :movqRegReg
-                            lowByte rreg . lowByte target . :orbRegReg
-                          ] cat =traceCode
+                          |right canProduceNonBooleans {
+                            traceCode [
+                              lreg target :movqRegReg
+                              rreg rreg :testqRegReg
+                              /al :setneReg
+                              /al lowByte target . combineInstruction :
+                            ] cat =traceCode
+                          } {
+                            traceCode [
+                              lreg target :movqRegReg
+                              lowByte rreg . lowByte target . combineInstruction :
+                            ] cat =traceCode
+                          } ? *
                         } ? *
-                      } ? *
-                    }
-                    { 1 } { "OR: unhandled left type" abortTracing }
-                  ] conds
-                }
-                { 1 } { "OR: unhandled right type" abortTracing }
-              ] conds
+                      }
+                      { 1 } { tag ": unhandled left type" cat abortTracing }
+                    ] conds
+                  }
+                  { 1 } { tag ": unhandled right type" cat abortTracing }
+                ] conds
 
-              deallocLeft deallocRight
-            }
+                deallocLeft deallocRight
+              }
+            } /logicFunction deffst
 
-            { 0 entry /LOGICFUNCTION eq { 1 entry /AND eq }' andif } { # FIXME: condense with /OR
-              2 entry _ =*left compileExpression =*?deallocLeft
-              3 entry _ =*right compileExpression =*?deallocRight
-              nextRegister _ ==target 4 |entry =[]
-                { target freeRegister NOREGISTER 4 |entry =[] } registerDeallocations ; =registerDeallocations
+            /orbRegReg /OR logicFunction
+            /andbRegReg /AND logicFunction
 
-              [
-                { |right hasRegister } {
-                  |right getRegister ==rreg
-                  [
-                    { |left hasRegister } {
-                      |left getRegister ==lreg
-                      1 =actualImprovement
-
-                      |left canProduceNonBooleans {
-                        traceCode [
-                          target target :xorqRegReg
-                          lreg lreg :testqRegReg
-                          lowByte target . :setneReg
-                          rreg rreg :testqRegReg
-                          /al :setneReg
-                          /al lowByte target . :andbRegReg
-                        ] cat =traceCode
-                      } {
-                        |right canProduceNonBooleans {
-                          traceCode [
-                            lreg target :movqRegReg
-                            rreg rreg :testqRegReg
-                            /al :setneReg
-                            /al lowByte target . :andbRegReg
-                          ] cat =traceCode
-                        } {
-                          traceCode [
-                            lreg target :movqRegReg
-                            lowByte rreg . lowByte target . :andbRegReg
-                          ] cat =traceCode
-                        } ? *
-                      } ? *
-                    }
-                    { 1 } { "AND: unhandled left type" abortTracing }
-                  ] conds
-                }
-                { 1 } { "AND: unhandled right type" abortTracing }
-              ] conds
-
-              deallocLeft deallocRight
-            }
-
-            { 0 entry /ARITHFUNCTION eq { 1 entry /ADD eq }' andif } { # FIXME: condense with /OR
+            { 0 entry /ARITHFUNCTION eq { 1 entry /ADD eq }' andif } {
               2 entry _ =*left compileExpression =*?deallocLeft
               3 entry _ =*right compileExpression =*?deallocRight
               nextRegister _ ==target 4 |entry =[]
