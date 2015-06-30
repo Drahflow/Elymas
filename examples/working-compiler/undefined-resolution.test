@@ -1,5 +1,3 @@
-# FIXME: does not yet work with optimization
-
 <
   { "#." dump dump } "#." deffd
   { "#.|" dump dump } "#.|" deffd

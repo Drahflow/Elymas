@@ -506,10 +506,7 @@
                 }
               ] conds
             } {
-              executingScope dump
-              executingScope keys dump
-              constant dump
-              "resolution failed" die
+              # this can happen if resolution was handled by #.|
             } ? *
           }
         ] conds
@@ -535,10 +532,7 @@
                 [ STATICWRITE offsetInScope parentCount inExtensionArea ] =entry
               } { } ? *
             } {
-              executingScope dump
-              executingScope keys dump
-              constant dump
-              "resolution failed" die
+              # this can happen if resolution was handled by #.=
             } ? *
           }
           { templateNametable { action CALL eq }' andif { 1 entry * STATICDEFININGFUNCTIONS eq any }' andif
@@ -640,10 +634,7 @@
                 }
               ] conds
             } {
-              relevantScope dump
-              relevantScope keys dump
-              constant dump
-              "resolution failed" die
+              # this can happen if resolution was handled by #.
             } ? *
           }
         ] conds
