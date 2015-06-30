@@ -197,8 +197,41 @@ function object is created.
       0000000000000006
       0000000000000008
     ]
-    
-(FIXME: There will be a `'` function soonish, which will abbreviate the common cases of `''` for scalar functions.)
+
+To make everything shorter in the common cases, the two functions `'` and `'*` exist as a convenience.
+`'` takes a string of digits a dot, which specifies input and output argument types, and a function, and
+invokes `''` appropriately. Digits before the dot become integers in the input argument array, those after
+the dot go into the output array. Finally `'*` also executes the resulting function right away.
+
+    [ 1 2 3 4 5 6 ] { dump 5 } '*0.0 dump
+    0000000000000001
+    0000000000000002
+    0000000000000003
+    0000000000000004
+    0000000000000005
+    0000000000000006
+    [
+      0000000000000005
+      0000000000000005
+      0000000000000005
+      0000000000000005
+      0000000000000005
+      0000000000000005
+    ]
+    [ 1 2 3 4 5 6 ]
+      { 1 add } '0.0
+      { 1 sub } '0.0
+      mul * txt .produce .u dump
+    [
+      "0"
+      "3"
+      "8"
+      "15"
+      "24"
+      "35"
+    ]
+
+
 (FIXME: A lot of the more interesting cases don't work, yet. Many a SIGSEGV will have to be removed before this is as
 epic as it should be.)
 

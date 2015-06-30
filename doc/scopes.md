@@ -106,3 +106,24 @@ achieved by the `>'` function. It behaves like `>` but takes the parent pointer 
 As `>'` only assigns the parent pointer when the scope stops being the current scope, before its execution the parent
 was set as usual, i.e. the current scope before `<`. This allows for interesting possibilities. Note that names in
 quoted mode are only resolved during first execution.
+
+
+Missing members
+---------------
+
+If a scope member is accessed, which is not available, the program will call `die` and be dead. Unless, that is,
+that the scope happens to have `#.`, `#.|`, or `#.=` defined, which are used to dynamically handle missing members
+on `.` (or quoted identifiers), on `|` and on `=` respectively. To fully fake missing members, there also exists the
+possibility to declare `#.?` which will be invoked by `.?` when the member does not exist.
+
+    <
+      { ==memberName "#. called with: " memberName cat dump } "#." deffd
+      { ==memberName "#.| called with: " memberName cat dump } "#.|" deffd
+      { ==memberName "#.? called with: " memberName cat dump } "#.?" deffd
+      { ==memberName ==value "#.= called with: " memberName cat dump value dump } "#.=" deffd
+    > ==s
+    s .hello_world
+    "#. called with: hello_world"
+    < { "value" =random_name } s >' -- *
+    "#.= called with: random_name"
+    "value"
