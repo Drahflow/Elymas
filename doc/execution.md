@@ -284,7 +284,3 @@ for the result. This is handled by
 * `#iclone` - creates a new container object which can assing via `=[]` elements for the entire original domain.
 
 See elymas/lib/map.ey for an example.
-
-
-(FIXME: Scopes will also be able to define member functions `#.`, `#.|`, `#.?` and `#.=` to handle references to non-existing name slots.
-This does not yet work correctly with the optimizer.)
