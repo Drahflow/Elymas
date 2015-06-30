@@ -13,7 +13,6 @@
 * txt .consume .u sollte nicht negative Zahlen liefern
   * evtl. BigNums bauen und die Int-Funktionen entsprechend machen
 * trigonometrics
-* document new , functions
 
 * testsuite (incl. coverage test)
 
@@ -22,11 +21,8 @@
 * consider polymorphic call-site caches instead of deffs_t_ / deffs?
 
 * eliminate all FIXMEs
-** unite the /EQ-LT-OR-GE... things in lib/sys/opt.ey
 * stack underflow protection
 * input prompt
 * better interactive error handling when interpreting from stdin
 * document ALL THE LIBRARIES
 * consider https://en.wikipedia.org/wiki/Hindley%E2%80%93Milner_type_system and finally make the stuff typed correctly
-
-* Consider (optionally) replacing all SYSCALLs with libc routines (so we can have an OpenBSD port)
