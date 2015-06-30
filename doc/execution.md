@@ -199,7 +199,7 @@ function object is created.
     ]
 
 To make everything shorter in the common cases, the two functions `'` and `'*` exist as a convenience.
-`'` takes a string of digits a dot, which specifies input and output argument types, and a function, and
+`'` takes a string of digits and a dot, which specifies input and output argument types, and a function, and
 invokes `''` appropriately. Digits before the dot become integers in the input argument array, those after
 the dot go into the output array. Finally `'*` also executes the resulting function right away.
 
