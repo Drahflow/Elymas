@@ -204,9 +204,11 @@
           :repnz :scasb
           /rcx :negqReg
           2 /rcx :subqImm8Reg
+          /rcx :pushqReg
           /rcx /rdi :movqRegReg
           ::internalAllocateString /rax :movqImmReg
           /rax :callqReg
+          /rcx :popqReg
           /rsi :popqReg
           /rax :pushqReg
           24 /rax /rdi :leaqMemDisp8Reg
