@@ -683,12 +683,14 @@
       }
     }'
     { sys .?freebsd } {
-      0 ==result
-      allLibraries {
-        result { -- } { name -01 dlsym =result } ? *
-      } each
-      result _ not { "Could not resolve function: " name cat die } rep
-               args rets wrapFunction
+      { ==rets ==args ==name
+        0 ==result
+        allLibraries {
+          result { -- } { name -01 dlsym =result } ? *
+        } each
+        result _ not { "Could not resolve function: " name cat die } rep
+                 args rets wrapFunction
+      }
     }'
   ] conds
     /resolveFunction deffd
