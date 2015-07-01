@@ -491,7 +491,15 @@
         8 /rax :addqImm8Reg
       } rep
 
-      /r8 /rsp :xchgqRegReg # swap to elymas stack to ensure correct GC behavior for what follows
+      [
+        { sys .?linux } {
+          /r8 /rsp :xchgqRegReg # swap to elymas stack to ensure correct GC behavior for what follows
+        }
+        { sys .?freebsd } {
+          /r8 /rsp :movqRegReg # swap to elymas stack to ensure correct GC behavior for what follows
+          /rdi /r8 :movqRegReg # FreeBSD passes argc stack location in rdi
+        }
+      ] conds
       
       # empty encoding buffer to ensure the GC does not follow residue from freeze into unallocated memory
       :quoteEncodingBufferObjects /rdi :movqImmReg

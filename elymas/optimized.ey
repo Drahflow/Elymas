@@ -7,6 +7,6 @@
 ] { _ dump include }' each
 
 {
-  sys .argv len { 0 sys .argv * } { "/proc/self/fd/0" } ? * include
+  sys .argv len { 0 sys .argv * } { "/dev/stdin" } ? * include
   0 sys .exit
 }' "optimized" sys .freeze

@@ -389,25 +389,47 @@
   2 _ ==:RDWR
       bor bor ==:RWMASK
 
-  64 ==:OCREAT
-  512 ==:OTRUNC
-  1024 ==:OAPPEND
-
   1 ==:PROTREAD
   2 ==:PROTWRITE
   4 ==:PROTEXEC
 
   2 ==:MAPPRIVATE
-  32 ==:MAPANONYMOUS
 
-  0 ==:READ
-  1 ==:WRITE
-  2 ==:OPEN
-  3 ==:CLOSE
+  [
+    { sys .?linux }   { 32 }
+    { sys .?freebsd } { 4096 }
+  ] conds ==:MAPANONYMOUS
 
-  9 ==:MMAP
-  11 ==:MUNMAP
-  60 ==:EXIT
+  [
+    { sys .?linux } {
+      64 ==:OCREAT
+      512 ==:OTRUNC
+      1024 ==:OAPPEND
+
+      0 ==:READ
+      1 ==:WRITE
+      2 ==:OPEN
+      3 ==:CLOSE
+
+      9 ==:MMAP
+      11 ==:MUNMAP
+      60 ==:EXIT
+    }'
+    { sys .?freebsd } {
+      512 ==:OCREAT
+      1024 ==:OTRUNC
+      8 ==:OAPPEND
+
+      3 ==:READ
+      4 ==:WRITE
+      5 ==:OPEN
+      6 ==:CLOSE
+
+      477 ==:MMAP
+      73 ==:MUNMAP
+      1 ==:EXIT
+    }'
+  ] conds
 
   { ==code
     code 0 0 0 0 0 EXIT sys .asm .syscall
@@ -964,7 +986,10 @@
       %02                         # elfclass64
       %01                         # elf version
       %01                         # little endian encoding
-      %00 %00                     # Sys-V ABI
+      [
+        { sys .?linux }   { %00 %00 } # Sys-V ABI
+        { sys .?freebsd } { %09 %00 } # FreeBSD ABI
+      ] conds
       %00 %00 %00 %00 %00 %00 %00 # padding
       # Elf64_Half    e_type;      /* Object file type */
       %02 %00                     # executable file

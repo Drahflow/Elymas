@@ -18,6 +18,11 @@
     0 -01 { 48 sub [ 0 1 2 3 4 5 6 7 8 9  0 0 0 0 0 0 0  10 11 12 13 14 15 ] * -01 16 mul -01 add } each
   } "%" defq
 
+  {                                               8 { _ 256 mod -01 256 div } rep -- } /uint64 deffd
+  { _ 0 lt { 4294967296 add } rep 4294967295 band 4 { _ 256 mod -01 256 div } rep -- } /uint32 deffd
+  { _ 0 lt { 65536 add } rep 65535 band 2 { _ 256 mod -01 256 div } rep -- } /uint16 deffd
+  { _ 0 lt { 256 add } rep 255 band } /uint8 deffd
+
   [ /rdi /rsi /rdx /rcx /r8 /r9 ] _ =*:availableIntegerRegisters
                                     len ==:INTREGISTERS
   [ /xmm0 /xmm1 /xmm2 /xmm3 /xmm4 /xmm5 /xmm6 /xmm7 ] _ =*:availableFloatRegisters
@@ -71,11 +76,20 @@
 
   { ::rawAddress 24 add } /rawContentAddress deffd
 
-  8 str .alloc _ str .zero ==:dlopenAddress 
-  8 str .alloc _ str .zero ==:dlsymAddress 
-
   8 str .alloc ==:r15backup
   8 str .alloc ==:rspbackup
+
+  8 str .alloc _ str .zero ==:dlopenAddress
+  8 str .alloc _ str .zero ==:dlsymAddress
+
+  [
+    { sys .?freebsd } {
+      "Elymas memory image" ==:prognameContent
+      [ prognameContent rawContentAddress uint64 ] str .fromArray ==:prognamePointer
+      8 str .alloc _ str .zero ==:environContent
+      [ environContent rawContentAddress uint64 ] str .fromArray ==:environPointer
+    }'
+  ] conds
 
   [ ] ==saveFromGC
 
@@ -561,6 +575,12 @@
     ] [ func ::rawAddress ] ::createFunction
   } /wrapCallback deffd
 
+  [
+    { sys .?freebsd } {
+      [ ] ==allLibraries
+    }'
+  ] conds
+
   { "\0" cat } [
     /rbx :popqReg
 
@@ -588,7 +608,13 @@
 
     /rbx :pushqReg
     :retn
-  ] [ ] ::createFunction ; /dlopen deffd
+  ] [ ] ::createFunction ;
+    [
+      { sys .?freebsd } {
+        { _ 0 neq { [ -101 ] allLibraries cat =allLibraries } rep } ;
+      }
+    ] conds
+    /dlopen deffd
 
   { -01 "\0" cat -01 } [
     /rbx :popqReg
@@ -650,18 +676,26 @@
   # 1 -> argument specification string (see wrapFunction for details)
   # 2 -> name of function
   # the resulting function will take as many arguments as specified and return a single integer
-  { ==rets ==args ==name
-    name 0 dlsym _ not { "Could not resolve function: " name cat die } rep
-                   args rets wrapFunction
-  } /resolveFunction deffd
+  [
+    { sys .?linux } {
+      { ==rets ==args ==name
+        name 0 dlsym _ not { "Could not resolve function: " name cat die } rep
+                       args rets wrapFunction
+      }
+    }'
+    { sys .?freebsd } {
+      0 ==result
+      allLibraries {
+        result { -- } { name -01 dlsym =result } ? *
+      } each
+      result _ not { "Could not resolve function: " name cat die } rep
+               args rets wrapFunction
+    }'
+  ] conds
+    /resolveFunction deffd
 
   { ==filename # ==f (left on the stack a while and executed from sys .asm .programStart)
     sys .asm .patchProgramStart ==frozenAllocationCount ==heapSize
-
-    {                                               8 { _ 256 mod -01 256 div } rep -- } /uint64 deffd
-    { _ 0 lt { 4294967296 add } rep 4294967295 band 4 { _ 256 mod -01 256 div } rep -- } /uint32 deffd
-    { _ 0 lt { 65536 add } rep 65535 band 2 { _ 256 mod -01 256 div } rep -- } /uint16 deffd
-    { _ 0 lt { 256 add } rep 255 band } /uint8 deffd
 
     { ==align ==value
       align value align mod sub align mod
@@ -731,6 +765,24 @@
         0 ==?dataSize # to be filled later
         { _ =data len =dataSize } /setData deff
       > _ ==?relocationTable
+
+      [
+        { sys .?freebsd } {
+          <
+            ".hash" ==?name
+            0 ==?nameOffset { =nameOffset } /setNameOffset deff
+            0 ==?dataOffset { =dataOffset } /setDataOffset deff
+            5 ==?type # symbol hash table
+            0 ==?flags # none
+            0 ==?addr # not loaded
+            3 ==?link # symbol table is associated (section index 3)
+            0 ==?entsize # no uniform fixed-size entries here
+            [ ] ==?data # to be filled later
+            0 ==?dataSize # to be filled later
+            { _ =data len =dataSize } /setData deff
+          > _ ==?hashTable
+        }'
+      ] conds
     ] ==?metaSections
 
     [
@@ -755,11 +807,23 @@
     allocSections len 4 add ==programHeaderCount
     metaSections len allocSections len add ==sectionHeaderCount
 
-    "/lib64/ld-linux-x86-64.so.2"     ==:INTERPRETERNAME 0 ==interpreterStringOffset
-    "libc.so.6"                       ==:LIBCNAME        0 ==libcStringOffset
-    "libdl.so.2"                      ==:LIBDLNAME       0 ==libdlStringOffset
-    "dlopen"                          ==:DLOPENNAME      0 ==dlopenStringOffset
-    "dlsym"                           ==:DLSYMNAME       0 ==dlsymStringOffset
+    [
+      { sys .?linux } {
+        "/lib64/ld-linux-x86-64.so.2"     ==:INTERPRETERNAME 0 ==interpreterStringOffset
+        "libc.so.6"                       ==:LIBCNAME        0 ==libcStringOffset
+        "libdl.so.2"                      ==:LIBDLNAME       0 ==libdlStringOffset
+        "dlopen"                          ==:DLOPENNAME      0 ==dlopenStringOffset
+        "dlsym"                           ==:DLSYMNAME       0 ==dlsymStringOffset
+      }'
+      { sys .?freebsd } {
+        "/libexec/ld-elf.so.1"     ==:INTERPRETERNAME 0 ==interpreterStringOffset
+        "libc.so.7"                ==:LIBCNAME        0 ==libcStringOffset
+        "dlopen"                   ==:DLOPENNAME      0 ==dlopenStringOffset
+        "dlsym"                    ==:DLSYMNAME       0 ==dlsymStringOffset
+        "__progname"               ==:PROGNAME        0 ==prognameStringOffset
+        "environ"                  ==:ENVIRON         0 ==environStringOffset
+      }
+    ] conds
 
     < 1 ==stringOffset
       { =*saveOffset ==string
@@ -778,11 +842,37 @@
 
         INTERPRETERNAME { =interpreterStringOffset } stringTableEntry
         LIBCNAME        { =libcStringOffset        } stringTableEntry
-        LIBDLNAME       { =libdlStringOffset       } stringTableEntry
         DLOPENNAME      { =dlopenStringOffset      } stringTableEntry
         DLSYMNAME       { =dlsymStringOffset       } stringTableEntry
+
+        [
+          { sys .?linux } {
+            LIBDLNAME   { =libdlStringOffset       } stringTableEntry
+          }'
+          { sys .?freebsd } {
+            PROGNAME    { =prognameStringOffset    } stringTableEntry
+            ENVIRON     { =environStringOffset     } stringTableEntry
+          }'
+        ] conds
       ] stringTable .setData
     > --
+
+    [
+      { sys .?freebsd } {
+        [
+          1 uint32 # number of "hash" buckets (ahem)
+          5 uint32 # number of symbols
+
+          1 uint32 # bucket starts at first real symbol
+
+          0 uint32 # reserved undefined symbol refers to itself
+          2 uint32 # first symbol refers to the second,
+          3 uint32 # ... which refers to the third, etc.
+          4 uint32
+          0 uint32 # ... which refers to the undefined symbol
+        ] hashTable .setData
+      }'
+    ] conds
 
     <
       [
@@ -801,6 +891,24 @@
         0 uint16
         0 uint64
         0 uint64
+
+        [
+          { sys .?freebsd } {
+            prognameStringOffset uint32
+            %11 # globally visible object (char * presumably)
+            %00
+            %F1 %FF # SHN_ABS
+            prognamePointer rawContentAddress uint64 # value
+            8 uint64 # size
+
+            environStringOffset uint32
+            %11 # globally visible object (char **)
+            %00
+            %F1 %FF # SHN_ABS
+            environPointer rawContentAddress uint64 # value
+            8 uint64 # size
+          }'
+        ] conds # FIXME: make a createSymbol function instead of having hash and symbol table data being dependent
       ] symbolTable .setData
     > --
 
@@ -821,7 +929,6 @@
       [
       # TAG       VALUE
          1 uint64 libcStringOffset uint64 # require libc (DT_NEEDED)
-         1 uint64 libdlStringOffset uint64 # require libdl (DT_NEEDED)
          5 uint64 %700000000000 stringTable .dataOffset add uint64 # string table address (DT_STRTAB)
          6 uint64 %700000000000 symbolTable .dataOffset add uint64 # symbol table address (DT_SYMTAB)
          7 uint64 %700000000000 relocationTable .dataOffset add uint64 # relocation table address (DT_RELA)
@@ -829,6 +936,14 @@
          9 uint64 24 uint64 # relocation entry size (DT_RELAENT)
         10 uint64 stringTable .dataSize uint64 # string table size (DT_STRSZ)
         11 uint64 24 uint64 # symbol entry size (DT_SYMENT)
+        [
+          { sys .?linux } {
+            1 uint64 libdlStringOffset uint64 # require libdl (DT_NEEDED)
+          }'
+          { sys .?freebsd } {
+            4 uint64 %700000000000 hashTable .dataOffset add uint64 # hash table address (DT_HASH)
+          }'
+        ] conds
         #   0x0000000000000015 (DEBUG)              0x0
         #  0x0000000000000003 (PLTGOT)             0x604c48
         #   0x0000000000000002 (PLTRELSZ)           888 (bytes)
@@ -869,7 +984,10 @@
       %02                         # elfclass64
       %01                         # elf version
       %01                         # little endian encoding
-      %00 %00                     # Sys-V ABI
+      [
+        { sys .?linux }   { %00 %00 } # Sys-V ABI
+        { sys .?freebsd } { %09 %00 } # FreeBSD ABI
+      ] conds
       %00 %00 %00 %00 %00 %00 %00 # padding
       # Elf64_Half    e_type;      /* Object file type */
       %02 %00                     # executable file
@@ -1016,7 +1134,10 @@
       data str .fromArray out .writeall
     } each
     
-    1 ==:WRITE
+    [
+      { sys .?linux }   { 1 ==:WRITE }'
+      { sys .?freebsd } { 4 ==:WRITE }'
+    ] conds # FIXME: get the constant from somewhere else
 
     [ ] _ =fileHeaders
           =metaSections

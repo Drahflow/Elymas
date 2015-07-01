@@ -9,6 +9,19 @@ use POSIX;
 
 my $rwmask = &POSIX::O_RDONLY | &POSIX::O_WRONLY | &POSIX::O_RDWR;
 
+sub osType {
+  my $uname = qx(uname);
+  chomp $uname;
+
+  if($uname eq 'Linux') {
+    return 'linux';
+  } elsif($uname eq 'FreeBSD') {
+    return 'freebsd';
+  } else {
+    die "Unknown uname output '$uname', cannot decide what ABI to use.";
+  }
+}
+
 our $sys = {
   'file' => [sub {
       my ($data, $scope) = @_;
@@ -21,6 +34,7 @@ our $sys = {
   'err' => [createFile(2, &POSIX::O_WRONLY), ['struct'], 'passive'],
   'argv' => [[map { [$_, 'string'] } @ARGV[1 .. $#ARGV]], ['array', 'sys .argv', ['range', 0, $#ARGV - 1], ['string']], 'passive'],
   'asm' => [$ElymasAsm::asm, ['struct'], 'passive'],
+  osType() => [{ }, ['struct'], 'passive'],
 };
 
 sub createFile {

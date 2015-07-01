@@ -95,7 +95,7 @@ Technical Pecularities
 * no runtime interpreter, executes real assembly
   * same binary both interpretes and compiles
 * freeze arbitrary program states to ELF-binaries
-* self hosted via `{ "/proc/self/fd/0" include }' "interpreter" sys .freeze`
+* self hosted via `{ "/dev/stdin" include }' "interpreter" sys .freeze`
   * yes, this works and generates a stand-alone interpreter/compiler
   * bootstraps from perl
     * no perl left in final binaries

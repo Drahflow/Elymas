@@ -12,12 +12,24 @@
 
     2 ==MAP_PRIVATE
     16 ==MAP_FIXED
-    32 ==MAP_ANONYMOUS
+
+    [
+      { sys .?linux }   { 32 }
+      { sys .?freebsd } { 4096 }
+    ] conds ==MAP_ANONYMOUS
   > ==MMAP
 
   <
-    1 ==write
-    9 ==mmap
+    [
+      { sys .?linux } {
+        1 ==write
+        9 ==mmap
+      }'
+      { sys .?freebsd } {
+        4 ==write
+        477 ==mmap
+      }'
+    ] conds
   > ==SYSCALL
 
   0 ==constantAllocBegin

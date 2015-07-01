@@ -196,6 +196,7 @@ EOPERL
             my ($data) = @_;
             my $s = sub {
                 my ($data, $lscope) = @_;
+                my $scope = $$lscope;
 EOPERL
                 compileCode(\@code) . <<'EOPERL';
               };
@@ -210,6 +211,7 @@ EOPERL
         my $sub = <<'EOPERL' .
           sub {
             my ($data, $lscope) = @_;
+            my $scope = $$lscope;
 EOPERL
             compileCode(\@code) . <<'EOPERL';
           };
@@ -348,6 +350,21 @@ EOPERL
 
       push @$data, $struct->[0]->{$member};
     }, ['func', '.|'], 'active'],
+  '.?' => [sub {
+      my ($data, $scope) = @_;
+
+      my $member = pop @$data;
+      my $struct = pop @$data;
+      $member = $member->[0];
+
+      die "not a struct during member dereference in " . Dumper($struct) unless ref($struct->[1]) eq 'ARRAY' and $struct->[1]->[0] eq 'struct';
+
+      if(exists $struct->[0]->{$member}) {
+        push @$data, [1, 'int'],
+      } else {
+        push @$data, [0, 'int'],
+      }
+    }, ['func', '.?'], 'active'],
   'deff' => [sub {
       my ($data, $scope) = @_;
 

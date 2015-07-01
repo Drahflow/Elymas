@@ -138,6 +138,11 @@
   "elymasGlobalSysDyn.ey" include
   "elymasGlobalSysTyped.ey" include
 
+  [
+    { sys .?linux } { "linux" }
+    { sys .?freebsd } { "freebsd" }
+  ] conds enterSubScope leaveSubScope
+
   leaveSubScope
 > --
 

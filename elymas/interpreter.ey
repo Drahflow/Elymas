@@ -1,6 +1,6 @@
 #!/usr/bin/env elymas
 
 {
-  sys .argv len { 0 sys .argv * } { "/proc/self/fd/0" } ? * include
+  sys .argv len { 0 sys .argv * } { "/dev/stdin" } ? * include
   0 sys .exit
 }' "interpreter" sys .freeze
