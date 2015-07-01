@@ -3,7 +3,6 @@
 # FIXME: also have r13 backup, because coroutines
 
 <
-  sys .linux "+" via
   sys .asm "::" via
   sys .asm .ops ":" via
   sys .asm .ops .|label "@" deff
