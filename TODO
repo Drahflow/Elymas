@@ -13,6 +13,8 @@
 * txt .consume .u sollte nicht negative Zahlen liefern
   * evtl. BigNums bauen und die Int-Funktionen entsprechend machen
 * trigonometrics
+* create sys .posix
+* port the sys functions to FreeBSD
 
 * testsuite (incl. coverage test)
 
