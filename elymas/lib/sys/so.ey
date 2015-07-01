@@ -822,7 +822,7 @@
         "dlsym"                    ==:DLSYMNAME       0 ==dlsymStringOffset
         "__progname"               ==:PROGNAME        0 ==prognameStringOffset
         "environ"                  ==:ENVIRON         0 ==environStringOffset
-      }
+      }'
     ] conds
 
     < 1 ==stringOffset
