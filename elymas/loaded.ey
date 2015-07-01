@@ -4,7 +4,7 @@
   "lib/util.ey"
   "lib/err.ey"
   "lib/bin.ey"
-  "lib/sys/linux.ey"
+  sys .?linux { "lib/sys/linux.ey" } rep
   "lib/sys.ey"
   "lib/net.ey"
   "lib/net/tcp.ey"
