@@ -51,7 +51,7 @@ during its execution, the second is invoked with the error handling scope provid
         { "oops" die } =*terminate
       > ???fatal.testError
     } /maybeFailFunction deff
-    |maybeFailFunction { .terminate } !?fatal # handle all fatal.* errors by the .terminate action
+    |maybeFailFunction { .terminate } ?!fatal # handle all fatal.* errors by the .terminate action
 
 
 `??!`
