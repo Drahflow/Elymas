@@ -382,6 +382,16 @@
     i imm8
   } mnemonic /qImm8Reg defOp
 
+  { ==reg ==i
+    reg bit64assert
+    i 65536 65536 mul lt not { "Imm32 too large" die } rep
+
+    1 /none /none reg rex
+    %81
+    modrmOpcode reg modrm11
+    i imm32
+  } mnemonic /qImm32Reg defOp
+
   memoryAddressingVariants keys { ==variant memoryAddressingVariants variant . =*parse
     { parse ==mem ==i
       i 256 lt not { "Imm8 too large" die } rep
@@ -412,6 +422,15 @@
       modrmOpcode mem .encode
       i imm8
     } mnemonic /qImm8 variant cat defOp
+
+    { parse ==mem ==i
+      i 65536 65536 mul lt not { "Imm32 too large" die } rep
+
+      1 /none mem .idx mem .base rex
+      %81
+      modrmOpcode mem .encode
+      i imm32
+    } mnemonic /qImm32 variant cat defOp
   } each
 } /defAsmAddImm deff
 
@@ -514,6 +533,14 @@
 
 /bsf %0F %BC defAsmBsfq
 /bsr %0F %BD defAsmBsfq
+
+{ ==reg
+  reg bit64assert
+
+  1 /none /none reg rex
+  %0F
+  %C8 reg regno %07 band add
+} /bswapqReg deff
 
 { ==off
   %E8
@@ -1342,6 +1369,32 @@ memoryAddressingVariants keys { ==variant memoryAddressingVariants variant . =*p
   /zero reg modrm11
   i imm8
 } /rolqImm8Reg deff
+
+{ ==reg
+  reg bit8assert
+
+  reg regno %07 gt reg rexreqbyte or { 0 reg /none /none rex } rep
+  %D2
+  /one reg modrm11
+} /rorbClReg deff
+
+{ ==reg
+  reg bit64assert
+
+  1 /none /none reg rex
+  %D3
+  /one reg modrm11
+} /rorqClReg deff
+
+{ ==reg ==i
+  reg bit64assert
+  i 64 lt not { "Shift immediate too large" die } rep
+
+  1 /none /none reg rex
+  %C1
+  /one reg modrm11
+  i imm8
+} /rorqImm8Reg deff
 
 {
   %AE

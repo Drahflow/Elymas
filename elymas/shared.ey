@@ -21,6 +21,7 @@
   "lib/map.ey"
   "lib/tree.ey"
   "lib/sort.ey"
+  "lib/crypt.ey"
 ] { _ dump include }' each
 
 {

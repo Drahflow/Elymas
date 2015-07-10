@@ -1,0 +1,341 @@
+<
+  sys .asm "::" via
+  sys .asm .ops ":" via
+  sys .asm .ops .|label "@" deff
+  { :labelRecord [ } "[[" deff
+  { ] :labelResolve } "]]" deff
+  txt .consume .|hu "%" defq
+
+  64 8 mul str .alloc ==:SCHEDULE
+
+  <
+    [
+      %428a2f98d728ae22 %7137449123ef65cd %b5c0fbcfec4d3b2f %e9b5dba58189dbbc %3956c25bf348b538
+      %59f111f1b605d019 %923f82a4af194f9b %ab1c5ed5da6d8118 %d807aa98a3030242 %12835b0145706fbe
+      %243185be4ee4b28c %550c7dc3d5ffb4e2 %72be5d74f27b896f %80deb1fe3b1696b1 %9bdc06a725c71235
+      %c19bf174cf692694 %e49b69c19ef14ad2 %efbe4786384f25e3 %0fc19dc68b8cd5b5 %240ca1cc77ac9c65
+      %2de92c6f592b0275 %4a7484aa6ea6e483 %5cb0a9dcbd41fbd4 %76f988da831153b5 %983e5152ee66dfab
+      %a831c66d2db43210 %b00327c898fb213f %bf597fc7beef0ee4 %c6e00bf33da88fc2 %d5a79147930aa725
+      %06ca6351e003826f %142929670a0e6e70 %27b70a8546d22ffc %2e1b21385c26c926 %4d2c6dfc5ac42aed
+      %53380d139d95b3df %650a73548baf63de %766a0abb3c77b2a8 %81c2c92e47edaee6 %92722c851482353b
+      %a2bfe8a14cf10364 %a81a664bbc423001 %c24b8b70d0f89791 %c76c51a30654be30 %d192e819d6ef5218
+      %d69906245565a910 %f40e35855771202a %106aa07032bbd1b8 %19a4c116b8d2d0c8 %1e376c085141ab53
+      %2748774cdf8eeb99 %34b0bcb5e19b48a8 %391c0cb3c5c95a63 %4ed8aa4ae3418acb %5b9cca4f7763e373
+      %682e6ff3d6b2b8a3 %748f82ee5defb2fc %78a5636f43172f60 %84c87814a1f0ab72 %8cc702081a6439ec
+      %90befffa23631e28 %a4506cebde82bde9 %bef9a3f7b2c67915 %c67178f2e372532b %ca273eceea26619c
+      %d186b8c721c0c207 %eada7dd6cde0eb1e %f57d4f7fee6ed178 %06f067aa72176fba %0a637dc5a2c898a6
+      %113f9804bef90dae %1b710b35131c471b %28db77f523047d84 %32caab7b40c72493 %3c9ebe0a15c9bebc
+      %431d67c49c100d4c %4cc5d4becb3e42b6 %597f299cfc657e2a %5fcb6fab3ad6faec %6c44198c4a475817
+    ] /roundConstant deffd
+
+    # 0 -> string to hash
+    # 0 <- SHA512 of the argument (as a binary string)
+    [[
+      128 8 add /r15 :subqImm32Reg
+      128 /r15 :popqMemDisp32 # save return address
+
+      64 /rdi :movqImmReg
+      ::internalAllocateString /rax :movqImmReg
+      /rax :callqReg # allocate storage for resulting hash
+      
+      /rdx :popqReg  # load argument string
+      /rax :pushqReg # save result string
+      24 /rax /rdi :leaqMemDisp8Reg # rdi == hash content address
+
+      /r8 :pushqReg
+      /r9 :pushqReg
+      /r10 :pushqReg
+      /r11 :pushqReg
+      /r12 :pushqReg
+      /r13 :pushqReg
+      /r14 :pushqReg
+
+      # load initial hash state
+      %F3BCC908 0 /rdi :movlImmMemDisp8
+      %6A09E667 4 /rdi :movlImmMemDisp8
+      %BB67AE85 12 /rdi :movlImmMemDisp8
+      %84CAA73B 8 /rdi :movlImmMemDisp8
+      %3C6EF372 20 /rdi :movlImmMemDisp8
+      %FE94F82B 16 /rdi :movlImmMemDisp8
+      %A54FF53A 28 /rdi :movlImmMemDisp8
+      %5F1D36F1 24 /rdi :movlImmMemDisp8
+      %510E527F 36 /rdi :movlImmMemDisp8
+      %ADE682D1 32 /rdi :movlImmMemDisp8
+      %9B05688C 44 /rdi :movlImmMemDisp8
+      %2B3E6C1F 40 /rdi :movlImmMemDisp8
+      %1F83D9AB 52 /rdi :movlImmMemDisp8
+      %FB41BD6B 48 /rdi :movlImmMemDisp8
+      %5BE0CD19 60 /rdi :movlImmMemDisp8
+      %137E2179 56 /rdi :movlImmMemDisp8
+
+      16 /rdx /rcx :movqMemDisp8Reg # load argument length
+      16 /rdx /rbp :movqMemDisp8Reg # load argument length (backup)
+      24 /rdx /rsi :leaqMemDisp8Reg # rsi == stuff to hash address
+
+      @initialHashingLoop
+      128 /rcx :cmpqImm32Reg
+      /initialHashingDone :jbLbl8
+      /hashBlock :callqLbl32
+      128 /rsi :addqImm32Reg
+      128 /rcx :subqImm32Reg
+      /initialHashingLoop :jmpLbl8
+      @initialHashingDone
+
+      /r15 /rdx :movqRegReg
+
+      /rcx /rcx :testqRegReg
+      /tailCopyDone :jzLbl8
+      @tailCopyLoop
+      /rsi /bl :movbMemReg
+      /bl /rdx :movbRegMem
+      1 /rdx :addqImm8Reg
+      1 /rsi :addqImm8Reg
+      /tailCopyLoop :loopLbl8
+      @tailCopyDone
+
+      %80 /rdx :movbImmMem
+      1 /rdx :addqImm8Reg
+
+      /r15 /rsi :movqRegReg
+      /rsi /rdx :subqRegReg # rdx == number of bytes in temporary block
+
+      112 /rdx :cmpqImm8Reg
+      /lengthNeedsNewBlock :jaLbl8
+
+      @singleBlockClearLoop
+      120 /rdx :cmpqImm8Reg
+      /singleBlockCleared :jeLbl8
+      0 1 /rdx /rsi :andbImmMemIndexScale
+      1 /rdx :addqImm8Reg
+      /singleBlockClearLoop :jmpLbl8
+      @singleBlockCleared
+
+      /hashFinalBlock :jmpLbl8
+
+      @lengthNeedsNewBlock
+
+      @firstBlockClearLoop
+      128 /rdx :cmpqImm32Reg
+      /firstBlockCleared :jeLbl8
+      0 /rdx /rsi :andbImmMemIndex
+      1 /rdx :addqImm8Reg
+      /firstBlockClearLoop :jmpLbl8
+      @firstBlockCleared
+
+      /hashBlock :callqLbl32
+
+      0 0 /r15 :andqImm8MemDisp8
+      0 8 /r15 :andqImm8MemDisp8
+      0 16 /r15 :andqImm8MemDisp8
+      0 24 /r15 :andqImm8MemDisp8
+      0 32 /r15 :andqImm8MemDisp8
+      0 40 /r15 :andqImm8MemDisp8
+      0 48 /r15 :andqImm8MemDisp8
+      0 56 /r15 :andqImm8MemDisp8
+      0 64 /r15 :andqImm8MemDisp8
+      0 72 /r15 :andqImm8MemDisp8
+      0 80 /r15 :andqImm8MemDisp8
+      0 88 /r15 :andqImm8MemDisp8
+      0 96 /r15 :andqImm8MemDisp8
+      0 104 /r15 :andqImm8MemDisp8
+      0 112 /r15 :andqImm8MemDisp8
+
+      @hashFinalBlock
+
+      3 /rbp :shlqImm8Reg
+      /rbp :bswapqReg
+      /rbp 120 /r15 :movqRegMemDisp8
+
+      /hashBlock :callqLbl32
+
+      /r14 :popqReg
+      /r13 :popqReg
+      /r12 :popqReg
+      /r11 :popqReg
+      /r10 :popqReg
+      /r9 :popqReg
+      /r8 :popqReg
+
+      128 /r15 :pushqMemDisp32
+      128 8 add /r15 :addqImm32Reg
+      :retn
+
+      @hashBlock
+      # rsi == block to hash
+      # rdi == address of hash state
+      # rcx, rbp, rsi, rdi must not be changed     
+
+      { ==target ==i
+        i 16 lt {
+          i 8 mul /rsi target :movqMemDisp32Reg
+          target :bswapqReg
+        } {
+          i 8 mul /rax target :movqMemDisp32Reg
+        } ? *
+      } /scheduleMem deffst
+
+      SCHEDULE ::rawAddress 24 add /rax :movqImmReg
+
+      16 80 range { ==i
+        # s0 := (w[i-15] rightrotate 1) xor (w[i-15] rightrotate 8) xor (w[i-15] rightshift 7)
+        # s1 := (w[i-2] rightrotate 19) xor (w[i-2] rightrotate 61) xor (w[i-2] rightshift 6)
+        # w[i] := w[i-16] + s0 + w[i-7] + s1
+
+        i 15 sub /r8 scheduleMem
+        i 2 sub /r11 scheduleMem
+        i 16 sub /r14 scheduleMem
+        i 7 sub /rdx scheduleMem
+
+        /r8 /r9 :movqRegReg
+        /r8 /r10 :movqRegReg
+        /r11 /r12 :movqRegReg
+        /r11 /r13 :movqRegReg
+
+        1 /r8 :rorqImm8Reg
+        8 /r9 :rorqImm8Reg
+        7 /r10 :shrqImm8Reg
+        19 /r11 :rorqImm8Reg
+        61 /r12 :rorqImm8Reg
+        6 /r13 :shrqImm8Reg
+
+        /r9 /r8 :xorqRegReg
+        /r10 /r8 :xorqRegReg
+        /r12 /r11 :xorqRegReg
+        /r13 /r11 :xorqRegReg
+
+        /rdx /r14 :addqRegReg
+        /r11 /r8 :addqRegReg
+        /r14 /r8 :addqRegReg
+
+        /r8 i 8 mul /rax :movqRegMemDisp32
+      } each
+
+      # rcx, rbp, rsi, rdi must not be changed     
+      /r15 :pushqReg
+      /rcx :pushqReg
+      /rbp :pushqReg
+      /rdi :pushqReg
+
+      0 /rdi /r8 :movqMemDisp8Reg   # a
+      8 /rdi /r9 :movqMemDisp8Reg   # b
+      16 /rdi /r10 :movqMemDisp8Reg # c
+      24 /rdi /r11 :movqMemDisp8Reg # d
+      32 /rdi /r12 :movqMemDisp8Reg # e
+      40 /rdi /r13 :movqMemDisp8Reg # f
+      48 /rdi /r14 :movqMemDisp8Reg # g
+      56 /rdi /r15 :movqMemDisp8Reg # h
+
+      0 80 range { ==i
+        # S1 := (e rightrotate 14) xor (e rightrotate 18) xor (e rightrotate 41)
+        /r12 /rdx :movqRegReg
+        /r12 /rbx :movqRegReg
+        /r12 /rcx :movqRegReg
+
+        14 /rdx :rorqImm8Reg
+        18 /rbx :rorqImm8Reg
+        41 /rcx :rorqImm8Reg
+
+        /rbx /rdx :xorqRegReg
+        /rcx /rdx :xorqRegReg
+
+        # ch := (e and f) xor ((not e) and g)
+        /r12 /rbp :movqRegReg
+        /r12 /rbx :movqRegReg
+
+        /r13 /rbp :andqRegReg
+        /rbx :notqReg
+        /r14 /rbx :andqRegReg
+        /rbx /rbp :xorqRegReg
+
+        # temp1 := h + S1 + ch + k[i] + w[i]
+        /rbp /rdx :addqRegReg
+        /r15 /rdx :addqRegReg
+
+        SCHEDULE ::rawAddress 24 add /rax :movqImmReg
+        i /rax scheduleMem # w[i]
+        /rax /rdx :addqRegReg
+        
+        i roundConstant /rbp :movqImmReg
+        /rbp /rdx :addqRegReg
+
+        # S0 := (a rightrotate 28) xor (a rightrotate 34) xor (a rightrotate 39)
+        /r8 /rax :movqRegReg
+        /r8 /rbx :movqRegReg
+        /r8 /rcx :movqRegReg
+
+        28 /rax :rorqImm8Reg
+        34 /rbx :rorqImm8Reg
+        39 /rcx :rorqImm8Reg
+
+        /rbx /rax :xorqRegReg
+        /rcx /rax :xorqRegReg
+
+        # maj := (a and b) xor (a and c) xor (b and c)
+        /r8 /rcx :movqRegReg
+        /r8 /rdi :movqRegReg
+        /r9 /rbp :movqRegReg
+        /r9 /rcx :andqRegReg
+        /r10 /rdi :andqRegReg
+        /r10 /rbp :andqRegReg
+        /rbp /rcx :xorqRegReg
+        /rdi /rcx :xorqRegReg
+
+        # temp2 := S0 + maj
+        /rcx /rax :addqRegReg
+
+        # h := g
+        /r14 /r15 :movqRegReg
+        # g := f
+        /r13 /r14 :movqRegReg
+        # f := e
+        /r12 /r13 :movqRegReg
+        # e := d + temp1
+        /rdx /r11 /r12 :leaqMemIndexReg
+        # d := c
+        /r10 /r11 :movqRegReg
+        # c := b
+        /r9 /r10 :movqRegReg
+        # b := a
+        /r8 /r9 :movqRegReg
+        # a := temp1 + temp2
+        /rax /rdx /r8 :leaqMemIndexReg
+      } each
+
+      /rdi :popqReg
+      /rbp :popqReg
+      /rcx :popqReg
+      
+      # add a-h to hash state
+      /r8 0 /rdi :addqRegMemDisp8   # a
+      /r9 8 /rdi :addqRegMemDisp8   # b
+      /r10 16 /rdi :addqRegMemDisp8 # c
+      /r11 24 /rdi :addqRegMemDisp8 # d
+      /r12 32 /rdi :addqRegMemDisp8 # e
+      /r13 40 /rdi :addqRegMemDisp8 # f
+      /r14 48 /rdi :addqRegMemDisp8 # g
+      /r15 56 /rdi :addqRegMemDisp8 # h
+
+      /r15 :popqReg
+
+      :retn
+    ]] [ ] ::createFunction /bin deffd
+
+  
+    [
+      0 8 range { ==i
+        i 8 mul _ 8 add range reverse 8 dearray
+      } each
+    ] ==:hexPositions
+
+    { bin =*hash
+      [
+        hexPositions { hash
+           _ 16 div
+             -01 16 mod
+        } each
+      ] { "0123456789abcdef" * } '*0.0 str .fromArray
+    } /hex deffd
+  > /sha512 defvd
+> /crypt defvd
+
+# vim: syn=elymas

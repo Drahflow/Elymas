@@ -1,3 +1,7 @@
+* better sys .file
+  * don't make newly opened files executable by default
+    * make :executable, :nonexecutable, :writable, :readable, etc.
+  * apply :readwrite by default on :creating
 * apply the trace extractor to non-tail situations
 * reduze ./optimized binary size (clean up lib/sys/opt.ey code)
 * inline trivial functions when optimizer generates ... /rax :movqImmReg /rax :callqReg sequence

@@ -356,7 +356,7 @@
 
       @referencesCopyLoop
       /rsi /rax :movqMemReg
-      8 /rax /rax :movqMemDisp8Reg
+      8 /rax /rax :movqMemDisp8Reg # FIXME: this should be parallel to replace
       :stosq
       8 /rsi :addqImm8Reg
       /referencesCopyLoop :loopLbl8
