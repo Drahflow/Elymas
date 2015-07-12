@@ -207,7 +207,7 @@
         /r11 /r8 :addqRegReg
         /r14 /r8 :addqRegReg
 
-        /r8 i 8 mul /rax :movqRegMemDisp32
+        /r8 i 16 sub 8 mul /rax :movqRegMemDisp32
       } each
 
       # rcx, rbp, rsi, rdi must not be changed     
