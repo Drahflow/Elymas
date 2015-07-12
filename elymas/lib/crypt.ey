@@ -170,7 +170,7 @@
           i 8 mul /rsi target :movqMemDisp32Reg
           target :bswapqReg
         } {
-          i 8 mul /rax target :movqMemDisp32Reg
+          i 16 sub 8 mul /rax target :movqMemDisp32Reg
         } ? *
       } /scheduleMem deffst
 
