@@ -22,9 +22,9 @@
   } "???"
 
   { < > -01 ??? } "??"
-  { { currentHandler applyHandler }          currentHandler "" . theHandler sys .dyn .with } "??!"
-  { { origWhat currentHandler applyHandler } currentHandler "" . theHandler sys .dyn .with } "??!'"
-  { currentHandler < "" -11032 =* == >' theHandler sys .dyn .with } "?!"
+  { { currentHandler applyHandler }          currentHandler " " . theHandler sys .dyn .with } "??!"
+  { { origWhat currentHandler applyHandler } currentHandler " " . theHandler sys .dyn .with } "??!'"
+  { currentHandler < " " -11032 =* == >' theHandler sys .dyn .with } "?!"
 
   { ==what =*onErrorStrategy ==main 0 ==i
     { main { i onErrorStrategy =main i 1 add =i try } what ?! } _ =*try *
