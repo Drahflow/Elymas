@@ -4,6 +4,7 @@
 
   <
     { "request unconfigured (of rawHttpServer)" die } /request deffst
+    { 4096 } /inputBufferLimit deffst
 
     { = }' /set deffst
     { scope keys }' /setters deffst
@@ -14,30 +15,46 @@
 
   { -10 deffst }' ::installSetters
 
-  { ":" via "" ==url  "" ==method < { defvst }' /put deffst > ==headers
+  { ":" via "" ==url "" ==method < { defvst }' /put deffst > ==headers "" ==body
+    {
+      method url headers body < ==body ==headers ==url ==method
+        { :close } =*close
+        { :write } =*write
+        { :finish } =*finish
+        { ==contentType
+          "HTTP/1.0 200 Ok\r\nContent-Type: " contentType cat "\r\n\r\n" cat -01 cat :write :finish
+        } =*ok
+        { ==contentType
+          "HTTP/1.0 500 Error\r\nContent-Type: " contentType cat "\r\n\r\n" cat -01 cat :write :finish
+        } =*fail
+      > ::request
+    } =*requestParsed
+
     <
       { :close } _ =*err =*end
       { ==inBuffer
         { inBuffer "\n" regex } { [
-          { inBuffer len 2048 gt } { "" =inBuffer :close }
+          { inBuffer len ::inputBufferLimit gt } { "" =inBuffer :close }
           { inBuffer "^(GET|POST) ([^\r\n]*) HTTP/\\d\\.\\d\r?\n(.*)" regex } { =method =url =inBuffer }
           { inBuffer "^([^:\r\n]+): ([^\r\n]*)\r?\n(.*)" regex } { headers .put =inBuffer }
           { inBuffer "^\r?\n(.*)" regex } { =inBuffer
-            method url headers < ==headers ==url ==method
-              { :close } =*close
-              { :write } =*write
-              { :finish } =*finish
-              { ==contentType
-                "HTTP/1.0 200 Ok\r\nContent-Type: " contentType cat "\r\n\r\n" cat -01 cat :write :finish
-              } =*ok
-              { ==contentType
-                "HTTP/1.0 500 Error\r\nContent-Type: " contentType cat "\r\n\r\n" cat -01 cat :write :finish
-              } =*fail
-            > ::request
+            headers .?Content-Length not {
+              requestParsed
+            } {
+              headers .Content-Length txt .consume .u ==contentLength
+
+              { body -01 cat =body
+                body len _ ::inputBufferLimit gt { "" =body :close } rep
+                           contentLength eq { requestParsed } rep
+                ""
+              } =in
+
+              inBuffer in =inBuffer
+            } ? *
           }
           { 1 } {
             "HTTP/1.0 400 Error\r\nContent-Type: text/html\r\n\r\n<html><body>Could not parse request</body></html>\r\n"
-            :write :finish
+            :write :finish "" =inBuffer
           }
         ] conds } loop inBuffer } =*in
     >

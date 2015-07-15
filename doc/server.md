@@ -114,8 +114,11 @@ net .alg .httpServer
 --------------------
 
 This is not yet a full featured HTTP server, but works a little bit.
-It is based on `net .alg .bufferedEpollServer` and takes the same options.
-However, you are not supposed to provide an `accept`, but instead
+It is based on `net .alg .bufferedEpollServer` and takes all options of the former.
+Additionally `inputBufferLimit` also exists, which puts a limit on the
+total request size (including request body).
+
+You are not supposed to provide an `accept`, but instead
 call `request` to provide a function which handles the requests.
 
     net .alg .httpServer "+" via
@@ -127,6 +130,7 @@ call `request` to provide a function which handles the requests.
         :method dump
         :url dump
         :args keys dump
+        :body dump
         "<html><body>O hi!</body></html>" "text/html" :ok
       } +request
       +run
