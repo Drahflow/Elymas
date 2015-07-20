@@ -58,25 +58,20 @@
               } rep
             } /close deffst
             { ==count
-              /read_start dump
               closed { "" } {
                 count str .alloc ==buf
                 fd buf count +read
                   |close < { 0 } ; =*close > +???io.net.con.read
                 buf str .inplacePrefix
               } ? *
-              /read_end dump
             } /read deff
             { ==buf
-              /write_start dump
               closed { buf len } {
                 fd buf _ len +write
                   |close < =*close > +???io.net.con.write
               } ? *
-              /write_end dump
             } /write deff
             { ==flags
-              /ctl_start dump
               closed not {
                 eventHandler +!rawAddress noHandler +!rawAddress eq {
                   flags =initialFlags
@@ -84,7 +79,6 @@
                   epoll ++EPOLLCTLMOD fd flags eventHandler +!rawAddress ++ctl +??io.net.epoll --
                 } ? *
               } rep
-              /ctl_end dump
             } /ctl deffst
           > ::accept =eventHandler
 
