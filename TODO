@@ -19,6 +19,8 @@
 * trigonometrics
 * create sys .posix
 * port the sys functions to FreeBSD
+* stack traces with function source
+  * make it possible to put comments into the stacktrace for iteration over non-uniform objects
 
 * testsuite (incl. coverage test)
 
