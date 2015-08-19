@@ -27,10 +27,11 @@
     l .start ==n
     l .len { n 2 dearray =n f }" rep
   } "#each" defmd
-  { ==l l .len mod ==i
+  { l .len mod ==i
     l .start i { 1 -01 * } rep
     0 -01 *
-  } "#*" defmd
+  } '0.0 /access deffd
+  { =l access } "#*" defmd
   { ==l ==i ==v
     l .len not { "=[] into empty list" die } rep
     l .start i l .len mod { 1 -01 * } rep
