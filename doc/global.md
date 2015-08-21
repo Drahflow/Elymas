@@ -322,172 +322,6 @@ back onto the stack, each `*` invokes the `*` function once.
     0000000000000006
 
 
-`rep`
------
-
-Takes a function and a count from the stack. Executes the function as many times as specified.
-
-    3 { /a dump } rep
-    "a"
-    "a"
-    "a"
-
-
-`loop`
-------
-
-Takes a function object *b* and a function object *p* from the stack. Then it executes *p* and takes
-one integer from the stack. If this integer is non-zero, executes *b* and then restarts with executing *p*.
-This repeats until *p* returns zero.
-
-    0 ==i
-    { i 3 lt } {
-      i dump
-      i 1 add =i
-    } loop
-    0000000000000000
-    0000000000000001
-    0000000000000002
-    0 { _ 3 lt } { _ dump 1 add } loop
-    0000000000000000
-    0000000000000001
-    0000000000000002
-
-
-`each`
-------
-
-Takes a function object and an array or string from the stack. For each element of the array or string, pushes
-that element, then executes the function.
-
-    [ /a /b /c ] |dump each
-    "a"
-    "b"
-    "c"
-
-
-`.`
----
-
-Takes a name and a scope from the stack. Resolves the name in the scope.
-
-    < 5 ==i > .i dump
-    0000000000000005
-
-
-`.|`
-----
-
-Takes a name and a scope from the stack. Resolves the name in the scope, but never executes it.
-
-    <
-      1 ==i
-      { 2 } =*j
-    > ==s
-    s .i dump
-    0000000000000001
-    s .j dump
-    0000000000000002
-    s .|i dump
-    0000000000000001
-    s .|j dump
-    <function: 00006000008E5700>
-
-
-`.?`
-----
-
-Takes a name and a scope from the stack. If the name can be resolved in the scope, returns 1, otherwise returns 0.
-
-    < 0 ==i > ==s
-    s .?i dump
-    0000000000000001
-    s .?j dump
-    0000000000000000
-
-`.?'`
------
-
-Takes a name and a scope from the stack. If the name can be resolved in the scope without its parent,
-returns 1, otherwise returns 0.
-
-    < 0 ==i > ==s
-    s .?i dump
-    0000000000000001
-    s .?'i dump
-    0000000000000001
-    s .?s dump
-    0000000000000001
-    s .?'s dump
-    0000000000000000
-
-
-`keys`
-------
-
-Takes a scope object from the stack. Returns an array of the names defined directly in the scope.
-
-    <
-      0 ==i
-      1 ==j
-    > keys dump
-    [
-      "i"
-      "j"
-    ]
-
-
-`dom`
------
-
-Takes an array or string from the stack, determines its length and returns an array containing
-the integers from zero to length minus one. If the array or string would be a partial functions from
-integers to elements, this is the domain of this function.
-
-    "foo" dom dump
-    [
-      0000000000000000
-      0000000000000001
-      0000000000000002
-    ]
-
-
-`!!`
-----
-
-Takes a function object and creates a coroutine which resumes execution at the start of this function object.
-The call and data stack of this new coroutine are initially empty. See coroutines.md for details and examples.
-
-
-`!!'`
------
-
-Takes a function object *c* and a function object *m*. Creates a new coroutine which resumes execution at the start
-of *c*. The call stack and data stack of this coroutine are copied from the current stack (after *c* and *m* have been
-removed). Afterwards push the coroutine object and execute *m*. See coroutines.md for details and examples.
-
-
-`!`
----
-
-Takes a count and a target coroutine from the stack. Moves as many elements as specified from the current
-stack to the stack of the specified coroutine. Additionally, push the current coroutine to the target coroutine's
-stack. Then continue execution in the specified coroutine. See coroutines.md for details and examples.
-
-
-`{`
----
-
-Increases the parser quote level by one and pushes a quote begin marker onto the stack.
-
-
-`}`, `}'`, `}"`, `}_`
----------------------
-
-Decreases the parser quote level by one. Searches for the topmost quote begin marker on the stack and collects
-all stack elements above it into a function object. See quoting.md for details.
-
-
 `eq`
 ----
 
@@ -683,6 +517,172 @@ Numerical integer negation.
 -----
 
 Logical integer negation, i.e. one if zero previously, zero otherwise.
+
+
+`rep`
+-----
+
+Takes a function and a count from the stack. Executes the function as many times as specified.
+
+    3 { /a dump } rep
+    "a"
+    "a"
+    "a"
+
+
+`loop`
+------
+
+Takes a function object *b* and a function object *p* from the stack. Then it executes *p* and takes
+one integer from the stack. If this integer is non-zero, executes *b* and then restarts with executing *p*.
+This repeats until *p* returns zero.
+
+    0 ==i
+    { i 3 lt } {
+      i dump
+      i 1 add =i
+    } loop
+    0000000000000000
+    0000000000000001
+    0000000000000002
+    0 { _ 3 lt } { _ dump 1 add } loop
+    0000000000000000
+    0000000000000001
+    0000000000000002
+
+
+`each`
+------
+
+Takes a function object and an array or string from the stack. For each element of the array or string, pushes
+that element, then executes the function.
+
+    [ /a /b /c ] |dump each
+    "a"
+    "b"
+    "c"
+
+
+`.`
+---
+
+Takes a name and a scope from the stack. Resolves the name in the scope.
+
+    < 5 ==i > .i dump
+    0000000000000005
+
+
+`.|`
+----
+
+Takes a name and a scope from the stack. Resolves the name in the scope, but never executes it.
+
+    <
+      1 ==i
+      { 2 } =*j
+    > ==s
+    s .i dump
+    0000000000000001
+    s .j dump
+    0000000000000002
+    s .|i dump
+    0000000000000001
+    s .|j dump
+    <function: 00006000008E5700>
+
+
+`.?`
+----
+
+Takes a name and a scope from the stack. If the name can be resolved in the scope, returns 1, otherwise returns 0.
+
+    < 0 ==i > ==s
+    s .?i dump
+    0000000000000001
+    s .?j dump
+    0000000000000000
+
+`.?'`
+-----
+
+Takes a name and a scope from the stack. If the name can be resolved in the scope without its parent,
+returns 1, otherwise returns 0.
+
+    < 0 ==i > ==s
+    s .?i dump
+    0000000000000001
+    s .?'i dump
+    0000000000000001
+    s .?s dump
+    0000000000000001
+    s .?'s dump
+    0000000000000000
+
+
+`keys`
+------
+
+Takes a scope object from the stack. Returns an array of the names defined directly in the scope.
+
+    <
+      0 ==i
+      1 ==j
+    > keys dump
+    [
+      "i"
+      "j"
+    ]
+
+
+`dom`
+-----
+
+Takes an array or string from the stack, determines its length and returns an array containing
+the integers from zero to length minus one. If the array or string would be a partial functions from
+integers to elements, this is the domain of this function.
+
+    "foo" dom dump
+    [
+      0000000000000000
+      0000000000000001
+      0000000000000002
+    ]
+
+
+`!!`
+----
+
+Takes a function object and creates a coroutine which resumes execution at the start of this function object.
+The call and data stack of this new coroutine are initially empty. See coroutines.md for details and examples.
+
+
+`!!'`
+-----
+
+Takes a function object *c* and a function object *m*. Creates a new coroutine which resumes execution at the start
+of *c*. The call stack and data stack of this coroutine are copied from the current stack (after *c* and *m* have been
+removed). Afterwards push the coroutine object and execute *m*. See coroutines.md for details and examples.
+
+
+`!`
+---
+
+Takes a count and a target coroutine from the stack. Moves as many elements as specified from the current
+stack to the stack of the specified coroutine. Additionally, push the current coroutine to the target coroutine's
+stack. Then continue execution in the specified coroutine. See coroutines.md for details and examples.
+
+
+`{`
+---
+
+Increases the parser quote level by one and pushes a quote begin marker onto the stack.
+
+
+`}`, `}'`, `}"`, `}_`
+---------------------
+
+Decreases the parser quote level by one. Searches for the topmost quote begin marker on the stack and collects
+all stack elements above it into a function object. See quoting.md for details.
 
 
 `regex`
