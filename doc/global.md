@@ -98,6 +98,12 @@ from the stack.
       "X"
       "c"
     ]
+    "abc" ==s
+    s dump
+    "abc"
+    64 1 s =[]
+    s dump
+    "a@c"
 
 `len`
 -----
