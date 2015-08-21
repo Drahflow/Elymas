@@ -9,7 +9,7 @@ This function will upon execution look up the name and only then act upon it. Th
 function objects.
 
 In particular the functions `{` and `}` have quoting execution mode and are hence always executed directly when encountered.
-The `{` function puts a function-quote-begin marker on the stack andincreases the quote level by one. A later `}` then collects
+The `{` function puts a function-quote-begin marker on the stack and increases the quote level by one. A later `}` then collects
 all stack contents up to the function-quote-begin marker from the stack and creates assembly instructions from them. These
 instructions will esentially execute the collected functions. After that `}` decrements the quote level and checks for zero.
 If zero has been reached, a new function object is created from the assembled instructions and the current scope and pushed
