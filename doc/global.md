@@ -945,4 +945,4 @@ Copies the stack element above the topmost position marker to the top of the sta
 
 `,---`
 ------
-Deletes all stack contents up to and including the topmost position marker.
+Deletes all stack contents from the top to (and including) the topmost position marker.
