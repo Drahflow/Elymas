@@ -743,7 +743,8 @@ First `|`, then `curry`. Resolves a name in the current scope and immediately cu
 `**`
 ----
 
-Takes an object from the stack. If it is a function or an array, execute it. Then execute `**` again on the result.
+Takes an object from the stack. If it is a function or an array, execute it (see execution.md for details).
+Then execute `**` again on the result.
 
     5 2 ||sub ** dump
     0000000000000003
