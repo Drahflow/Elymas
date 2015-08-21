@@ -152,6 +152,11 @@ common.
     "a"
     "a"
 
+To drop the topmost stack element, use `--`.
+
+    /a /b -- dump
+    "a"
+
 
 Other useful functions
 ----------------------
