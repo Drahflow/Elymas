@@ -7,7 +7,7 @@
   { [ 0 ] }" "#in" deffd
   { [ 0 ] }" "#out" deffd
   { =m m .v keys }' "#dom" defmd
-  { =m m .v ==v =*f v keys { v -01 . f }' each }' "#each" defmd
+  { =m m .v ==v =*f v keys { v -01 . f }' each } "#each" defmd
   { 0 } "#istart" deffd
   { =m m .v keys len eq }' "#iend" defmd
   { 1 add }" "#istep" deffd
