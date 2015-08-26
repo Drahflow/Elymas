@@ -15,7 +15,9 @@
       ]
     } ? *
   } /mergeSort deffst
-  0 |d len 1 sub mergeSort
+  |a len {
+    0 |d len 1 sub mergeSort
+  } { [ ] } ? *
 } /order deffd
 
 { _ |lt order -01 { * }_ [ 0 ] [ 0 ] '' * } /sort deffd

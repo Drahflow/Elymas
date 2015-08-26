@@ -10,6 +10,7 @@
 * don't allocate ints for syscalls if not necessary
 * *THISSCOPE could also work with PUSH
 * handle huge objects better (and move them out of linear heap space)
+* make map work on non-strings, too
 * utf8
 * regex substitution
 * asm-based regex engine
