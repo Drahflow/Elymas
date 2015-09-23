@@ -485,6 +485,9 @@
       /rbx /rax :movqRegMem # 112
       /r13 :movqImmOOBReg %EE %EE %EE %EE %EE %EE %EE %EE # 122
 
+      ::garbageCollectStack /rax :movqImmReg
+      0 /rax :andqImm8Mem
+
       ::freeLists /rax :movqImmReg
       ::FREELISTCOUNT {
         0 /rax :andqImm8Mem
