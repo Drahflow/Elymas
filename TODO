@@ -1,3 +1,4 @@
+* the GC must not use stack storage for mark search front, can cause stack overflow
 * better sys .file
   * don't make newly opened files executable by default
     * make :executable, :nonexecutable, :writable, :readable, etc.
