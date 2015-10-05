@@ -53,7 +53,7 @@
 
   # 0 -> a shell command
   { ==cmd
-    "/bin/sh" [ "sh" "-c" cmd ] "\0" |cat '*00.0 [ ] +execve ??proc.exec
+    "/bin/sh\0" [ "sh" "-c" cmd ] "\0" |cat '*00.0 [ ] +execve ??proc.exec
   } /shell sys .deff
 
   # 0 -> function to execute in the child
