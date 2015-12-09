@@ -1,0 +1,5 @@
+100 {
+  "" crypt .sha512 .hex dump
+  "Test" crypt .sha512 .hex dump
+  "abcdefghbcdefghicdefghijdefghijkefghijklfghijklmghijklmnhijklmnoijklmnopjklmnopqklmnopqrlmnopqrsmnopqrstnopqrstu" crypt .sha512 .hex dump
+} rep
