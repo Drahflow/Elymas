@@ -1436,13 +1436,15 @@
                   32 /rax :shrqImm8Reg
               
                   [
-                    63 reg :btsqImm8Reg
-                    reg :pushqReg
+                    reg /rax :movqRegReg # TODO: if no other output uses the register, this move can be removed
+                    63 /rax :btsqImm8Reg
+                    /rax :pushqReg
                     0 :jmpRel8
                   ] len :jnzRel8
 
-                  63 reg :btsqImm8Reg
-                  reg :pushqReg
+                  reg /rax :movqRegReg # TODO: if no other output uses the register, this move can be removed
+                  63 /rax :btsqImm8Reg
+                  /rax :pushqReg
 
                   [
                     availableRegisters { :pushqReg } each
@@ -1462,8 +1464,9 @@
                 ] cat =traceCode
               } {
                 traceCode [
-                  63 reg :btsqImm8Reg
-                  reg :pushqReg
+                  reg /rax :movqRegReg # TODO: if no other output uses the register, this move can be removed
+                  63 /rax :btsqImm8Reg
+                  /rax :pushqReg
                 ] cat =traceCode
               } ? *
             }
