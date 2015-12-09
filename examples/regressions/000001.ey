@@ -1,0 +1,9 @@
+0 ==i
+
+0 10 range {
+  [
+    { _ 5 lt } { i 1 add =i }
+  ] conds --
+} each
+
+i 5 eq not { /wrong die } rep
