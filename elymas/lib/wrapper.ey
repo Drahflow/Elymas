@@ -1,10 +1,14 @@
 { ==v ==source
-  /has source keys eq any {
-    { /d defvs d source .has { d source * } { v } ? * }
-  } {
-    { /d defvs d source dom eq any { d source * } { v } ? * }
-  } ? *
-  < "#*" deffst source >'
+  <
+    /has source keys eq any {
+      { /d defvs d source .has { d source * } { v } ? * }
+    } {
+      { /d defvs d source dom eq any { d source * } { v } ? * }
+    } ? * "#*" deffst
+    { source -01 . } "#." deffst # TODO: think about instantiating all keys explicitely
+    { source -01 .| } "#.|" deffst
+    { source -01 .? } "#.?" deffst
+  >
 } /default deffd
 
 # vim: syn=elymas
