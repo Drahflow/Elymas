@@ -19,6 +19,7 @@
   "lib/list.ey"
   "lib/map.ey"
   "lib/tree.ey"
+  "lib/wrapper.ey"
   "lib/sort.ey"
   "lib/crypt.ey"
 ] { _ dump include }' each

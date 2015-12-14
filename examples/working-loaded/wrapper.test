@@ -1,0 +1,13 @@
+map ==m
+m 7 default ==md
+
+5 /foo md =[]
+/foo md * dump
+/bar md * dump
+
+list ==l
+l 7 default ==ld
+
+5 ld .append1
+0 ld * dump
+12 ld * dump
