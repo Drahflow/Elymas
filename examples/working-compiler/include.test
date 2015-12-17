@@ -1,8 +1,10 @@
 "included" dump
 
+scope dump
+
 1 0 add
 { -- 0 } /add deff
 
-{
+{ < scope dump
   "/home/drahflow/elymas/examples/working-compiler/include.test" include
-} rep
+> } rep

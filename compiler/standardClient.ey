@@ -1230,7 +1230,7 @@
   } each ] =*:FLOAT
 
   { ==currentScope ==input
-    { .value currentScope sys .executeIdentifierScoped =currentScope } /TOKID defvd
+    { .value currentScope sys .executeIdentifierScoped =currentScope } /TOKID defvst
     { .value base10decode } /TOKINT defvd
     { .value "^(\\d+)(\\.(\\d*))?([eE](-)?(\\d+))?$" regex
       not { "Not in fact a float" die } rep
