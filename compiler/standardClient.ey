@@ -1219,17 +1219,17 @@
 
 # no long-term stack use here as the executed program uses it as well
 { scope
-  0 "0" * ==:zero
-  { 0 ==result
-    { zero sub result 10 mul add =result } each
-    result
-  } /base10decode deffd
-
-  [ 0 11 range {
-    sys .asm .intToFloat
-  } each ] =*:FLOAT
-
   { ==currentScope ==input
+    0 "0" * ==:zero
+    { 0 ==result
+      { zero sub result 10 mul add =result } each
+      result
+    } /base10decode deffd
+
+    [ 0 11 range {
+      sys .asm .intToFloat
+    } each ] =*:FLOAT
+
     { .value currentScope sys .executeIdentifierScoped =currentScope } /TOKID defvst
     { .value base10decode } /TOKINT defvd
     { .value "^(\\d+)(\\.(\\d*))?([eE](-)?(\\d+))?$" regex
