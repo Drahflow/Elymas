@@ -1,0 +1,246 @@
+<
+  { =*body { 0 ==again { 1 =again } body again } { } loop } /redoing deffst
+  { =*wasNew ==m ==k k m .has not { 1 k m =[] wasNew } rep } /enlarge deffst
+
+  {
+    [ ] ==rules 0 ==nextNonTerminalName
+    { ==nt ==t --e sys .typed .type 1 eq t nt ? * } ":?" deffd
+    { nextNonTerminalName _ 1 add =nextNonTerminalName txt .produce .u ==name scope } /nt deffst
+    { ==name scope } /nonterminal deffst
+    { ==action ==expansion ==nonterminal
+      rules [ [ nonterminal expansion action ] ] cat =rules
+    } /rule deffst
+    { ==start
+      rules [ [ < "" ==name > [ start "" ] { } ] ] cat ==rules
+      map ==itemsets
+      map ==transitions # itemsetId -> label -> itemsetId
+
+      { ==nt rules { ==r 0 r * .name nt eq } grep } /findRules deffst
+      { ==itemset --rules
+        { [ 0 ] cat _ itemId itemset =[] } each
+        itemset
+      } /addRuleStartToItemSet deffst
+      { _ ==e { "t" e } { "n" e .name } :? cat } /tId deffst
+      { ==r
+        [
+          0 r * .name " "
+          1 r * |tId each " "
+          3 r * txt .produce .u "  "
+        ] |cat fold
+      } /itemId deffst
+      { ==itemset [ ":" itemset |itemId each ] sort |cat fold } /itemsetId deffst
+      { --itemset _ itemsetId itemsets =[] } /addItemSet deffst
+      { ==itemset
+        "------" dump
+        itemset { ==r
+          3 r * ==pos
+          [
+            0 r * .name " -> "
+            1 r * dom { ==i
+              i pos eq { " . " } rep
+              i 1 r * * tId " "
+            } each
+            pos 1 r * len eq { " . " } rep
+          ] |cat fold dump
+        } each
+      } /dumpItemSet deffst
+      { ==itemset
+        { 
+          itemset dom len
+
+          itemset { ==r
+            3 r * ==pos
+            pos 1 r * len lt {
+              pos 1 r * * ==e
+              e { } { e .name findRules itemset addRuleStartToItemSet -- } :?
+            } rep
+          } each
+
+          itemset dom len
+        neq } { } loop
+        itemset
+      } /closeItemSet deffst
+      { =*r 3 r 1 r len eq } /ruleAtEnd deffst
+      { ==itemset
+        map ==stepped
+        itemset { ruleAtEnd not } grep { ==r
+          3 r * 1 r * * tId ==eId
+          eId stepped .has not { 1 eId stepped =[]
+            map ==nextItemSet
+
+            itemset { ruleAtEnd not } grep { ==s
+              3 s * 1 s * * tId eId eq {
+                [ s 4 dearray 1 add ] _ itemId nextItemSet =[]
+              } rep
+            } each
+
+            nextItemSet closeItemSet addItemSet
+
+            itemset itemsetId ==fromId
+            fromId transitions .has not { map fromId transitions =[] } rep
+            nextItemSet itemsetId eId fromId transitions * =[]
+          } rep
+        } each
+      } /stepItemSet deffst
+      { ==lookahead ==itemset
+        0 ==can [ ] ==rule
+        itemset |ruleAtEnd grep { ==r
+          lookahead 0 r * .name followSets .has {
+            can { /reduce_reduce_conflict die } rep
+            1 =can r =rule
+          } rep
+        } each
+        can { rule } rep can
+      } /canReduce deffst
+
+      map ==allNonTerminals
+      rules { 0 -01 * 1 -01 .name allNonTerminals =[] } each
+      map ==allTerminals
+      rules { 1 -01* { ==e e { 1 e allTerminals =[] } { } :? } each } each
+
+      map ==nullableNonTerminals
+      { [ -01 { _ ==e { 0 } { e .name nullableNonTerminals .has } :? }
+        each ] all } /isNullable deffst
+      { ==redo
+        rules { 1 -01* isNullable } grep {
+          0 -01* .name nullableNonTerminals |redo enlarge
+        } each
+      } redoing
+
+      allNonTerminals |map '*0.0 =*firstSets # nonterminal -> terminal -> 1
+      { map ==result 0 ==finished { ==e
+        finished not {
+          e {
+            1 e result =[] 1 =finished
+          } {
+            e .name _ firstSets { 1 -01 result =[] } each
+                      nullableNonTerminals .has =finished
+          } :?
+        } rep
+      } each result } /firstSet deffst
+      { ==redo
+        rules { ==r 0 r * .name firstSets ==lhsSet 1 r * ==rhs
+          0 ==i
+          { { i 1 add =i } ; ==lookAtNextElement
+            i rhs len ge { 0 } {
+              i rhs * _ {
+                lhsSet |redo enlarge
+              } {
+                _ .name firstSets dom { lhsSet |redo enlarge } each
+                  [ -01 ] isNullable lookAtNextElement rep
+              } :?
+            } ? *
+          } redoing
+        } each
+      } redoing
+      
+      allNonTerminals |map '*0.0 =*followSets # nonterminal -> terminal -> 1
+      { ==redo
+        rules { ==r 0 r * .name followSets ==lhsSet 1 r * ==rhs
+          rhs dom { _ ==i rhs *
+            _ { -- } {
+              .name followSets { |redo enlarge }_ ==put
+              i 1 add rhs len range rhs *
+              _ firstSet dom put each
+                isNullable { lhsSet dom put each } rep
+            } :?
+          } each
+        } each
+      } redoing
+
+      "" findRules map addRuleStartToItemSet closeItemSet _ addItemSet
+                                                            ==initialItemSet
+      {
+        itemsets dom len
+        itemsets |stepItemSet each
+        itemsets dom len
+      neq } { } loop
+      
+      map ==itemsetIndices
+      0 ==i
+      [
+        itemsets { _ itemsetId i _ 1 add =i -01 itemsetIndices =[] } each
+      ] ==theItemSets
+
+      { "unexpected nonterminal" die } /unexpectedNonterminal deffst
+      { "unexpected terminal" die } /unexpectedTerminal deffst
+
+      [
+        itemsets { ==itemset
+          map _ ==actions # left in array
+          itemset itemsetId transitions .has {
+            allNonTerminals dom { ==nt
+              itemset itemsetId transitions * ==outgoing
+              "n" nt cat ==label
+              label outgoing .has {
+                label outgoing * itemsetIndices * ==target
+                { ==states [ 0 states * target ] }
+              } { |unexpectedNonterminal } ? * nt actions =[]
+            } each
+          } rep
+        } each
+      ] ==nonterminalActions # stateIndex -> nonterminal .name -> { ... }
+
+      [
+        itemsets { ==itemset
+          map _ ==actions # left in array
+
+          itemset itemsetId transitions .has {
+            itemset itemsetId transitions *
+          } { map } ? * ==outgoing
+
+          allTerminals dom { ==t
+            [
+              { "t" t cat outgoing .has } {
+                "t" t cat outgoing * itemsetIndices * ==target
+                { [ -01 target ] 0 } t actions =[]
+                # 0 => lookahead consumed, quit statemachine loop
+              }
+              { itemset t canReduce } { ==rule
+                0 rule * .name ==nt
+                1 rule * len ==tokill
+                { ==states
+                  # rule dump # DEBUG
+                  tokill { 0 states * =states }' rep
+                  states len 0 gt {
+                    nt 1 states * nonterminalActions * * =*action
+                    states action =states
+
+                    # states len 0 gt { # DEBUG
+                    #   1 states * theItemSets * dumpItemSet
+                    # } rep
+                  } rep
+                  states 1 # lookahead not consumed, repeat loop
+                } t actions =[]
+              }
+              { 1 } { |unexpectedTerminal t actions =[] }
+            ] conds
+          } each
+        } each
+      ] ==terminalActions # stateIndex -> lookahead -> { ... }
+
+      <
+        {
+          [ [ ] 0 ] ==states
+          { ==lookahead
+            # 1 states * theItemSets * dumpItemSet # DEBUG
+            # [ "received: " lookahead ] |cat fold dump # DEBUG
+
+            { states
+              lookahead 1 states * terminalActions * * *
+              -01 =states states len and
+            } { } loop
+
+            states len 0 eq {
+              lookahead "" eq {
+                # "parse done" dump # DEBUG
+              } { "parse failed" dump } ? *
+            } rep
+          }
+        } /run deffst
+      >
+    } /automaton deffst
+  scope } /lalr1 deffd
+> /parser defvd
+
+# vim: syn=elymas
