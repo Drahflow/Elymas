@@ -23,6 +23,7 @@
   "lib/wrapper.ey"
   "lib/sort.ey"
   "lib/crypt.ey"
+  "lib/parser.ey"
 ] { _ dump include }' each
 
 {

@@ -1,0 +1,26 @@
+parser .lalr1 ":" via
+
+/S :nonterminal ==S
+/expr :nonterminal ==expr
+/num :nonterminal ==num
+
+999 ==result
+S [ expr ] { :0 _ =result } :rule
+expr [ num ] { :0 } :rule
+expr [ expr "+" expr ] { ==s s :2 s :0 add } :rule
+expr [ expr "-" expr ] { ==s s :2 s :0 sub } :rule
+expr [ "(" expr ")" ] { ==s s :1 } :rule
+num [ /0 ] { -- 0 } :rule
+num [ /1 ] { -- 1 } :rule
+num [ /2 ] { -- 2 } :rule
+
+S :automaton ==Sparser
+
+"generation done" dump
+
+100000 {
+  Sparser .run =*consume
+  [ "(" /2 "+" /1 "-" /1 ")" "+" /1 "" ] { _ consume } each
+} rep
+
+result dump

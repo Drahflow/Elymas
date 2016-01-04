@@ -1,6 +1,14 @@
 <
-  { =*body { 0 ==again { 1 =again } body again } { } loop } /redoing deffst
-  { =*wasNew ==m ==k k m .has not { 1 k m =[] wasNew } rep } /enlarge deffst
+  { =*body { 0 ==again { 1 =again } body again } { } loop } /redoing deffd
+  { =*wasNew ==m ==k k m .has not { 1 k m =[] wasNew } rep } /enlarge deffd
+  <
+    0 10 range { ==i
+      { .states i { 0 -01* } rep 2 -01* } i txt .produce .u }
+      { defmd }' ; each
+
+    { < ==states > }
+  > -- /children deffd
+  0 10 range { _ { { 0 -01* } rep 2 -01* }_ -01 txt .produce .u deffd }' each
 
   {
     [ ] ==rules 0 ==nextNonTerminalName
@@ -174,7 +182,7 @@
               "n" nt cat ==label
               label outgoing .has {
                 label outgoing * itemsetIndices * ==target
-                { ==states [ 0 states * target ] }
+                { [ target -1302 ] }
               } { |unexpectedNonterminal } ? * nt actions =[]
             } each
           } rep
@@ -193,18 +201,19 @@
             [
               { "t" t cat outgoing .has } {
                 "t" t cat outgoing * itemsetIndices * ==target
-                { [ -01 target ] 0 } t actions =[]
+                { [ target -1302 ] 0 } t actions =[]
                 # 0 => lookahead consumed, quit statemachine loop
               }
               { itemset t canReduce } { ==rule
                 0 rule * .name ==nt
                 1 rule * len ==tokill
-                { ==states
-                  # rule dump # DEBUG
+                2 rule * =*reduceAction
+                { -- ==states # value dropped
+                  states reduceAction ==value
                   tokill { 0 states * =states }' rep
                   states len 0 gt {
                     nt 1 states * nonterminalActions * * =*action
-                    states action =states
+                    states value action =states
 
                     # states len 0 gt { # DEBUG
                     #   1 states * theItemSets * dumpItemSet
@@ -221,21 +230,15 @@
 
       <
         {
-          [ [ ] 0 ] ==states
-          { ==lookahead
+          [ [ ] 0 0 ] ==states
+          { ==lookahead ==value
             # 1 states * theItemSets * dumpItemSet # DEBUG
             # [ "received: " lookahead ] |cat fold dump # DEBUG
 
-            { states
+            { states value
               lookahead 1 states * terminalActions * * *
               -01 =states states len and
             } { } loop
-
-            states len 0 eq {
-              lookahead "" eq {
-                # "parse done" dump # DEBUG
-              } { "parse failed" dump } ? *
-            } rep
           }
         } /run deffst
       >
