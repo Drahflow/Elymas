@@ -1,6 +1,32 @@
 <
+  <
+    { sys .linux .gettimeofday -- 1000000 mul add } /t deffd
+    < { == }' > ==time =*setTime
+    < { == }' > ==count =*setCount
+    { ==l 0 l setTime 0 l setCount
+      { =*f { t ==start f t start sub time l . add l setTime count l . 1 add l setCount } }
+      quoted not { * } rep
+    }
+    { time keys { _ dump _ time -01 . txt .produce .u " μs" cat dump count -01 . txt .produce .u " calls" cat dump } each }
+  > -- /perfstats deffd "τ" defq
+
   { =*body { 0 ==again { 1 =again } body again } { } loop } /redoing deffd
   { =*wasNew ==m ==k k m .has not { 1 k m =[] wasNew } rep } /enlarge deffd
+#  { ==a a len 1 gt {
+#      0 ==i 0 ==j
+#      a dom { =i
+#        i 1 add a len range { =j
+#          i a * j a * -1010 gt {
+#            i a =[] j a =[]
+#          }" { -- -- }" ? *
+#        }' each
+#      }' each
+#      a
+#    }' rep
+#  } /strsort deffd
+#  
+#  [ /a /h /b /c /f /d /g /i /e ] strsort dump /yolo die
+
   <
     0 10 range { ==i
       { .states i { 0 -01* } rep 2 -01* } i txt .produce .u }
@@ -35,9 +61,9 @@
           1 r * |tId each " "
           3 r * txt .produce .u "  "
         ] |cat fold
-      } /itemId deffst
-      { ==itemset [ ":" itemset |itemId each ] sort |cat fold } /itemsetId deffst
-      { --itemset _ itemsetId itemsets =[] } /addItemSet deffst
+      } τitemId /itemId deffst
+      { --itemset dom { sort } τsort * |cat fold } τitemsestId /itemsetId deffst
+      { --itemset _ itemsetId itemsets =[] } τaddItemSet /addItemSet deffst
       { ==itemset
         "------" dump
         itemset { ==r
@@ -52,42 +78,56 @@
           ] |cat fold dump
         } each
       } /dumpItemSet deffst
-      { ==itemset
-        { 
-          itemset dom len
 
-          itemset { ==r
-            3 r * ==pos
-            pos 1 r * len lt {
-              pos 1 r * * ==e
-              e { } { e .name findRules itemset addRuleStartToItemSet -- } :?
-            } rep
-          } each
-
-          itemset dom len
-        neq } { } loop
-        itemset
-      } /closeItemSet deffst
       { =*r 3 r 1 r len eq } /ruleAtEnd deffst
-      { ==itemset
-        map ==stepped
-        itemset { ruleAtEnd not } grep { ==r
-          3 r * 1 r * * tId ==eId
-          eId stepped .has not { 1 eId stepped =[]
-            map ==nextItemSet
+      { ==rulesToExpand
+        map ==expanded
 
-            itemset { ruleAtEnd not } grep { ==s
-              3 s * 1 s * * tId eId eq {
-                [ s 4 dearray 1 add ] _ itemId nextItemSet =[]
-              } rep
+        [
+          { rulesToExpand # into the result array
+            [
+            rulesToExpand { ==r
+              3 r * 1 r * * ==t
+              t { } {
+                t .name expanded .has not {
+                  1 t .name expanded =[]
+                  t .name findRules { [ 0 ] cat } each
+                } rep
+              } :?
             } each
+          ] _ =rulesToExpand len } { } loop
+        ] |cat fold
+      } τnonterminalExpansion /nonterminalExpansions deffst
+      { ==itemset
+        itemset itemsetId ==fromId
+        itemset { ruleAtEnd not }' grep ==steppingRules
 
-            nextItemSet closeItemSet addItemSet
+        steppingRules nonterminalExpansions =steppingRules
 
-            itemset itemsetId ==fromId
-            fromId transitions .has not { map fromId transitions =[] } rep
-            nextItemSet itemsetId eId fromId transitions * =[]
-          } rep
+        map ==rulesByStep # tId -> [ rule ... ]
+        steppingRules { ==r
+          3 r * 1 r * * tId ==eId
+          eId rulesByStep .has { eId rulesByStep * } { [ ] } ? *
+          [ r ] cat eId rulesByStep =[]
+        } each
+
+        rulesByStep dom { ==eId
+          map ==nextItemSet
+          [ ] ==r
+
+          eId rulesByStep * { =r
+            [ r 4 dearray 1 add ] _ itemId nextItemSet =[]
+          }' each
+
+          nextItemSet itemsetId ==toId
+          toId itemsets .has not {
+            nextItemSet toId itemsets =[] # add new itemset
+            nextItemSet dumpItemSet perfstats
+            nextItemSet stepItemSet
+          }' rep
+
+          fromId transitions .has not { map fromId transitions =[] } rep
+          toId eId fromId transitions * =[]
         } each
       } /stepItemSet deffst
       { ==lookahead ==itemset
@@ -100,7 +140,7 @@
         } each
         can { rule } rep can
       } /canReduce deffst
-
+      
       map ==allNonTerminals
       rules { 0 -01 * 1 -01 .name allNonTerminals =[] } each
       map ==allTerminals
@@ -115,13 +155,13 @@
         } each
       } redoing
 
-      allNonTerminals |map '*0.0 =*firstSets # nonterminal -> terminal -> 1
+      allNonTerminals { -- map } '*0.0 =*firstSets # nonterminal -> terminal -> 1
       { map ==result 0 ==finished { ==e
         finished not {
           e {
             1 e result =[] 1 =finished
           } {
-            e .name _ firstSets { 1 -01 result =[] } each
+            e .name _ firstSets dom { 1 -01 result =[] } each
                       nullableNonTerminals .has =finished
           } :?
         } rep
@@ -142,7 +182,7 @@
         } each
       } redoing
       
-      allNonTerminals |map '*0.0 =*followSets # nonterminal -> terminal -> 1
+      allNonTerminals { -- map } '*0.0 =*followSets # nonterminal -> terminal -> 1
       { ==redo
         rules { ==r 0 r * .name followSets ==lhsSet 1 r * ==rhs
           rhs dom { _ ==i rhs *
@@ -156,14 +196,12 @@
         } each
       } redoing
 
-      "" findRules map addRuleStartToItemSet closeItemSet _ addItemSet
-                                                            ==initialItemSet
-      {
-        itemsets dom len
-        itemsets |stepItemSet each
-        itemsets dom len
-      neq } { } loop
+      # "" findRules map addRuleStartToItemSet closeItemSet _ addItemSet
+      "" findRules map addRuleStartToItemSet _ addItemSet ==initialItemSet
+      initialItemSet { stepItemSet } τstepItemSet *
+      "=====" dump itemsets |dumpItemSet each perfstats # DEBUG
       
+      {
       map ==itemsetIndices
       0 ==i
       [
@@ -176,9 +214,10 @@
       [
         itemsets { ==itemset
           map _ ==actions # left in array
-          itemset itemsetId transitions .has {
+          itemset itemsetId ==isId
+          isId transitions .has {
             allNonTerminals dom { ==nt
-              itemset itemsetId transitions * ==outgoing
+              isId transitions * ==outgoing
               "n" nt cat ==label
               label outgoing .has {
                 label outgoing * itemsetIndices * ==target
@@ -193,9 +232,8 @@
         itemsets { ==itemset
           map _ ==actions # left in array
 
-          itemset itemsetId transitions .has {
-            itemset itemsetId transitions *
-          } { map } ? * ==outgoing
+          itemset itemsetId ==isId
+          isId transitions .has { isId transitions * } { map } ? * ==outgoing
 
           allTerminals dom { ==t
             [
@@ -227,13 +265,14 @@
           } each
         } each
       ] ==terminalActions # stateIndex -> lookahead -> { ... }
+      }' τfinalization *
 
       <
         {
           [ [ ] 0 0 ] ==states
           { ==lookahead ==value
-            # 1 states * theItemSets * dumpItemSet # DEBUG
-            # [ "received: " lookahead ] |cat fold dump # DEBUG
+            1 states * theItemSets * dumpItemSet # DEBUG
+            [ "received: " lookahead ] |cat fold dump # DEBUG
 
             { states value
               lookahead 1 states * terminalActions * * *
