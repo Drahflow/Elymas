@@ -14,13 +14,13 @@ num [ /0 ] { -- 0 } :rule
 num [ /1 ] { -- 1 } :rule
 num [ /2 ] { -- 2 } :rule
 
-S :automaton ==Sparser
+[ S :automaton ==Sparser ] len 0 gt { "stack garbage" die } rep
 
 "generation done" dump
 
-100000 {
+# 100000 {
   Sparser .run =*consume
-  [ "(" /2 "+" /1 "-" /1 ")" "+" /1 "" ] { _ consume } each
-} rep
+  [ "(" "(" /2 "+" /1 "-" /1 ")" ")" "+" /1 "" ] { _ consume } each
+# } rep
 
 result dump

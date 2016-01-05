@@ -1,17 +1,17 @@
 { /cmp deff _ /a deff dom /d deff
   { ==e ==s
-    s e eq { [ s d ] } {
+    s e eq { [ s d ] }' {
       s e add 2 div ==m
       s       m mergeSort =*x 0 ==i
       m 1 add e mergeSort =*y 0 ==j
-      { i _ x -01 1 add =i } ==l
-      { j _ y -01 1 add =j } ==r
+      { i _ x -01 1 add =i }' ==l
+      { j _ y -01 1 add =j }' ==r
       [
-        { i |x len lt j |y len lt and } {
+        { i |x len lt j |y len lt and }' {
           i x a j y a cmp l r ? *
-        } loop
-        { i |x len lt } l loop
-        { j |y len lt } r loop
+        }' loop
+        { i |x len lt }' l loop
+        { j |y len lt }' r loop
       ]
     } ? *
   } /mergeSort deffst
