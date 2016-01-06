@@ -1,11 +1,10 @@
-parser .lalr1 ":" via
+parser .glr ":" via
 
 /S :nonterminal ==S
 /expr :nonterminal ==expr
 /num :nonterminal ==num
 
-999 ==result
-S [ expr ] { :0 _ =result } :rule
+S [ expr ] { :0 } :rule
 expr [ num ] { :0 } :rule
 expr [ expr "+" expr ] { ==s s :2 s :0 add } :rule
 expr [ expr "-" expr ] { ==s s :2 s :0 sub } :rule
@@ -18,9 +17,10 @@ num [ /2 ] { -- 2 } :rule
 
 "generation done" dump
 
-# 100000 {
+100000 {
   Sparser .run =*consume
-  [ "(" "(" /2 "+" /1 "-" /1 ")" ")" "+" /1 "" ] { _ consume } each
-# } rep
+  [ "(" "(" /2 "+" /1 "-" /1 ")" ")" "+" /1 ] { _ consume -- } each
+  "" _ consume :result ==result
+}' rep
 
 result dump
