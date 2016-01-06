@@ -23,7 +23,7 @@ syn region eyString start=/"/ end=/"/ contains=eyEscapeSeq
 syn match eyEscapeSeq /\\["n\\']/ contained
 syn keyword eyControl rep include dump die each loop exe
 syn keyword eyMath regex range
-syn keyword eyMath sig len cat dearray dom
+syn keyword eyMath sig len cat dearray dom keys
 syn keyword eyMath add sub mul div mod and nand or xor nxor nor band bnand bor bxor bnxor bnor
 syn keyword eyMath eq neq lt le gt ge gcd neg not bnot abs streq
 syn keyword eyOther quoted deff defv defq defvs deffs defvt defft defvst deffst defvc deffc defvd deffd defm defms defmt defmst defmc defmd
