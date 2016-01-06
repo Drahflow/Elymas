@@ -37,6 +37,11 @@
   > -- /children deffd
   0 10 range { _ { { 0 -01* } rep 2 -01* }_ -01 txt .produce .u deffd }' each
 
+  # 0 -> index of child ( from the right )
+  # 1 -> state stack
+  # 0 <- value of n-th child
+  { { 0 -01* } rep 2 -01* } /child deffd  
+
   <
     sys .typed .|type =*:SYSTYPEDTYPE
     { ==nt ==t SYSTYPEDTYPE 1 eq t nt ? * } ":?" deffd
@@ -60,6 +65,7 @@
       target shiftActions *
     } /makeShiftAction deffd
     { =*r 3 r 1 r len eq } /ruleAtEnd deffd
+    { "unexpected nonterminal" die }' /unexpectedNonterminal deffd
 
     {
       [ ] ==rules 0 ==nextNonTerminalName
@@ -92,14 +98,22 @@
         { ==rulesToExpand
           map ==expanded
 
+          0 ==debug
+          rulesToExpand len 4 gt {
+            1 3 rulesToExpand * * len 5 eq {
+              2 1 3 rulesToExpand * * * "/\\" eq {
+                1 =debug
+              } rep
+            } rep
+          } rep
+
           [
             { rulesToExpand # into the result array
               [
               rulesToExpand { ==r
                 3 r * 1 r * * ==t
                 t { } {
-                  t .name expanded .has not {
-                    1 t .name expanded =[]
+                  t .name expanded .has not { 1 t .name expanded =[]
                     t .name findRules { [ 0 ] cat } each
                   } rep
                 } :?
@@ -114,13 +128,13 @@
             [ r ] cat eId rulesByStep =[]
           } each
 
-          rulesByStep
+          rulesByStep debug
         } /nonterminalExpansions deffst
         { ==itemset
           itemset itemsetId ==fromId
           itemset { ruleAtEnd not }' grep ==steppingRules
 
-          steppingRules nonterminalExpansions ==rulesByStep # tId -> [ rule ... ]
+          steppingRules nonterminalExpansions ==debug ==rulesByStep # tId -> [ rule ... ]
 
           rulesByStep dom { ==eId
             map ==nextItemSet
@@ -128,6 +142,12 @@
             eId rulesByStep * {
               [ -01 4 dearray 1 add ] _ itemId nextItemSet =[]
             }' each
+
+            debug {
+              eId /nset eq {
+                nextItemSet dumpItemSet
+              } rep
+            } rep
 
             nextItemSet itemsetId ==toId
             toId itemsets .has not {
@@ -161,9 +181,9 @@
                   [ states target value ] =states
                 }' ? *
 
-                # states len 0 gt { # DEBUG
-                #   1 states * theItemSets * dumpItemSet
-                # } rep
+                states len 0 gt { # DEBUG
+                  1 states * theItemSets * dumpItemSet
+                } rep
               } rep
               states 1 # lookahead not consumed, repeat loop
             } id reduceActions =[]
@@ -238,8 +258,7 @@
           itemsetsDom { ==id id itemsets * id i _ 1 add =i -01 itemsetIndices =[] }' each
         ] ==theItemSets
 
-        { "unexpected nonterminal" die }' /unexpectedNonterminal deffst
-        { "unexpected terminal" die }' /unexpectedTerminal deffst
+        { "unexpected terminal" die }' /unexpectedTerminalHandler deffst
 
         [
           itemsetsDom { ==itemsetId
@@ -270,13 +289,16 @@
               rulesAtEnd t canReduce {
                 makeReduceAction t actions =[] }'
               # else
-                { |unexpectedTerminal t actions =[]
+                { { unexpectedTerminalHandler }' t actions =[]
               }' ? * }' ? *
             }' each
           } each
         ] ==terminalActions # stateIndex -> lookahead -> { ... }
 
         <
+          # expects { ==value ==states ... states continue-stateloop[0/1] }
+          { =unexpectedTerminalHandler } /unexpectedTerminal deffst
+
           {
             [ [ ] 0 0 ] ==states
             { ==lookahead ==value
@@ -284,7 +306,10 @@
               [ "received: " lookahead ] |cat fold dump # DEBUG
 
               { states value
-                lookahead 1 states * terminalActions * * *
+                1 states * terminalActions * ==actionMap
+                lookahead actionMap .has {
+                  lookahead actionMap * *
+                } { unexpectedTerminalHandler } ? *
                 -01 =states states len and
               } { } loop
             }
