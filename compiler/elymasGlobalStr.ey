@@ -411,7 +411,7 @@
     ]] /eybitTest defv
 
     # bit set
-    # 0 -> string to extract bit from
+    # 0 -> string to set bit in
     # 1 -> bit index to set
     [[
       /rbx :popqReg
@@ -427,8 +427,8 @@
     ]] /eybitSet defv
 
     # bit reset
-    # 0 -> string to extract bit from
-    # 1 -> bit index to set
+    # 0 -> string to reset bit in
+    # 1 -> bit index to reset
     [[
       /rbx :popqReg
 

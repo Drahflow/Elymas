@@ -4,6 +4,7 @@
   "lib/util.ey"
   "lib/err.ey"
   "lib/bin.ey"
+  "lib/sys/asmroutines.ey"
   sys .?linux { "lib/sys/linux.ey" } rep
   "lib/sys/so.ey"
   sys .?linux { # FIXME: port these to other architectures one day

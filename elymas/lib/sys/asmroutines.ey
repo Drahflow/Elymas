@@ -1,0 +1,60 @@
+# assembly-optimized routines for various use cases
+
+<
+  sys .asm "::" via
+  sys .asm .ops ":" via
+  sys .asm .ops .|label "@" deff
+  sys .asm .|peek =*:peek
+  sys .asm .|poke =*:poke
+
+  { :labelRecord [ } "[[" deff
+  { ] :labelResolve } "]]" deff
+
+
+  # concatenate an array full of strings into one, i.e. { |cat fold }"
+  # 0 -> array of strings
+  # 0 <- string obtained by concatenating all string from the array
+  [[
+    /rbx :popqReg
+
+    # sum individual lengths
+    0 /rsp /rax :movqMemDisp8Reg
+    /rax /esi :movlMemReg
+    /rax /rsi :addqRegReg
+
+    /rdi /rdi :xorqRegReg
+    8 /rsi :subqImm8Reg
+    @countLoop
+    /rsi /rdx :movqMemReg
+    16 /rdx /rdi :addqMemDisp8Reg
+    8 /rsi :subqImm8Reg
+    /rsi /rax :cmpqRegReg
+    /countLoop :jnzLbl8
+
+    ::internalAllocateString /rax :movqImmReg
+    /rax :callqReg
+
+    /rdx :popqReg # pop source array
+    /rax :pushqReg # push target string
+
+    24 /rax /rdi :leaqMemDisp8Reg
+    /rdx /eax :movlMemReg
+    /rdx /rax :addqRegReg
+
+    8 /rdx :addqImm8Reg
+    @copyLoop
+    /rdx /rsi :movqMemReg
+    16 /rsi /rcx :movqMemDisp8Reg
+    24 /rsi :addqImm8Reg
+    :reprcx :movsb
+
+    8 /rdx :addqImm8Reg
+    /rdx /rax :cmpqRegReg
+    /copyLoop :jnzLbl8
+
+    /rbx :pushqReg
+    :retn
+  ]] [ ] ::createFunction /catstrarray deffd
+> /asmroutines sys .defv
+
+# vim: syn=elymas
