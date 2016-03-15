@@ -35,3 +35,7 @@
 * better interactive error handling when interpreting from stdin
 * document ALL THE LIBRARIES
 * consider https://en.wikipedia.org/wiki/Hindley%E2%80%93Milner_type_system and finally make the stuff typed correctly
+
+* on fatal resolution failure, try parent scopes to see whether it's a simple typo (levenstein)
+
+* Why is `parse quartfull` in igor taking significant time? Java LR(0) parser allegedly takes 0.001s.
