@@ -1,0 +1,38 @@
+# less elegant, but faster implementations of various things
+
+<
+  str .|postfix /postfix deffd
+  { ==TOKID ==TOKSTR ==TOKINT ==TOKFLOAT
+    " " cat ==line
+    { < /handle deff /value defv > } /token deff
+    [ { line "" neq } {
+      [
+        { 0 line * 32 eq }' { 1 line postfix =line }'
+        { 0 line * 35 eq }' { "" =line }'
+        { 0 line * 34 eq }' { 1 line postfix =line
+          "" ==s
+          { 0 line * 34 neq }' {
+            [
+              { 0 line * 92 neq }' { s 1 line str .prefix cat =s 1 line postfix =line }'
+              { 0 line * 92 eq 1 line * 92 eq and }' { s "\\" cat =s 2 line postfix =line }'
+              { 0 line * 92 eq 1 line * 101 eq and }' { s "\e" cat =s 2 line postfix =line }'
+              { 0 line * 92 eq 1 line * 110 eq and }' { s "\n" cat =s 2 line postfix =line }'
+              { 0 line * 92 eq 1 line * 114 eq and }' { s "\r" cat =s 2 line postfix =line }'
+              { 0 line * 92 eq 1 line * 48 eq and }' { s "\0" cat =s 2 line postfix =line }'
+              { 0 line * 92 eq 1 line * 34 eq and }' { s "\"" cat =s 2 line postfix =line }'
+              { 1 }' { "Tokenization of string-like failed" die }'
+            ] conds
+          }' loop
+          s TOKSTR token 1 line postfix =line
+        }
+        { line "^(\\d+) +(.*)" regex }' { TOKINT token -01 =line }'
+        { line "^(\\d[0-9.]*([eE]-?\\d+)?) +(.*)" regex }' { TOKFLOAT token -02 =line }'
+        { line "^([^a-zA-Z0-9 ]+)([a-zA-Z0-9][^ ]*) +(.*)" regex }' { -201 TOKSTR token " " -1203 cat cat =line }'
+        { line "^([a-zA-Z0-9]+|[^a-zA-Z0-9 ]+) +(.*)" regex }' { TOKID token -01 =line }'
+        { 1 }' { "Tokenization failed: " -01 cat die }'
+      ] conds
+    } loop ]
+  } /tokenize deff
+> /elymas defv
+
+# vim: syn=elymas

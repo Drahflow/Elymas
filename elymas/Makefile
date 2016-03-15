@@ -6,7 +6,7 @@ shared: optimized shared.ey $(shell find lib -name '*.ey')
 loaded: optimized loaded.ey $(shell find lib -name '*.ey')
 	./optimized loaded.ey
 
-optimized: interpreter optimized.ey lib/math.ey lib/txt.ey lib/sys/opt.ey
+optimized: interpreter optimized.ey lib/math.ey lib/txt.ey lib/sys/opt.ey lib/sys/optroutines.ey
 	./interpreter optimized.ey
 
 .PHONY: all

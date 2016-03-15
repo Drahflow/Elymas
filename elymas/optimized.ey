@@ -3,6 +3,7 @@
 [
   "lib/math.ey"
   "lib/txt.ey"
+  "lib/sys/optroutines.ey"
   "lib/sys/opt.ey"
 ] { _ dump include }' each
 
