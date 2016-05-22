@@ -339,7 +339,7 @@
   # 1 -> an array of strings determining argv
   # 2 -> path to executable
   # 0 <- raw return value (if it returns at all, naturally)
-  { # ==env ==arg ==path
+  { ==env ==arg ==path path arg env
     { [ -01 { sys .asm .rawAddress 24 add bin .produce .u64 } each "\0\0\0\0\0\0\0\0" ] |cat fold } -20*10*
     0 0 0 EXECVE
   } /execve defStdSyscall
