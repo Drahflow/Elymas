@@ -24,6 +24,7 @@
   * make it possible to put comments into the stacktrace for iteration over non-uniform objects
 
 * testsuite (incl. coverage test)
+  * what is broken with working-loaded/sort.test
 
 * make '' applicable to arrays, too, i.e. save input type
 
