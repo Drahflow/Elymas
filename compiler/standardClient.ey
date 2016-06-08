@@ -651,22 +651,6 @@
       arr sys .typed .type 7 eq { 0 arr len range } { arr "#iclone" . } ? *
     } /cloneForLoop deff
 
-    { ==arr ==i
-      arr sys .typed .type 7 eq { i } { i arr "#itrans" . } ? *
-    } /transformLoopIndex deff
-
-    { ==arr
-      arr sys .typed .type 7 eq { 0 } { arr "#istart" . } ? *
-    } /getLoopStart deff
-
-    { ==arr
-      arr sys .typed .type 7 eq { arr len eq } { arr "#iend" . } ? *
-    } /isLoopEnd deff
-
-    { ==arr
-      arr sys .typed .type 7 eq { 1 add } { arr "#istep" . } ? *
-    } /doLoopStep deff
-
     # Executing a function f: A->B->C (i.e. B A f) on concrete arguments b a.
     # Phase 1
     #   Foreach argument:
@@ -839,22 +823,42 @@
             loopIndex 0 ge {
               loopIndex concreteArgs * ==loopedOver
               outputs len { loopedOver cloneForLoop } { [ ] } ? * ==results
-              loopedOver getLoopStart ==i
-              { i loopedOver isLoopEnd not } {
+
+              loopedOver sys .typed .type 7 eq {
+                0 ==i 0 ==j
                 [ concreteArgs _ len dearray ] ==concreteArgsCopy
-                stage { ==j
+
+                loopedOver dom { =i
+                  stage { =j
+                    # TODO: think about a single function returning multiple values
+                    i j concreteArgs * * j concreteArgsCopy =[]
+                  }" each
+
+                  concreteArgsCopy stageCalls argTypes loops unravel
+                    outputs len { i results =[] }" rep
+                  # results dump
                   # TODO: think about a single function returning multiple values
-                  i loopedOver transformLoopIndex j concreteArgs * * j concreteArgsCopy =[]
-                } each
+                  # should be solved by producing two arrays side by side
+                }" each
+              } {
+                loopedOver "#istart" . ==i
 
-                concreteArgsCopy stageCalls argTypes loops unravel
-                  outputs len { i loopedOver transformLoopIndex results =[] } rep
-                # results dump
-                # TODO: think about a single function returning multiple values
-                # should be solved by producing two arrays side by side
+                { i loopedOver "#iend" . not } {
+                  [ concreteArgs _ len dearray ] ==concreteArgsCopy
+                  stage { ==j
+                    # TODO: think about a single function returning multiple values
+                    i loopedOver "#itrans" . j concreteArgs * * j concreteArgsCopy =[]
+                  } each
 
-                i loopedOver doLoopStep =i
-              } loop
+                  concreteArgsCopy stageCalls argTypes loops unravel
+                    outputs len { i loopedOver "#itrans" . results =[] } rep
+                  # results dump
+                  # TODO: think about a single function returning multiple values
+                  # should be solved by producing two arrays side by side
+
+                  i loopedOver "#istep" . =i
+                } loop
+              } ? *
 
               outputs len { results } rep
               # push @$data, [\@results, ['array', '[]', [['range', 0, $#results]], [undef]]];
