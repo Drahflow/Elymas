@@ -1,5 +1,5 @@
 <
-  txt .consume .|hu "%" deffd
+  txt .consume .|hu "%" defq
 
   <
     "../compiler/elymasAsmOps.ey" include

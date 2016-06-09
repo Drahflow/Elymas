@@ -1,6 +1,6 @@
 <
   sys .so ":" via
-  txt .consume .|hu "%" deffd
+  txt .consume .|hu "%" defq
 
   "/usr/lib/x86_64-linux-gnu/libGL.so.1" :dlopen --
 

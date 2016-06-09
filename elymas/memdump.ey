@@ -1,4 +1,4 @@
-txt .consume .|hu "%" deffd
+txt .consume .|hu "%" defq
 
 %400000000000 ==:MARKBASE
 %500000000000 ==:BLOCKBASE
