@@ -856,7 +856,7 @@ Returns a new array consisting of those element indices for which *p* returned n
 -------
 
 Takes a function object *p* and an array from the stack. Starting from the start of the array, each element is pushed
-and *p* invoked. Returns the lowest array index for which *p* returns non-zero.
+and *p* invoked. Returns the lowest array index for which *p* returns non-zero, or -1 if no such index exists.
 
     [ /b /a /b /b /a ] { /a eq } index dump
     0000000000000001
