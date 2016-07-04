@@ -13,7 +13,7 @@
 
   # concatenate an array full of strings into one, i.e. { |cat fold }"
   # 0 -> array of strings
-  # 0 <- string obtained by concatenating all string from the array
+  # 0 <- string obtained by concatenating all strings from the array
   [[
     /rbx :popqReg
 
@@ -55,6 +55,62 @@
     /rbx :pushqReg
     :retn
   ]] [ ] ::createFunction /catstrarray deffd
+
+  # concatenate strings from topmost array marker to top of stack
+  # into one, i.e. { ] |cat fold }"
+  # n -> array start marker
+  # 0... -> strings on the stack
+  # 0 <- string obtained by concatenating all strings
+  [[
+    /rbx :popqReg
+
+    /rsp /rdx :movqRegReg
+
+    # sum individual lengths
+    /rdi /rdi :xorqRegReg
+    /rdx /rsi :movqMemReg
+    1 /rsi :cmpqImm8Reg
+    /nothingToCount :jzLbl8
+
+    @countLoop
+    16 /rsi /rdi :addqMemDisp8Reg
+    8 /rdx :addqImm8Reg
+    /rdx /rsi :movqMemReg
+    1 /rsi :cmpqImm8Reg
+    /countLoop :jnzLbl8
+
+    @nothingToCount
+    # rdi == total number of characters
+    # rdx == pointer to array start marker
+    /rdx :pushqReg
+
+    ::internalAllocateString /rax :movqImmReg
+    /rax :callqReg
+    # rax == target string of correct length
+
+    /rdx :popqReg
+    /rdx /rbp :movqRegReg # rbp == pointer to array start marker
+    24 /rax /rdi :leaqMemDisp8Reg
+
+    /rdx /rsp :cmpqRegReg
+    /nothingToCopy :jzLbl8
+
+    @copyLoop
+    8 /rdx :subqImm8Reg
+    /rdx /rsi :movqMemReg
+    16 /rsi /rcx :movqMemDisp8Reg
+    24 /rsi :addqImm8Reg
+    :reprcx :movsb
+    /rdx /rsp :cmpqRegReg
+    /copyLoop :jnzLbl8
+
+    @nothingToCopy
+    /rax 0 /rbp :movqRegMemDisp8 # save new string
+    /rbp /rsp :movqRegReg # drop string fragments from stack
+
+    /rbx :pushqReg
+    :retn
+  ]] [ ] ::createFunction /assemblestr deffd
 > /asmroutines sys .defv
 
 # vim: syn=elymas
