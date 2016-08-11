@@ -169,7 +169,7 @@
                 # states len 0 gt { # DEBUG
                 #   1 states * theItemSets * dumpItemSet
                 # } rep
-              } rep
+              }' rep
               states 1 # lookahead not consumed, repeat loop
             } id reduceActions =[]
           } rep
@@ -281,7 +281,7 @@
               [ [ ] 0 0 ] # (currently empty) stack of states
             ] ==states # all states of the GLR
 
-            { ==lookahead ==value
+            < { ==lookahead ==value
               # ">>>>>>>" dump
               # states { ==state # DEBUG
               #   1 state * theItemSets * dumpItemSet
@@ -321,7 +321,7 @@
               }' { }" loop
 
               waitingStates _ =states
-            }
+            }' > --
           } /run deffst
         >
 
