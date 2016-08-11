@@ -25,22 +25,24 @@
 #      a
 #    }' rep
 #  } /strsort deffd
-#  
+#
 #  [ /a /h /b /c /f /d /g /i /e ] strsort dump /yolo die
 
   <
     0 10 range { ==i
-      { .states i { 0 -01* } rep 2 -01* } i txt .produce .u }
+      { .states i { 0 -01* }" rep 2 -01* }' i txt .produce .u }
       { defmd }' ; each
 
     { < ==states > }
   > -- /children deffd
-  0 10 range { _ { { 0 -01* } rep 2 -01* }_ -01 txt .produce .u deffd }' each
+  0 10 range { ==i
+    { i { 0 -01* }" rep 2 -01* }' i txt .produce .u }
+    { deffd }' ; each
 
   # 0 -> index of child ( from the right )
   # 1 -> state stack
   # 0 <- value of n-th child
-  { { 0 -01* } rep 2 -01* } /child deffd  
+  { { 0 -01* }" rep 2 -01* }" /child deffd
 
   <
     sys .typed .|type =*:SYSTYPEDTYPE
@@ -215,7 +217,7 @@
             } redoing
           } each
         } redoing
-        
+
         allNonTerminals { -- map } '*0.0 =*followSets # nonterminal -> terminal -> 1
         { ==redo
           rules { ==r 0 r * .name followSets ==lhsSet 1 r * ==rhs
@@ -233,7 +235,7 @@
         "" findRules map addRuleStartToItemSet _  ==initialItemSet _ itemsetId itemsets =[]
         initialItemSet stepItemSet
         # "=====" dump itemsets |dumpItemSet each perfstats # DEBUG
-        
+
         map ==itemsetIndices
         0 ==i
         itemsets dom ==itemsetsDom
@@ -317,7 +319,7 @@
                 # } each
                 # "<<<---" dump
               }' { }" loop
-              
+
               waitingStates _ =states
             }
           } /run deffst
@@ -327,7 +329,7 @@
       } /automaton deffst
 
       { ==states
-        [ states { 0 -01* 2 -01* } each ] 
+        [ states { 0 -01* 2 -01* }" each ]
       } /result deffst
     scope }
   > -- /glr deffd
