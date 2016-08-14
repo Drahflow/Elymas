@@ -308,7 +308,7 @@
                     i 1 add results * {
                       i results * # collected outside the loop
                     }' {
-                      [ i results * ] waitingStates cat =waitingStates
+                      [ waitingStates i results * ] =waitingStates
                     }' ? *
                   }' loop
                 } each ] _ =executingStates len
@@ -320,7 +320,12 @@
                 # "<<<---" dump
               }' { }" loop
 
-              waitingStates _ =states
+              [
+                { waitingStates len }" {
+                  1 waitingStates *
+                  0 waitingStates * =waitingStates
+                }" loop
+              ] _ =states
             }' > --
           } /run deffst
         >
