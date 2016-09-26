@@ -1,0 +1,11 @@
+{ "}" | *
+  { ==f 0 ==running
+    { f } { * }" ; { =*f { running not { 1 =running f 0 =running } rep } } ;
+  } *
+}" "}!" defq
+
+{
+  0 ==a
+  { /g_runninng dump a dump g }! /g deffst
+  1 |g rep
+} *
