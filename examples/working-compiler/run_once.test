@@ -5,7 +5,13 @@
 }" "}!" defq
 
 {
-  0 ==a
-  { /g_runninng dump a dump g }! /g deffst
-  1 |g rep
-} *
+  5 ==i
+
+  { "g1 called" dump i dump f }! =*g1
+  g1
+
+  { "g2 called" dump i dump f }! =*g2
+  g2
+} =*f
+
+f
