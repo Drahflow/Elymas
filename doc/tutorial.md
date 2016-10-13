@@ -170,15 +170,15 @@ Other useful functions
 Recommended reading order
 -------------------------
 
-* parsing.md - how the input gets interpreted
-* scopes.md - where variables live
-* global.md - global functions
-* execution.md - executing things
-* quoting.md - function definition
-* container.md - containers other than arrays
-* sys.md - some interfaces to the operating system
-* err.md - error handling
-* coroutines.md - coroutines
-* conventions.md - naming conventions
-* server.md - ready-made TCP/IP server templates
-* ffi.md - foreign function interface
+* [how the input gets interpreted](parsing.md)
+* [where variables live](scopes.md)
+* [global functions](global.md)
+* [executing thing](sexecution.md)
+* [function definition](quoting.md)
+* [containers other than arrays](container.md)
+* [some interfaces to the operating system](sys.md)
+* [error handling](err.md)
+* [coroutines](coroutines.md)
+* [naming conventions](conventions.md)
+* [ready-made TCP/IP server templates](server.md)
+* [foreign function interface](ffi.md)

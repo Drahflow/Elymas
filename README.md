@@ -125,4 +125,4 @@ Features
 Documentation
 -------------
 
-Please see doc/tutorial.md for an introduction and further documentation.
+Please see [the tutorial](doc/tutorial.md) for an introduction and further documentation.

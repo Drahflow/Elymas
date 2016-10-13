@@ -3,7 +3,7 @@ Global functions
 
 
 Many of the following functions can also be meaningfully applied to scopes. This would add nothing to understand though.
-Hence, these effects are not discussed here, but in execution.md.
+Hence, these effects are not discussed here, but in [execution.md](execution.md).
 
 
 `/`
@@ -53,7 +53,7 @@ be defined before).
 `*`
 ---
 
-Executes the top stack element. See execution.md for the full story.
+Executes the top stack element. See [execution.md](execution.md) for the full story.
 
     { "Hello World!" dump } *
     "Hello World!"
@@ -177,7 +177,7 @@ Pushes the current scope to the stack and switches the current scope to its pare
 
 Takes a scope object *p* from the stack. Pushes the current scope *s* onto the stack.
 Sets the current scope to the parent of *s* and afterwards sets the parent of *s* to *p*.
-See scopes.md for an example.
+See [scopes.md](scopes.md) for an example.
 
 
 `scope`
@@ -230,14 +230,14 @@ some defq'ed code.
 ------------------------------------------------------
 
 Takes a name and a value from the stack and maps the name to the value in the current scope. Depending on the
-suffix of def, various execution and optimization modes are associated with the name. See scopes.md for details.
+suffix of def, various execution and optimization modes are associated with the name. See [scopes.md](scopes.md) for details.
 
 
 `''`
 ----
 
 Takes a new output type, a new input type and a function object from the stack and returns a new function object
-with the specified input and output types, executing the original function object. See execution.md about types.
+with the specified input and output types, executing the original function object. See [execution.md](execution.md) about types.
 
     [ /a /ab /abc /abcd ] len dump
     0000000000000003
@@ -653,7 +653,7 @@ integers to elements, this is the domain of this function.
 ----
 
 Takes a function object and creates a coroutine which resumes execution at the start of this function object.
-The call and data stack of this new coroutine are initially empty. See coroutines.md for details and examples.
+The call and data stack of this new coroutine are initially empty. See [coroutines.md](coroutines.md) for details and examples.
 
 
 `!!'`
@@ -661,7 +661,7 @@ The call and data stack of this new coroutine are initially empty. See coroutine
 
 Takes a function object *c* and a function object *m*. Creates a new coroutine which resumes execution at the start
 of *c*. The call stack and data stack of this coroutine are copied from the current stack (after *c* and *m* have been
-removed). Afterwards push the coroutine object and execute *m*. See coroutines.md for details and examples.
+removed). Afterwards push the coroutine object and execute *m*. See [coroutines.md](coroutines.md) for details and examples.
 
 
 `!`
@@ -669,7 +669,7 @@ removed). Afterwards push the coroutine object and execute *m*. See coroutines.m
 
 Takes a count and a target coroutine from the stack. Moves as many elements as specified from the current
 stack to the stack of the specified coroutine. Additionally, push the current coroutine to the target coroutine's
-stack. Then continue execution in the specified coroutine. See coroutines.md for details and examples.
+stack. Then continue execution in the specified coroutine. See [coroutines.md](coroutines.md) for details and examples.
 
 
 `{`
@@ -682,7 +682,7 @@ Increases the parser quote level by one and pushes a quote begin marker onto the
 ---------------------
 
 Decreases the parser quote level by one. Searches for the topmost quote begin marker on the stack and collects
-all stack elements above it into a function object. See quoting.md for details.
+all stack elements above it into a function object. See [quoting.md](quoting.md) for details.
 
 
 `regex`
@@ -743,7 +743,7 @@ First `|`, then `curry`. Resolves a name in the current scope and immediately cu
 `**`
 ----
 
-Takes an object from the stack. If it is a function or an array, execute it (see execution.md for details).
+Takes an object from the stack. If it is a function or an array, execute it (see [execution.md](execution.md) for details).
 Then execute `**` again on the result.
 
     5 2 ||sub ** dump
