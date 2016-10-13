@@ -287,7 +287,6 @@
       /rcx /rcx :testqRegReg
       /nonEmptyInitialString :jnzLbl8
       /rdi :pushqReg
-      /rdi :incqReg
       /rdi :pushqReg
       1 /rbp :movqImmReg
       /finalCharacterNotSeparator :jmpLbl8
