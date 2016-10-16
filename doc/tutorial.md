@@ -173,7 +173,7 @@ Recommended reading order
 * [how the input gets interpreted](parsing.md)
 * [where variables live](scopes.md)
 * [global functions](global.md)
-* [executing thing](sexecution.md)
+* [executing things](execution.md)
 * [function definition](quoting.md)
 * [containers other than arrays](container.md)
 * [some interfaces to the operating system](sys.md)
