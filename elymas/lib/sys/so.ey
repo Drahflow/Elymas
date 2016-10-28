@@ -1150,8 +1150,15 @@
       section .dataOffset fileOffset sub str .alloc out .writeall
       section .dataOffset section .dataSize add =fileOffset
 
-      out .fd section .dataBase section .dataSize 0 0 0 WRITE sys .asm .syscall --
-      section .dataSize neq { "write failed" die } rep
+      2000000000 ==:BLOCKSIZE
+      0 section .dataSize BLOCKSIZE div 1 add range { ==block
+        section .dataBase block BLOCKSIZE mul add ==dataBase
+        block section .dataSize BLOCKSIZE div eq 
+          section .dataSize block BLOCKSIZE mul sub BLOCKSIZE ? ==dataSize
+
+        out .fd dataBase dataSize 0 0 0 WRITE sys .asm .syscall --
+        dataSize neq { "write failed" die } rep
+      } each
     } each
 
     out .close
