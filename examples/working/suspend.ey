@@ -1,0 +1,6 @@
+0 10 range { ==i
+  i dump
+  i 5 eq {
+    { _ { * }_ "coroutine-suspend" sys .freeze * } !! *
+  } rep
+} each

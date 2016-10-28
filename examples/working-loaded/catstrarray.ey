@@ -1,0 +1,5 @@
+/canary
+[ /a /b /c /d /e ] sys .asmroutines .catstrarray dump
+dump
+
+# vim: syn=elymas
