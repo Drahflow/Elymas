@@ -1,0 +1,26 @@
+{ ==text =*handler
+  text "(.)=(.*)" regex -- < == > handler
+} /mappingParser deffst
+
+{ ==scope ==code ==text
+  { ==var
+      { var -01 . }
+      < "$" deffst { * }' scope >' --
+    code -01 *
+  } text mappingParser
+} /scopeSplicer deffst
+
+sys .|executeIdentifier "✨" deffd
+{ "}\"" | * ✨scope ✨scopeSplicer }" "}✨" defq
+
+{ /before ==v
+  "C=Hello World" {
+    v dump 
+    $C dump
+    /after =v
+    /result
+  }✨ dump
+  v dump
+} *
+
+# vim: syn=elymas
