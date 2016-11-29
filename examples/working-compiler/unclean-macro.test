@@ -2,22 +2,23 @@
   text "(.)=(.*)" regex -- < == > handler
 } /mappingParser deffst
 
-{ ==scope ==code ==text
+{ ==scope ==w ==code ==text
   { ==var
       { var -01 . }
       < "$" deffst { * }' scope >' --
     code -01 *
+    /w_is: w cat dump
   } text mappingParser
 } /scopeSplicer deffst
 
 sys .|executeIdentifier "✨" deffd
-{ "}\"" | * ✨scope ✨scopeSplicer }" "}✨" defq
+{ "}\"" | * ✨w ✨scope ✨scopeSplicer }" "}✨" defq
 
-{ /before ==v
+{ /v_before ==v /w_before ==w
   "C=Hello World" {
     v dump 
     $C dump
-    /after =v
+    /v_after =v
     /result
   }✨ dump
   v dump
