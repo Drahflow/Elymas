@@ -1172,6 +1172,6 @@
   } /freeze deffd
 > /so sys .defv
 
-{ "disabled to free the memory" die } /freeze sys .deff
+sys .so .|freeze /freeze sys .deff
 
 # vim: syn=elymas
