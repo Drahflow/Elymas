@@ -18,15 +18,21 @@
   { ":" via "" ==url "" ==method < { defvst }' /put deffst > ==headers "" ==body
     {
       method url headers body < ==body ==headers ==url ==method
+        [ ] ==outputHeaders
         { :close } =*close
         { :write } =*write
         { :finish } =*finish
         { ==contentType
-          "HTTP/1.0 200 Ok\r\nContent-Type: " contentType cat "\r\n\r\n" cat -01 cat :write :finish
+          "HTTP/1.0 200 Ok\r\nContent-Type: " contentType cat "\r\n" cat
+          outputHeaders |cat each
+          "\r\n" cat -01 cat :write :finish
         } =*ok
         { ==contentType
-          "HTTP/1.0 500 Error\r\nContent-Type: " contentType cat "\r\n\r\n" cat -01 cat :write :finish
+          "HTTP/1.0 500 Error\r\nContent-Type: " contentType cat "\r\n" cat
+          outputHeaders |cat each
+          "\r\n" cat -01 cat :write :finish
         } =*fail
+        { [ -01 "\r\n" cat ] outputHeaders -01 cat =outputHeaders } =*addHeader
       > ::request
     } =*requestParsed
 
