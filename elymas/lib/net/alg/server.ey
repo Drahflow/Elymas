@@ -14,6 +14,7 @@
       { "unconfigured accept (of epollServer)" die } /accept deffst
       { "unconfigured port (of epollServer)" die } /port deffst
       { 1 -01 +setsockopt .reuseAddr +??io.net.setsockopt -- } /reuseAddr deffst
+      { -- } /afterListen deffst
 
       { = }' /set deffst
       { scope keys }' /setters deffst
@@ -29,7 +30,7 @@
     {
       ::port { # ==s
         ::reuseAddr
-      } +:listenOptFd ==listenFd
+      } +:listenOptFd _ ::afterListen ==listenFd
 
       [ ] ==allEventHandlers
       { ==fd ==handler
