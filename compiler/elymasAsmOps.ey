@@ -22,7 +22,7 @@
   [ /two /dl /dx /edx /rdx /xmm2 ] { 2 -01 defv }' each
   [ /three /bl /bx /ebx /rbx /xmm3 ] { 3 -01 defv }' each
   [ /four /sib /spl /ah /sp /esp /rsp /xmm4 ] { 4 -01 defv }' each
-  [ /five /bpl /bp /ebp /rbp /xmm5 ] { 5 -01 defv }' each
+  [ /five /rip /bpl /bp /ebp /rbp /xmm5 ] { 5 -01 defv }' each
   [ /six /sil /si /esi /rsi /xmm6 ] { 6 -01 defv }' each
   [ /seven /dil /di /edi /rdi /xmm7 ] { 7 -01 defv }' each
   [ /r8b /r8w /r8d /r8 /xmm8 ] { 8 -01 defv }' each
@@ -267,6 +267,12 @@
       disp imm32
     } /encode deff >
   } ==MemIndexScaleDisp32
+  # rip relative adressing pointing at label
+  { < ==lbl /rip ==base /none ==idx { ==r
+      r /rip modrm00
+      lbl labelRel32
+    } /encode deff >
+  } ==RipLbl32
 > ==memoryAddressingVariants
 
 { ==opcode ==mnemonic
