@@ -268,7 +268,7 @@
     } /encode deff >
   } ==MemIndexScaleDisp32
   # rip relative adressing pointing at label
-  { < ==lbl /rip ==base /none ==idx { ==r
+  { < /rip ==base /none ==idx ==lbl { ==r
       r /rip modrm00
       lbl labelRel32
     } /encode deff >
