@@ -31,7 +31,7 @@
 { _ len { |or  fold }' { -- 0 }' ? * }' /any deffd
 { _ len { |and fold }' { -- 1 }' ? * }' /all deffd
 
-{ =*p {
+{ =*?p {
   [ -01 { _ p { } { -- } ? * } each ]
 } } /engrep deffd
 
