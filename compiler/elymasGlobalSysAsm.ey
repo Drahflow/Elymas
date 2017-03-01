@@ -351,17 +351,8 @@
       /rsi /ecx :movlMemReg
       8 /rsi :addqImm8Reg
       3 /rcx :shrqImm8Reg
-      /rcx :decqReg
-      /noReferencesToCopy :jzLbl8
+      :reprcx :movsq
 
-      @referencesCopyLoop
-      /rsi /rax :movqMemReg
-      8 /rax /rax :movqMemDisp8Reg # FIXME: this should be parallel to replace
-      :stosq
-      8 /rsi :addqImm8Reg
-      /referencesCopyLoop :loopLbl8
-
-      @noReferencesToCopy
       /rbp /rdi :xchgqRegReg
 
       ::internalAllocateCodeFromEncodingBuffer /rax :movqImmReg
