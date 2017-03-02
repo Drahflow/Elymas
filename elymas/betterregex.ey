@@ -305,7 +305,7 @@
 
           # generate capture group contents (if any)
           currentCapture 0 gt {
-            16 /r15 :subqImmReg
+            16 /r15 :subqImm8Reg
 
             24 /rsi :subqImm8Reg # rsi == string matched
             /rsi 8 /r15 :movqRegMemDisp8
@@ -327,7 +327,7 @@
               /rax :callqReg
             } each
 
-            16 /r15 :addqImmReg
+            16 /r15 :addqImm8Reg
           } rep
           
           1 /rax :movqImmReg
@@ -354,8 +354,7 @@
         /notMatched :jncLbl8
 
         programCounter 1 add /rdi :movqImmReg
-        pushToNlist sys .asm .rawAddress 24 add /rax :movqImmReg
-        /rax :callqReg
+        pushToNlist _ len dearray
 
         @stringExhausted
         @notMatched
@@ -369,13 +368,9 @@
         #     position string * 1 code * { pc 1 add thread updateThread nlist .add }" rep
         #   }" rep
       ]] }
-        # }" { # TERM
-        #   position maxPosition lt {
-        #     position string * 1 code * { pc 1 add thread updateThread nlist .add }" rep
-        #   }" rep
       { ==instr [[ # JUMP
         programCounter 1 instr * add 8 mul /r10 /rax :movqMemDisp32Reg
-        24 /rax :addqImm8Reg
+        # 24 /rax :addqImm8Reg
         /rax :jmpqReg
 
         #   pc 1 code add thread cloneThread iPush
@@ -385,7 +380,7 @@
         /rdi /r9 :btsqRegMem
         /firstTargetRedundant :jcLbl8
         programCounter 1 instr * add 8 mul /r10 /rax :movqMemDisp32Reg
-        24 /rax :addqImm8Reg
+        # 24 /rax :addqImm8Reg
         /rax :callqReg
 
         @firstTargetRedundant
@@ -393,7 +388,7 @@
         /rdi /r9 :btsqRegMem
         /secondTargetRedundant :jcLbl8
         programCounter 2 instr * add 8 mul /r10 /rax :movqMemDisp32Reg
-        24 /rax :addqImm8Reg
+        # 24 /rax :addqImm8Reg
         /rax :jmpqReg
 
         @secondTargetRedundant
@@ -420,30 +415,121 @@
         /rdx 1 instr * 8 mul /rbp :movqRegMemDisp32
 
         programCounter 1 add 8 mul /r10 /rax :movqMemDisp32Reg
-        24 /rax :addqImm8Reg
+        # 24 /rax :addqImm8Reg
         /rax :jmpqReg
         #   pc 1 add thread fullCloneThread
         #   position 1 code -2102 threadGetCaptures =[]
         #                         iPush
       ]] }
-      { /TODO:FIRST die }
-        # }" { # FIRST
+      { -- [[ # FIRST
+        /rdx /rdx :testqRegReg
+        /atBeginning :jzLbl8
+        :retn
+
+        @atBeginning
+        programCounter 1 add 8 mul /r10 /rax :movqMemDisp32Reg
+        # 24 /rax :addqImm8Reg
+        /rax :jmpqReg
+
         #   position 0 eq { pc 1 add thread cloneThread iPush }" rep
-      { /TODO:LAST die }
-        # }" { # LAST
+      ]] }
+      { -- [[ # LAST
+        /rdx /rcx :cmpqRegReg
+        /atEnd :jzLbl8
+        :retn
+
+        @atEnd
+        programCounter 1 add 8 mul /r10 /rax :movqMemDisp32Reg
+        # 24 /rax :addqImm8Reg
+        /rax :jmpqReg
+
         #   position maxPosition eq { pc 1 add thread cloneThread iPush }" rep
+      ]] }
       { -- [[ # FLOATBEGIN
         programCounter 1 add 8 mul /r10 /rax :movqMemDisp32Reg
-        24 /rax :addqImm8Reg
+        # 24 /rax :addqImm8Reg
         /rax :callqReg
 
         programCounter /rdi :movqImmReg
-        pushToNlist sys .asm .rawAddress 24 add /rax :movqImmReg
-        /rax :callqReg
+        pushToNlist _ len dearray
         :retn
       ]] }
-      { /TODO:TERMBEGIN die }
-        # }" { # TERMBEGIN
+      { 1 -01* ==?p [[ # TERMBEGIN
+        0 256 range p grep ==acceptedChars
+        # TODO: optimize a few common cases instead of always rendering bitmaps
+
+        # rcx == length of string
+        # rdx == index of character under test
+
+        nlist sys .asm .rawAddress 24 add /rdi :movqImmReg
+        0 /rdi :cmpqImm8Mem
+        /stopSkipping :jnzLbl8
+        clist sys .asm .rawAddress 24 add /rdi :movqImmReg
+        1 /rdi :cmpqImm8Mem
+        /stopSkipping :jnzLbl8
+
+        acceptedChars len 1 eq {
+          /rcx :pushqReg
+          /rdx /rsi /rdi :leaqMemIndexReg
+          /rdx /rcx :subqRegReg
+          /stringExhaustedInitially :jzLbl8
+
+          0 acceptedChars * /al :movbImmReg
+          :repnz :scasb
+          /charNotMatched :jnzLbl8
+
+          /rcx :popqReg
+          1 neg /rdi /rdx :leaqMemDisp8Reg
+          /rsi /rdx :subqRegReg
+          /termMatched :jmpLbl8
+
+          @stringExhaustedInitially
+          @charNotMatched
+          /rcx :popqReg
+          /stringExhausted :jmpLbl8
+        } {
+          @skipLoop
+          /rdx /rcx :cmpqRegReg
+          /stringExhausted :jleLbl8
+          
+          /rax /rax :xorqRegReg
+          /rdx /rsi /al :movbMemIndexReg
+          /rax /bitfield :btqRegRipLbl32
+          /termMatched :jcLbl8
+
+          1 /rdx :addqImm8Reg
+          /skipLoop :jmpLbl8
+        } ? *
+
+        @stopSkipping
+
+        /rdx /rcx :cmpqRegReg
+        /stringExhausted :jleLbl8
+
+        /rax /rax :xorqRegReg
+        /rdx /rsi /al :movbMemIndexReg
+        /rax /bitfield :btqRegRipLbl32
+        /notMatched :jncLbl8
+
+        @termMatched
+        programCounter 1 add /rdi :movqImmReg
+        pushToNlist _ len dearray
+
+        @notMatched
+
+        programCounter /rdi :movqImmReg
+        pushToNlist _ len dearray
+
+        @stringExhausted
+        :retn
+
+        @bitfield
+        0 32 range { ==i
+          [ 0 8 range { i 8 mul add p * } each ] 2 math .unbase
+        } each
+        #   position maxPosition lt {
+        #     position string * 1 code * { pc 1 add thread updateThread nlist .add }" rep
+        #   }" rep
         #   1 code /p deffs
         #   nlist .size not clist .size 1 eq and {
         #     { position maxPosition lt { position string * p not }" { 0 }" ? * }" {
@@ -457,7 +543,7 @@
         #     }" rep
         #     thread nlist .add
         #   }" rep
-        # }"
+      ]] }
     ] =*codeSemantics
 
     #   0 ==i
@@ -493,23 +579,23 @@
     # }' /execute defvst
 
     parse ==prog --
-    # handling of pattern starts, TODO: reenable
-    # prog 0 -01 * 0 -01 * FIRST eq {
-    #   [
-    #     1 prog len range { prog * } each
-    #   ] =prog
-    # } {
-    #   prog 0 -01 * 0 -01 * TERM eq {
-    #     [
-    #       [ TERMBEGIN 1 0 prog * * ]
-    #       1 prog len range { prog * } each
-    #     ] =prog
-    #   } {
+    # handling of common pattern starts
+    prog 0 -01 * 0 -01 * FIRST eq {
+      [
+        1 prog len range { prog * } each
+      ] =prog
+    } {
+      prog 0 -01 * 0 -01 * TERM eq {
+        [
+          [ TERMBEGIN 1 0 prog * * ]
+          1 prog len range { prog * } each
+        ] =prog
+      } {
          [
            [ FLOATBEGIN ]
          ] prog cat =prog
-    #   } ? *
-    # } ? *
+      } ? *
+    } ? *
 
     prog [
       [ MATCH ]
@@ -556,8 +642,7 @@
       /rbp 8 1 /rax /r9 :movqRegMemIndexScaleDisp32
 
       @alreadyQueued
-      :retn
-    ]] str .fromArray ==pushToNlist
+    ]] ==pushToNlist
 
     [[ currentCapture 0 gt {
       @restartAfterCollection
@@ -632,18 +717,37 @@
       0 -101* codeSemantics * str .fromArray programCounter 1 add =programCounter
     } each ] ==progCode
 
+    progCode len 8 mul str .alloc ==progCodeOffsetted
+
+    [[
+      progCode sys .asm .rawAddress 8 add /rsi :movqImmReg
+      progCodeOffsetted sys .asm .rawAddress 24 add /rdi :movqImmReg
+
+      progCode { --
+        :lodsq
+        24 /rax :addqImm8Reg
+        :stosq
+      } each
+      :retn
+    ]] [ ] sys .asm .createFunction *
+
     [[
       8 /r15 :subqImm8Reg
       /r15 :popqMem
       
       clist sys .asm .rawAddress 24 add /r8 :movqImmReg # r8 == list of current threads
       nlist sys .asm .rawAddress 24 add /r9 :movqImmReg # r9 == list of next threads
-      progCode sys .asm .rawAddress 8 add /r10 :movqImmReg # r10 == start of program list
+      progCodeOffsetted sys .asm .rawAddress 24 add /r10 :movqImmReg # r10 == start of program list
 
-      /r8 /rdi :movqRegReg
-      /clearThreadList :callqLbl32
-      /r9 /rdi :movqRegReg
-      /clearThreadList :callqLbl32
+      # clear clist
+      0 entryPointsOffset 1 sub 8 div 1 add range { 8 mul ==offset
+        0 offset /r8 :andqImm8MemDisp32
+      } each
+
+      # clear nlist
+      0 entryPointsOffset 1 sub 8 div 1 add range { 8 mul ==offset
+        0 offset /r9 :andqImm8MemDisp32
+      } each
 
       # add thread starting at start of program
       currentCapture 0 gt {
@@ -662,7 +766,7 @@
 
       /rsi :popqReg # string to match
       16 /rsi /rcx :movqMemDisp8Reg # rcx == length of string
-      24 /rsi /rsi :leaqMemDisp8Reg # rsi == string to match (actual content)
+      24 /rsi :addqImm8Reg # rsi == string to match (actual content)
       /rdx /rdx :xorqRegReg # rdx == index of character under test
 
       @matchLoop
@@ -680,10 +784,10 @@
 
       /r11 /rax :movqRegReg
       4 /rax :shlqImm8Reg
-      entryPointsOffset 1 /rax /r8 /r12 :movqMemIndexScaleDisp32Reg
+      entryPointsOffset 1 /rax /r8 /rbx :movqMemIndexScaleDisp32Reg
       entryPointsOffset 8 add 1 /rax /r8 /rbp :movqMemIndexScaleDisp32Reg # rbp == capture object
-      8 /r12 /r10 /rax :movqMemIndexScaleReg
-      24 /rax :addqImm8Reg
+      8 /rbx /r10 /rax :movqMemIndexScaleReg
+      # 24 /rax :addqImm8Reg
       /rax :callqReg
 
       /r11 :incqReg
@@ -691,31 +795,23 @@
 
       @clistFinished
       /r8 /r9 :xchgqRegReg
-      /r9 /rdi :movqRegReg
-      /clearThreadList :callqLbl32
+
+      # clear nlist
+      0 entryPointsOffset 1 sub 8 div 1 add range { 8 mul ==offset
+        0 offset /r9 :andqImm8MemDisp32
+      } each
 
       /rdx :incqReg
       /matchLoop :jmpLbl32
 
       @stringExhausted
 
-      /rax /rax :xorqRegReg # TODO fake resultg
-      63 /rax :btsqImm8Reg # TODO fake resultg
-      /rax :pushqReg # TODO fake resultg
+      /rax /rax :xorqRegReg
+      63 /rax :btsqImm8Reg
+      /rax :pushqReg
 
       /r15 :pushqMem
       8 /r15 :addqImm8Reg
-      :retn
-
-      @clearThreadList # TODO: maybe inline
-      # rdi == thread list to clear
-      # clobbered: rax, rcx
-      /rax /rax :xorqRegReg
-      /rcx :pushqReg
-      16 prog len 2 mul 1 sub 8 div 1 add add 1 sub 8 div 1 add /rcx :movqImmReg
-      :reprcx
-      :stosq
-      /rcx :popqReg
       :retn
     ]] [ scope ] sys .asm .createFunction
   }
@@ -729,11 +825,9 @@
   } { enregex * } ? *
 } /regex defq
 
-# { -1010 dump dump eq not { "ASSERT" die } rep } /assert deffst
-# "d" "." regex 1 assert
-# 
-# "a" "b" regex 0 assert
+{ -1010 dump dump eq not { "ASSERT" die } rep } /assert deffst
 # "a" "a" regex 1 assert
+# "a" "b" regex 0 assert
 # "abc" "ac" regex 0 assert
 # "abc" "abc" regex 1 assert
 # "abc" "bc" regex 1 assert
@@ -741,6 +835,10 @@
 # "d" "a|b|c" regex 0 assert
 # "d" "." regex 1 assert
 # "a" "(a)" regex 1 assert "a" assert
+# "abc" "^a" regex 1 assert
+# "abc" "^b" regex 0 assert
+# "abc" "c$" regex 1 assert
+# "abc" "b$" regex 0 assert
 # 
 # "foo bar" "(.*) b(ar|yolo)" regex 1 assert "foo" assert "ar" assert
 # "foo zar" "(.*) b(ar|yolo)" regex 0 assert
@@ -748,6 +846,8 @@
 
 # Target time: Perl takes 0.32s
 # Old regex engine takes: 33.252s
-2000000 { "aoetauhsontuhaoeuhnathoesuhasonetuhaohteustaohesutahoseathsoeuahoeaunoheutahoseunathoeutha oeusaoeuhsaoteuhsatoheusaotneuhsatueh                " " " regex -- } rep
+{
+  20000000 { "aoetauhsontuhaoeuhnathoesuhasonetuhaohteustaohesutahoseathsoeuahoeaunoheutahoseunathoeutha oeusaoeuhsaoteuhsatoheusaotneuhsatueh                " " " regex -- }" rep
+} *
 
 # vim: syn=elymas
