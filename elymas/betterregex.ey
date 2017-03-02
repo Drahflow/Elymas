@@ -56,52 +56,6 @@
     { _ head 0 c * eq } "^" c cat install
   } each
 
-  { 0 -01 * }" /threadGetPC deffd
-  { 1 -01 * }" /threadGetCaptures deffd
-
-  { #==thread ==newpc
-    [ -021 threadGetCaptures ]
-  }" /cloneThread deffd
-
-  { #==thread ==newpc
-    0 -1201 =[]
-  }" /updateThread deffd
-
-  { #==thread ==newpc
-    [ -0201 threadGetCaptures _ len dearray ] ]
-  }" /fullCloneThread deffd
-
-  |add /origadd deffd
-  str .|bitTest /bitTest deffd
-  str .|bitSet /bitSet deffd
-  str .|zero /zero deffd
-
-  # TODO think about implementation efficiency
-  { ==maxSize
-    <
-    0 ==size
-    [ maxSize { 0 }" rep ] =*get
-    maxSize 1 sub 8 udiv 1 add 8 mul str .alloc _ zero ==pcUsed
-
-    { # ==thread
-      _ threadGetPC pcUsed bitTest { -- }" {
-        _ size |get =[]
-          threadGetPC pcUsed bitSet
-        size 1 origadd =size
-      }" ? *
-    }' /add deffst
-
-    {
-      size 1 sub _ =size
-                   get
-    }' /pop deffst
-
-    {
-      0 =size
-      pcUsed zero
-    }' /clear deffst
-  > } /threadList deffd
-
   {
     0 ==?currentCapture
 
