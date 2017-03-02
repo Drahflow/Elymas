@@ -222,42 +222,17 @@
 
     [
       { -- [[ # MATCH
-          # some stack hacking to return directly from regex function
-          8 /rsp :addqImm8Reg
+          matched sys .asm .rawAddress 24 add /rax :movqImmReg
+          1 /rbp :orqImm8Reg # mark lowest bit so successful match is always non-zero
+          /rbp /rax :movqRegMem
 
-          # generate capture group contents (if any)
-          currentCapture 0 gt {
-            16 /r15 :subqImm8Reg
+          # clear clist
+          entryPointsOffset /r8 /rax :leaqMemDisp32Reg
+          /rax /r8 :movqRegMem
+          1 entryPointsOffset 1 sub 8 div 1 add range { 8 mul ==offset
+            0 offset /r8 :andqImm8MemDisp32
+          } each
 
-            24 /rsi :subqImm8Reg # rsi == string matched
-            /rsi 8 /r15 :movqRegMemDisp8
-            /rbp /r15 :movqRegMem
-
-            0 currentCapture range reverse { ==i
-              /r15 /rbp :movqMemReg
-              i 16 mul /rbp /rax :movqMemDisp32Reg
-              63 /rax :btsqImm8Reg
-              /rax :pushqReg
-              i 16 mul 8 add /rbp /rax :movqMemDisp32Reg
-              63 /rax :btsqImm8Reg
-              /rax :pushqReg
-              8 /r15 :pushqMemDisp8
-
-              str .|infix sys .asm .rawAddress /rax :movqImmReg
-              24 /rax /rax :movqMemDisp8Reg
-              16 /rax :addqImm8Reg
-              /rax :callqReg
-            } each
-
-            16 /r15 :addqImm8Reg
-          } rep
-          
-          1 /rax :movqImmReg
-          63 /rax :btsqImm8Reg
-          /rax :pushqReg
-
-          /r15 :pushqMem
-          8 /r15 :addqImm8Reg
           :retn
       ]] }
       { 1 -01* ==?p [[ # TERM
@@ -507,6 +482,8 @@
       currentCapture 16 mul _ ==captureInfoSize prog len _ ==captureInfoCount mul
     add str .alloc _ str .zero ==captures
 
+    8 str .alloc ==matched
+
     [[
       # rdi == target program instruction index
       # rbp == address of capture object to use
@@ -611,6 +588,9 @@
       8 /r15 :subqImm8Reg
       /r15 :popqMem
       
+      matched sys .asm .rawAddress 24 add /rdi :movqImmReg
+      0 /rdi :andqImm8Mem
+
       clist sys .asm .rawAddress 24 add /r8 :movqImmReg # r8 == list of current threads
       nlist sys .asm .rawAddress 24 add /r9 :movqImmReg # r9 == list of next threads
       progCodeOffsetted sys .asm .rawAddress 24 add /r10 :movqImmReg # r10 == start of program list
@@ -654,7 +634,7 @@
       # rsi, rdx: string buffer, character index
       # rcx: length of string
       /rdx /rcx :cmpqRegReg
-      /stringExhausted :jngeLbl8
+      /stringExhausted :jngeLbl32
 
       entryPointsOffset /r8 /r11 :leaqMemDisp32Reg # r11 == address in clist to be run next
 
@@ -670,6 +650,13 @@
       /clistLoop :jmpLbl8
 
       @clistFinished
+
+      # test if anything is left to execute
+      entryPointsOffset /r9 /r11 :leaqMemDisp32Reg # r11 == address in nlist to be run next
+      /r11 /r9 :cmpqRegMem
+      /threadsExhausted :jleLbl8
+
+      # switch nlist to clist
       /r8 /r9 :xchgqRegReg
 
       # clear nlist
@@ -682,7 +669,50 @@
       /rdx :incqReg
       /matchLoop :jmpLbl32
 
+      @threadsExhausted
+      matched sys .asm .rawAddress 24 add /rdi :movqImmReg
+      0 /rdi :cmpqImm8Mem
+      /nothingMatched :jzLbl32
+      /rdi /rbp :movqMemReg
+      0 /rbp :btrqImm8Reg # reset lowest bit, set by MATCH code
+
+      # generate capture group contents (if any)
+      currentCapture 0 gt {
+        16 /r15 :subqImm8Reg
+
+        24 /rsi :subqImm8Reg # rsi == string matched
+        /rsi 8 /r15 :movqRegMemDisp8
+        /rbp /r15 :movqRegMem
+
+        0 currentCapture range reverse { ==i
+          /r15 /rbp :movqMemReg
+          i 16 mul /rbp /rax :movqMemDisp32Reg
+          63 /rax :btsqImm8Reg
+          /rax :pushqReg
+          i 16 mul 8 add /rbp /rax :movqMemDisp32Reg
+          63 /rax :btsqImm8Reg
+          /rax :pushqReg
+          8 /r15 :pushqMemDisp8
+
+          str .|infix sys .asm .rawAddress /rax :movqImmReg
+          24 /rax /rax :movqMemDisp8Reg
+          16 /rax :addqImm8Reg
+          /rax :callqReg
+        } each
+
+        16 /r15 :addqImm8Reg
+      } rep
+      
+      1 /rax :movqImmReg
+      63 /rax :btsqImm8Reg
+      /rax :pushqReg
+
+      /r15 :pushqMem
+      8 /r15 :addqImm8Reg
+      :retn
+
       @stringExhausted
+      @nothingMatched
 
       /rax /rax :xorqRegReg
       63 /rax :btsqImm8Reg
@@ -721,5 +751,7 @@
 "foo bar" "(.*) b(ar|yolo)" regex 1 assert "foo" assert "ar" assert
 "foo zar" "(.*) b(ar|yolo)" regex 0 assert
 "fofoobaz" "foo" regex 1 assert
+
+"/here die " "^([^a-zA-Z0-9 ]+)([a-zA-Z0-9][^ ]*) +(.*)" regex 1 assert "/" assert "here" assert "die " assert
 
 # vim: syn=elymas
