@@ -369,9 +369,7 @@
         #   }" rep
       ]] }
       { ==instr [[ # JUMP
-        programCounter 1 instr * add 8 mul /r10 /rax :movqMemDisp32Reg
-        # 24 /rax :addqImm8Reg
-        /rax :jmpqReg
+        programCounter 1 instr * add 8 mul /r10 :jmpqMemDisp32
 
         #   pc 1 code add thread cloneThread iPush
       ]] }
@@ -379,17 +377,13 @@
         prog len 64 add programCounter 1 instr * add add /rdi :movqImmReg
         /rdi /r9 :btsqRegMem
         /firstTargetRedundant :jcLbl8
-        programCounter 1 instr * add 8 mul /r10 /rax :movqMemDisp32Reg
-        # 24 /rax :addqImm8Reg
-        /rax :callqReg
+        programCounter 1 instr * add 8 mul /r10 :callqMemDisp32
 
         @firstTargetRedundant
         prog len 64 add programCounter 2 instr * add add /rdi :movqImmReg
         /rdi /r9 :btsqRegMem
         /secondTargetRedundant :jcLbl8
-        programCounter 2 instr * add 8 mul /r10 /rax :movqMemDisp32Reg
-        # 24 /rax :addqImm8Reg
-        /rax :jmpqReg
+        programCounter 2 instr * add 8 mul /r10 :jmpqMemDisp32
 
         @secondTargetRedundant
         :retn
@@ -414,9 +408,8 @@
         # actually save new position into capture info
         /rdx 1 instr * 8 mul /rbp :movqRegMemDisp32
 
-        programCounter 1 add 8 mul /r10 /rax :movqMemDisp32Reg
-        # 24 /rax :addqImm8Reg
-        /rax :jmpqReg
+        programCounter 1 add 8 mul /r10 :jmpqMemDisp32
+
         #   pc 1 add thread fullCloneThread
         #   position 1 code -2102 threadGetCaptures =[]
         #                         iPush
@@ -427,9 +420,7 @@
         :retn
 
         @atBeginning
-        programCounter 1 add 8 mul /r10 /rax :movqMemDisp32Reg
-        # 24 /rax :addqImm8Reg
-        /rax :jmpqReg
+        programCounter 1 add 8 mul /r10 :jmpqMemDisp32
 
         #   position 0 eq { pc 1 add thread cloneThread iPush }" rep
       ]] }
@@ -439,16 +430,12 @@
         :retn
 
         @atEnd
-        programCounter 1 add 8 mul /r10 /rax :movqMemDisp32Reg
-        # 24 /rax :addqImm8Reg
-        /rax :jmpqReg
+        programCounter 1 add 8 mul /r10 :jmpqMemDisp32
 
         #   position maxPosition eq { pc 1 add thread cloneThread iPush }" rep
       ]] }
       { -- [[ # FLOATBEGIN
-        programCounter 1 add 8 mul /r10 /rax :movqMemDisp32Reg
-        # 24 /rax :addqImm8Reg
-        /rax :callqReg
+        programCounter 1 add 8 mul /r10 :callqMemDisp32
 
         programCounter /rdi :movqImmReg
         pushToNlist _ len dearray
@@ -486,11 +473,11 @@
           @stringExhaustedInitially
           @charNotMatched
           /rcx :popqReg
-          /stringExhausted :jmpLbl8
+          /stringExhausted :jmpLbl32
         } {
           @skipLoop
           /rdx /rcx :cmpqRegReg
-          /stringExhausted :jleLbl8
+          /stringExhausted :jleLbl32
           
           /rax /rax :xorqRegReg
           /rdx /rsi /al :movbMemIndexReg
@@ -637,9 +624,8 @@
       /r9 /rax :movqMemReg
       /r9 :incqMem
       4 /rax :shlqImm8Reg
-      entryPointsOffset /rax :addqImm32Reg
-      /rdi /rax /r9 :movqRegMemIndex
-      /rbp 8 1 /rax /r9 :movqRegMemIndexScaleDisp32
+      /rdi entryPointsOffset       1 /rax /r9 :movqRegMemIndexScaleDisp32
+      /rbp entryPointsOffset 8 add 1 /rax /r9 :movqRegMemIndexScaleDisp32
 
       @alreadyQueued
     ]] ==pushToNlist
@@ -786,9 +772,7 @@
       4 /rax :shlqImm8Reg
       entryPointsOffset 1 /rax /r8 /rbx :movqMemIndexScaleDisp32Reg
       entryPointsOffset 8 add 1 /rax /r8 /rbp :movqMemIndexScaleDisp32Reg # rbp == capture object
-      8 /rbx /r10 /rax :movqMemIndexScaleReg
-      # 24 /rax :addqImm8Reg
-      /rax :callqReg
+      8 /rbx /r10 :callqMemIndexScale
 
       /r11 :incqReg
       /clistLoop :jmpLbl8
@@ -844,8 +828,8 @@
 # "foo zar" "(.*) b(ar|yolo)" regex 0 assert
 # "fofoobaz" "foo" regex 1 assert
 
-# Target time: Perl takes 0.32s
-# Old regex engine takes: 33.252s
+# Target time: Perl takes 4.30s
+# Old regex engine takes: 330.252s
 {
   20000000 { "aoetauhsontuhaoeuhnathoesuhasonetuhaohteustaohesutahoseathsoeuahoeaunoheutahoseunathoeutha oeusaoeuhsaoteuhsatoheusaotneuhsatueh                " " " regex -- }" rep
 } *
