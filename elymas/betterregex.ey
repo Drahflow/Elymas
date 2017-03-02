@@ -265,38 +265,6 @@
       set
     } /charsN deffst
 
-    { [
-      0 # pc
-      [ currentCapture { 0 0 } rep ] # captures
-    ] }" /newThread deff
-
-    # TODO: reconsider clist/ilist and also reconsider optimisation potential
-    # { ==string
-    #   0 ==position
-    #   string len ==maxPosition
-    #   0 ==matched
-    #   [ ] ==matchedThread
-
-    #   clist .clear
-    #   nlist .clear
-    #   ilist .clear
-
-    #   newThread _ ==thread clist .add
-
-    #   0 ==pc
-    #   [ ] =*code
-
-    #   ilist .|add =*iPush
-    #   ilist .|pop =*iPop
-
-    #   {
-    #     { ilist .size }" {
-    #       iPop _ =thread
-    #              threadGetPC _ =pc
-    #                            prog * =code
-    #       0 code codeSemantics *
-    #     }" loop
-    #   }" /runIList deffst
 
     [
       { -- [[ # MATCH
@@ -396,8 +364,7 @@
         # rax == newly allocated capture object
 
         /r11 /rbx :movqRegReg
-        4 /rbx :shlqImm8Reg
-        /rax entryPointsOffset 8 add 1 /rbx /r8 :movqRegMemIndexScaleDisp32
+        /rax 8 /rbx :movqRegMemDisp8
 
         0 captureInfoSize 8 div range { 8 mul ==offset
           offset /rbp /rbx :movqMemDisp32Reg
@@ -448,15 +415,18 @@
         # rcx == length of string
         # rdx == index of character under test
 
-        nlist sys .asm .rawAddress 24 add /rdi :movqImmReg
-        0 /rdi :cmpqImm8Mem
+        # check nlist has zero entries
+        entryPointsOffset /r9 /rax :leaqMemDisp32Reg
+        /rax /r9 :cmpqRegMem
         /stopSkipping :jnzLbl8
-        clist sys .asm .rawAddress 24 add /rdi :movqImmReg
-        1 /rdi :cmpqImm8Mem
+
+        # check nlist has one entry
+        entryPointsOffset 16 add /r8 /rax :leaqMemDisp32Reg
+        /rax /r8 :cmpqRegMem
         /stopSkipping :jnzLbl8
 
         acceptedChars len 1 eq {
-          /rcx :pushqReg
+          /rcx /rbx :movqRegReg
           /rdx /rsi /rdi :leaqMemIndexReg
           /rdx /rcx :subqRegReg
           /stringExhaustedInitially :jzLbl8
@@ -465,14 +435,14 @@
           :repnz :scasb
           /charNotMatched :jnzLbl8
 
-          /rcx :popqReg
+          /rbx /rcx :movqRegReg
           1 neg /rdi /rdx :leaqMemDisp8Reg
           /rsi /rdx :subqRegReg
           /termMatched :jmpLbl8
 
           @stringExhaustedInitially
           @charNotMatched
-          /rcx :popqReg
+          /rbx /rcx :movqRegReg
           /stringExhausted :jmpLbl32
         } {
           @skipLoop
@@ -533,39 +503,8 @@
       ]] }
     ] =*codeSemantics
 
-    #   0 ==i
-    #   { position maxPosition le }" {
-    #     0 =i
-
-    #     { i clist .size lt }" {
-    #       i clist .get _ =thread
-    #                      threadGetPC _ =pc
-    #                                    prog * =code
-    #       0 code codeSemantics *
-    #       i 1 add =i
-
-    #       runIList
-    #     }" loop
-
-    #     # "Next input character ========" dump
-    #     clist nlist =clist =nlist
-    #     nlist .clear
-    #     ilist .clear
-    #     position 1 add =position
-    #   }" loop
-
-    #   matched {
-    #     currentCapture ==i
-    #     { i } { i 1 sub =i
-    #       i 2 mul       matchedThread threadGetCaptures *
-    #       i 2 mul 1 add matchedThread threadGetCaptures *
-    #       string str .infix
-    #     } loop
-    #   } rep
-    #   matched
-    # }' /execute defvst
-
     parse ==prog --
+
     # handling of common pattern starts
     prog 0 -01 * 0 -01 * FIRST eq {
       [
@@ -591,7 +530,7 @@
     # prog dump
 
     # data format for thread lists
-    # 0: current fill 
+    # 0: current fill as pointer to after last entry
     # 8: entry point already present in list bitfield
     # 8 + proglen / 8: entry point split to in previous iteration
     #    (this is just a handy memory area to use for this, see SPLIT code)
@@ -622,10 +561,9 @@
       /alreadyQueued :jcLbl8
 
       /r9 /rax :movqMemReg
-      /r9 :incqMem
-      4 /rax :shlqImm8Reg
-      /rdi entryPointsOffset       1 /rax /r9 :movqRegMemIndexScaleDisp32
-      /rbp entryPointsOffset 8 add 1 /rax /r9 :movqRegMemIndexScaleDisp32
+      16 /r9 :addqImm8Mem
+      /rdi /rax :movqRegMem
+      /rbp 8 /rax :movqRegMemDisp8
 
       @alreadyQueued
     ]] ==pushToNlist
@@ -682,9 +620,7 @@
       /restartAfterCollection :jmpLbl32
 
       @markCaptureInfo
-      /rdi /rbx :movqMemReg # rbx == number of entries
-      4 /rbx :shlqImm8Reg
-      entryPointsOffset /rdi /rbx :leaqMemDisp32Reg # rbx == end of list
+      /rdi /rbx :movqMemReg # rbx == address after last entry
       entryPointsOffset 8 add /rdi :addqImm32Reg # rdi == capture group of first entry
       
       @markLoop
@@ -692,7 +628,7 @@
       /markLoopDone :jleLbl8
       /rdi /rax :movqMemReg # rax == address of capture information
       63 /rax :btsqImm8Mem # mark topmost bit
-      8 /rdi :addqImm8Reg
+      16 /rdi :addqImm8Reg
       /markLoop :jmpLbl8
       @markLoopDone
       :retn
@@ -726,12 +662,16 @@
       progCodeOffsetted sys .asm .rawAddress 24 add /r10 :movqImmReg # r10 == start of program list
 
       # clear clist
-      0 entryPointsOffset 1 sub 8 div 1 add range { 8 mul ==offset
+      entryPointsOffset /r8 /rax :leaqMemDisp32Reg
+      /rax /r8 :movqRegMem
+      1 entryPointsOffset 1 sub 8 div 1 add range { 8 mul ==offset
         0 offset /r8 :andqImm8MemDisp32
       } each
 
       # clear nlist
-      0 entryPointsOffset 1 sub 8 div 1 add range { 8 mul ==offset
+      entryPointsOffset /r9 /rax :leaqMemDisp32Reg
+      /rax /r9 :movqRegMem
+      1 entryPointsOffset 1 sub 8 div 1 add range { 8 mul ==offset
         0 offset /r9 :andqImm8MemDisp32
       } each
 
@@ -746,7 +686,7 @@
         } each
       } rep
 
-      /r8 :incqMem
+      16 /r8 :addqImm8Mem
       1 8 /r8 :addqImm8MemDisp8
       0 entryPointsOffset /r8 :andqImm8MemDisp32
 
@@ -762,26 +702,26 @@
       /rdx /rcx :cmpqRegReg
       /stringExhausted :jngeLbl8
 
-      /r11 /r11 :xorqRegReg # r11 == index in clist to be run next
+      entryPointsOffset /r8 /r11 :leaqMemDisp32Reg # r11 == address in clist to be run next
 
       @clistLoop
       /r11 /r8 :cmpqRegMem
       /clistFinished :jleLbl8
 
-      /r11 /rax :movqRegReg
-      4 /rax :shlqImm8Reg
-      entryPointsOffset 1 /rax /r8 /rbx :movqMemIndexScaleDisp32Reg
-      entryPointsOffset 8 add 1 /rax /r8 /rbp :movqMemIndexScaleDisp32Reg # rbp == capture object
+      /r11 /rbx :movqMemReg # rbx == program counter to execute at
+      8 /r11 /rbp :movqMemDisp8Reg # rbp == capture object
       8 /rbx /r10 :callqMemIndexScale
 
-      /r11 :incqReg
+      16 /r11 :addqImm8Reg
       /clistLoop :jmpLbl8
 
       @clistFinished
       /r8 /r9 :xchgqRegReg
 
       # clear nlist
-      0 entryPointsOffset 1 sub 8 div 1 add range { 8 mul ==offset
+      entryPointsOffset /r9 /rax :leaqMemDisp32Reg
+      /rax /r9 :movqRegMem
+      1 entryPointsOffset 1 sub 8 div 1 add range { 8 mul ==offset
         0 offset /r9 :andqImm8MemDisp32
       } each
 
@@ -810,28 +750,22 @@
 } /regex defq
 
 { -1010 dump dump eq not { "ASSERT" die } rep } /assert deffst
-# "a" "a" regex 1 assert
-# "a" "b" regex 0 assert
-# "abc" "ac" regex 0 assert
-# "abc" "abc" regex 1 assert
-# "abc" "bc" regex 1 assert
-# "b" "a|b|c" regex 1 assert
-# "d" "a|b|c" regex 0 assert
-# "d" "." regex 1 assert
-# "a" "(a)" regex 1 assert "a" assert
-# "abc" "^a" regex 1 assert
-# "abc" "^b" regex 0 assert
-# "abc" "c$" regex 1 assert
-# "abc" "b$" regex 0 assert
-# 
-# "foo bar" "(.*) b(ar|yolo)" regex 1 assert "foo" assert "ar" assert
-# "foo zar" "(.*) b(ar|yolo)" regex 0 assert
-# "fofoobaz" "foo" regex 1 assert
+"a" "a" regex 1 assert
+"a" "b" regex 0 assert
+"abc" "ac" regex 0 assert
+"abc" "abc" regex 1 assert
+"abc" "bc" regex 1 assert
+"b" "a|b|c" regex 1 assert
+"d" "a|b|c" regex 0 assert
+"d" "." regex 1 assert
+"a" "(a)" regex 1 assert "a" assert
+"abc" "^a" regex 1 assert
+"abc" "^b" regex 0 assert
+"abc" "c$" regex 1 assert
+"abc" "b$" regex 0 assert
 
-# Target time: Perl takes 4.30s
-# Old regex engine takes: 330.252s
-{
-  20000000 { "aoetauhsontuhaoeuhnathoesuhasonetuhaohteustaohesutahoseathsoeuahoeaunoheutahoseunathoeutha oeusaoeuhsaoteuhsatoheusaotneuhsatueh                " " " regex -- }" rep
-} *
+"foo bar" "(.*) b(ar|yolo)" regex 1 assert "foo" assert "ar" assert
+"foo zar" "(.*) b(ar|yolo)" regex 0 assert
+"fofoobaz" "foo" regex 1 assert
 
 # vim: syn=elymas
