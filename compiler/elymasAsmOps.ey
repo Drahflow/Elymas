@@ -997,6 +997,11 @@ memoryAddressingVariants keys { ==variant memoryAddressingVariants variant . =*p
   %AC
 } /lodsb deff
 
+{
+  1 /none /none /none rex
+  %AD
+} /lodsq deff
+
 { ==reg ==i
   reg bit8assert
   i 256 lt not { "Imm8 too large" die } rep
