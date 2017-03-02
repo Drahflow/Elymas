@@ -49,6 +49,7 @@
             } {
               headers .Content-Length txt .consume .u ==contentLength
 
+              # FIXME: Must change *=in and =*end here to correctly process further incoming data
               { body -01 cat =body
                 body len _ ::inputBufferLimit gt { "" =body :close } rep
                            contentLength eq { requestParsed } rep
