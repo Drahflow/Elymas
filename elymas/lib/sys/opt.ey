@@ -1,10 +1,6 @@
 <
   txt .consume .|hu "%" defq
 
-  <
-    "../compiler/elymasAsmOps.ey" include
-  > /ops sys .asm .defv
-
   1 ==ARRAYMARKER # FIXME unify with elymasGlobal.ey
   3 ==POSITIONMARKER # FIXME unify with elymasGlobal.ey
   4 ==INITIALSCOPESIZE # FIXME take this from the compiler directory
