@@ -47,16 +47,26 @@
             headers .?Content-Length not {
               requestParsed
             } {
-              headers .Content-Length txt .consume .u ==contentLength
+              headers .Content-Length "^\\d+$" regex not {
+                "" =inBuffer :close
+              } {
+                headers .Content-Length txt .consume .u ==contentLength
 
-              # FIXME: Must change *=in and =*end here to correctly process further incoming data
-              { body -01 cat =body
-                body len _ ::inputBufferLimit gt { "" =body :close } rep
-                           contentLength eq { requestParsed } rep
-                ""
-              } =in
+                { body -01 cat =body
+                  body len _ ::inputBufferLimit gt { "" =body :close } rep
+                             contentLength ge {
+                               contentLength body str .postfix ==afterBody
+                               contentLength body str .prefix =body
+                               requestParsed
 
-              inBuffer in =inBuffer
+                               afterBody
+                             } {
+                               ""
+                             } ? *
+                } =in
+
+                inBuffer in =inBuffer
+              } ? *
             } ? *
           }
           { 1 } {

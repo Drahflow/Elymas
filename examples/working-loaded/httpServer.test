@@ -9,6 +9,9 @@ net .alg .httpServer "+" via
       } { :url "/test" eq } {
         "<html><body>Test!</body></html>"
         "text/html" :ok
+      } { :url "/post" eq } {
+        "<html><body>" :body "</body></html>" cat cat
+        "text/html" :ok
       }
     ] conds
   } +request
