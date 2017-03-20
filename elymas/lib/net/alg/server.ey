@@ -28,8 +28,10 @@
     < > ==:noHandler
 
     {
-      ::port { # ==s
-        ::reuseAddr
+      ::port { ==s
+        s ::reuseAddr
+        s +FGETFL 0 +fcntl +??io.net.fcntl.get +ONONBLOCK bor ==flags
+        s +FSETFL flags +fcntl +??io.net.fcntl.set --
       } +:listenOptFd _ ::afterListen ==listenFd
 
       [ ] ==allEventHandlers
@@ -43,48 +45,51 @@
 
       <
         {
-          listenFd +:acceptFd +??io.net.accept ==fd
+          listenFd +accept ==fd
+          fd 0 lt {
+            +errno +EAGAIN neq { ??io.net.accept } rep
+          } {
+            noHandler ==eventHandler
+            ++EPOLLIN ++EPOLLERR bor ==initialFlags
+            0 ==closed
 
-          noHandler ==eventHandler
-          ++EPOLLIN ++EPOLLERR bor ==initialFlags
-          0 ==closed
-
-          <
-            {
-              closed not {
-                epoll ++EPOLLCTLDEL fd 0 0 ++ctl +??io.net.epoll --
-                fd +close +??io.net.close --
-                fd unprotectGC
-                1 =closed
-              } rep
-            } /close deffst
-            { ==count
-              closed { "" } {
-                count str .alloc ==buf
-                fd buf count +read
-                  |close < { 0 } ; =*close > +???io.net.con.read
-                buf str .inplacePrefix
-              } ? *
-            } /read deff
-            { ==buf
-              closed { buf len } {
-                fd buf _ len +write
-                  |close < =*close > +???io.net.con.write
-              } ? *
-            } /write deff
-            { ==flags
-              closed not {
-                eventHandler +!rawAddress noHandler +!rawAddress eq {
-                  flags =initialFlags
-                } {
-                  epoll ++EPOLLCTLMOD fd flags eventHandler +!rawAddress ++ctl +??io.net.epoll --
+            <
+              {
+                closed not {
+                  epoll ++EPOLLCTLDEL fd 0 0 ++ctl +??io.net.epoll --
+                  fd +close +??io.net.close --
+                  fd unprotectGC
+                  1 =closed
+                } rep
+              } /close deffst
+              { ==count
+                closed { "" } {
+                  count str .alloc ==buf
+                  fd buf count +read
+                    |close < { 0 } ; =*close > +???io.net.con.read
+                  buf str .inplacePrefix
                 } ? *
-              } rep
-            } /ctl deffst
-          > ::accept =eventHandler
+              } /read deff
+              { ==buf
+                closed { buf len } {
+                  fd buf _ len +write
+                    |close < =*close > +???io.net.con.write
+                } ? *
+              } /write deff
+              { ==flags
+                closed not {
+                  eventHandler +!rawAddress noHandler +!rawAddress eq {
+                    flags =initialFlags
+                  } {
+                    epoll ++EPOLLCTLMOD fd flags eventHandler +!rawAddress ++ctl +??io.net.epoll --
+                  } ? *
+                } rep
+              } /ctl deffst
+            > ::accept =eventHandler
 
-          epoll ++EPOLLCTLADD fd initialFlags eventHandler +!rawAddress ++ctl +??io.net.epoll --
-          eventHandler fd protectGC
+            epoll ++EPOLLCTLADD fd initialFlags eventHandler +!rawAddress ++ctl +??io.net.epoll --
+            eventHandler fd protectGC
+          } ? *
         } =*in
         { "unexpected output capability on listening socket" die } =*out
         { ??io.net } =*err
