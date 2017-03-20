@@ -308,6 +308,8 @@
   20  ==:WRITEV # TODO: not implemented here
 
   0 ==errno
+
+  11 _ ==:EAGAIN ==:EWOULDBLOCK
   
   bin .scan  "->" via
   bin .print "<-" via
@@ -316,7 +318,7 @@
   # to kernel API and returns the raw return value
   { # ==name ==f
     -01 
-    { sys .asm .syscall =errno } ;
+    { sys .asm .syscall -- _ 0 ge { 0 =errno } { neg =errno 1 neg } ? * } ;
     -01 
     deffd
   }' /defStdSyscall deff
@@ -345,6 +347,13 @@
   } /execve defStdSyscall
 
   { 0 0 0 0 0 0 FORK } /fork defStdSyscall
+
+  1 ==:FGETFD
+  2 ==:FSETFD
+  3 ==:FGETFL
+  4 ==:FSETFL
+
+  { 0 0 0 FCNTL } /fcntl defStdSyscall
 
   { 0 0 0 0 0 0 GETPID } /getpid defStdSyscall
 
