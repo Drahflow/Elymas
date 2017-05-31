@@ -58,6 +58,17 @@ Executes the top stack element. See [execution.md](execution.md) for the full st
     { "Hello World!" dump } *
     "Hello World!"
 
+`|=`
+----
+
+Takes a name and a function from the stack. Resolves the name without
+execution (like `|`) runs the function and then assigns the topmost
+stack element back to name (like `=`).
+
+    0 ==long_variable_name
+    { 1 add } |=long_variable_name
+    long_variable_name dump          # now 1
+
 `[`
 ---
 

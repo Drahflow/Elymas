@@ -1,4 +1,3 @@
-* implement |= as in { 1 add } |=i
 * better sys .file
   * don't make newly opened files executable by default
     * make :executable, :nonexecutable, :writable, :readable, etc.

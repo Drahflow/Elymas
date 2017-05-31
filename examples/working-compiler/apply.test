@@ -1,0 +1,18 @@
+{
+  quoted { ==name =*f
+    name "|" sys .executeIdentifier
+    f
+    name "=" sys .executeIdentifier
+  } { ==name =*f name | f name = } ? *
+} "|=" defq
+
+0 ==i
+i dump
+{ 1 add } |=i
+i dump
+
+{
+  0 ==j
+  { 1 add } |=j
+  j dump
+} *

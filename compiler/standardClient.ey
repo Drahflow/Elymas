@@ -4,6 +4,14 @@
 { keys dump "undefined member in .|: " dump dump "" die } "#.|" defmd
 { keys dump "undefined member in =: " dump dump "" die } "#.=" defmd
 
+{
+  quoted { ==name =*f
+    name "|" sys .executeIdentifier
+    f
+    name "=" sys .executeIdentifier
+  } { ==name =*f name | f name = } ? *
+} "|=" defq
+
 ## regex support
 # ideas taken from http://swtch.com/~rsc/regexp/regexp3.html
 <
