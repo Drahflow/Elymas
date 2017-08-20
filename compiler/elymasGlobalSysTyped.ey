@@ -82,7 +82,13 @@
 
     # return the type of an object
     # 0 -> the object to analyze
-    # 0 <- an integer from 0 - 15
+    # 0 <- an integer from
+    #   0 - 15 for normal heap objects (as per doc/notes object header)
+    #   16 for array begin marker
+    #   17 for quote begin marker
+    #   18 for bottom of stack marker
+    #   19 for error data marker
+    #   -1 for unknown object
     [[
       /rbx :popqReg
 
@@ -90,8 +96,41 @@
       63 /rdx :btrqImm8Reg
       /integerType :jcLbl8
 
+      /rdx /rax :movqRegReg
+      44 /rax :shrqImm8Reg
+      6 /rax :cmpqImm8Reg
+      /markers :jnzLbl8
+
       7 /rdx /rdx :movzxMem8Disp8Reg64
       4 /rdx :shrqImm8Reg
+      /done :jmpLbl8
+
+      @markers
+      1 /rdx :cmpqImm8Reg
+      /arrayMarker :jzLbl8
+      2 /rdx :cmpqImm8Reg
+      /quoteMarker :jzLbl8
+      %5555555555555555 /rax :movqImmReg
+      /rax /rdx :cmpqRegReg
+      /bottomMarker :jzLbl8
+      4 /rdx :cmpqImm8Reg
+      /errorMarker :jzLbl8
+      /unknown :jmpLbl8
+
+      @errorMarker
+      19 /rdx :movqImmReg
+      /done :jmpLbl8
+
+      @bottomMarker
+      18 /rdx :movqImmReg
+      /done :jmpLbl8
+
+      @quoteMarker
+      17 /rdx :movqImmReg
+      /done :jmpLbl8
+
+      @arrayMarker
+      16 /rdx :movqImmReg
       /done :jmpLbl8
 
       @integerType
@@ -100,6 +139,17 @@
       @done
       63 /rdx :btsqImm8Reg
       /rdx :pushqReg
+
+      /rbx :pushqReg
+      :retn
+
+      @unknown
+      ::internalAllocateInteger /rax :movqImmReg
+      /rax :callqReg
+      /rdx /rdx :xorqRegReg
+      1 /rdx :subqImm8Reg
+      /rdx 8 /rax :movqRegMemDisp8
+      /rax :pushqReg
 
       /rbx :pushqReg
       :retn
