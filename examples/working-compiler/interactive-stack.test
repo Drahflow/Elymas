@@ -1,21 +1,58 @@
 <
+  map ==seenThings # from .hu of rawAddress to some name
+  map ==usedNames # from name to rawAddress
+
+  { ==suggested ==thing
+    thing sys .asm .rawAddress _ ==a txt .produce .hu ==as
+
+    { ==i
+      i 0 eq {
+        i suggested *
+      } {
+        i suggested len math .base suggested * |cat fold
+      } ? *
+    } /toName deffst
+
+    as seenThings .has {
+      as seenThings *
+    } {
+      0 ==i
+      {
+        i toName ==name
+        name usedNames .has
+      }' {
+        { 1 add } |=i
+      }' loop
+
+      name as seenThings =[]
+      a name usedNames =[]
+      name
+    } ? *
+  }
+> -- /niceName deffd
+
+{ [ "α" "β" "γ" "δ" "ε" "π" "φ" ] niceName } /niceScopeName deffd
+
+<
   [ 0 11 range {
     sys .asm .intToFloat
   }' each ] =*:FLOAT
 
   sys .out .|writeall =*out
 
+  "0123456789" ==:base10digits
   "0123456789ABCDEF" ==:base16digits
+
   { _ 0 lt { neg "-" }' { "" }' ? * -01
     [ -01 16 { _ 16 umod base16digits * -01 16 udiv }' rep -- ] reverse str .fromArray cat
   }' /base16encode64 deffd
 
-  { "<???>" out }" /unknown defvd
+  { "\e[1;31m<???>\e[0m" out }" /unknown defvd
 
   [
-    { o txt .produce .i out }" # integer
-    { "\"" o "\"" cat cat out }" # string
-    { o { ==f 0 ==e "+" ==s 0 ==i
+    { "\e[31m" o txt .produce .i cat "\e[0m" cat out }" # integer
+    { "\e[31m\"" o "\"\e[0m" cat cat out }" # string
+    { "\e[31m" out o { ==f 0 ==e "+" ==s 0 ==i
       f 0 FLOAT lt { 0 FLOAT f sub =f "-" =s }' rep
       { f 1 FLOAT lt i 500 lt and }' { f 10 FLOAT mul =f e 1 sub =e i 1 add =i }' loop
       { f 10 FLOAT ge i 500 lt and }' { f 10 FLOAT div =f e 1 add =e i 1 add =i }' loop
@@ -54,14 +91,23 @@
           ] reverse _ len dearray
         ] str .fromArray out
       }' ? *
-    } * }" # float
+    } * "\e[0m" out }" # float
     unknown
     unknown # extension area
-    { "{...: " o sys .asm .rawAddress base16encode64 cat "}" cat out }"
+    { "\e[32m{"
+      o [ /f /g /h /a /b /c /d /e ] niceName cat
+      "}\e[0m" cat out
+    }"
     unknown
-    { "[...: " o .sys .asm .rawAddress base16encode64 cat "]" cat out }" # array
+    { "\e[36m["
+      o [ /A /B /C /D /E /F /G /H ] niceName cat
+      "]\e[0m" cat out
+    }" # array
     unknown # function type
-    { "<...: " o sys .asm .rawAddress base16encode64 cat ">" cat out }"
+    { "\e[35m<"
+      o niceScopeName cat
+      ">\e[0m" cat out
+    }"
     unknown # name table
     unknown # stack
     { "<coroutine: " o sys .asm .rawAddress base16encode64 cat ">" cat out }"
@@ -70,7 +116,7 @@
     unknown
     { "[" out }"
     { "{" out }"
-    { "<end of stack>" out }"
+    { "\e[34m|\e[0m" out }"
     unknown
   ] /dumpActions deffd
 
@@ -108,7 +154,11 @@ scope enincludeLine =*eval
 { 0 =running } =*quit
 
 { running } {
-  [ ">" quoted { "{" } rep " " ] |cat fold sys .out .writeall
+  "\n" sys .out .writeall
+  stackdump
+
+  [ "\e[35m" "scope" eval niceScopeName cat "\e[34m >" cat
+    quoted { "\e[32m{" } rep "\e[0m " ] |cat fold sys .out .writeall
   65536 sys .in .read _ len { ==line
     line "^(.*)\n$" regex {
       eval
@@ -118,9 +168,8 @@ scope enincludeLine =*eval
   } { --
     0 =running
   } ? *
-
-  "\n" sys .out .writeall
-  stackdump
 } loop
+
+"\n" sys .out .writeall
 
 # vim: syn=elymas
