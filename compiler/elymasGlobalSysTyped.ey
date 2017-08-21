@@ -94,7 +94,7 @@
 
       /rdx :popqReg
       63 /rdx :btrqImm8Reg
-      /integerType :jcLbl8
+      /integerType :jcLbl32
 
       /rdx /rax :movqRegReg
       44 /rax :shrqImm8Reg
@@ -113,6 +113,10 @@
       %5555555555555555 /rax :movqImmReg
       /rax /rdx :cmpqRegReg
       /bottomMarker :jzLbl8
+      emptyArray /rax :movqImmReg
+      /rax /rdx :cmpqRegReg
+      /emptyArrayConst :jzLbl8
+
       4 /rdx :cmpqImm8Reg
       /errorMarker :jzLbl8
       /unknown :jmpLbl8
@@ -131,6 +135,10 @@
 
       @arrayMarker
       16 /rdx :movqImmReg
+      /done :jmpLbl8
+
+      @emptyArrayConst
+      7 /rdx :movqImmReg
       /done :jmpLbl8
 
       @integerType
