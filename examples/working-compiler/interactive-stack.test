@@ -1,9 +1,19 @@
+{ scope }' =*globalScope
+
 <
   map ==seenThings # from .hu of rawAddress to some name
   map ==usedNames # from name to rawAddress
 
   { ==suggested ==thing
     thing sys .asm .rawAddress _ ==a txt .produce .hu ==as
+
+    globalScope keys { ==name
+      globalScope name .| sys .asm .rawAddress _ ==a txt .produce .hu ==as
+
+      "\e[2m" name cat "\e[0m" cat =name
+      name as seenThings =[]
+      a name usedNames =[]
+    } each
 
     { ==i
       i 0 eq {
@@ -96,17 +106,17 @@
     unknown # extension area
     { "\e[32m{"
       o [ /f /g /h /a /b /c /d /e ] niceName cat
-      "}\e[0m" cat out
+      "\e[32m}\e[0m" cat out
     }"
     unknown
     { "\e[36m["
       o [ /A /B /C /D /E /F /G /H ] niceName cat
-      "]\e[0m" cat out
+      "\e[36m]\e[0m" cat out
     }" # array
     unknown # function type
     { "\e[35m<"
       o niceScopeName cat
-      ">\e[0m" cat out
+      "\e[35m>\e[0m" cat out
     }"
     unknown # name table
     unknown # stack
@@ -120,13 +130,10 @@
     unknown
   ] /dumpActions deffd
 
-  { ==indent _ ==o
-    "" indent { "  " cat }' rep out
-    sys .typed .type dumpActions *
-    "  " out
-  } /dumpIndented deffd
-
   # dump top stack element
+  { _ ==o sys .typed .type dumpActions * "  " out }
+
+  # dump entire stack
   { 0 ==i "" ==x
     { x sys .typed .type 18 neq } {
       i _' =x
@@ -138,37 +145,51 @@
     { i 0 ge } {
       i _' =x
       { 1 sub } |=i
-      x 0 dumpIndented
+      x objectdump
       " " out
     } loop
 
     "\n" out
   }
-> -- /stackdump deffd
+> -- /stackdump deffd /objectdump deffd
 
 "Welcome to elymas.\n" sys .out .writeall
 
-scope enincludeLine =*eval
+{ _ ==openedScope enincludeLine =*eval
+  1 ==running
+  { 0 =running } =*quit
 
-1 ==running
-{ 0 =running } =*quit
+  { running } {
+    "\n" sys .out .writeall
+    "\e[35m" "scope" eval niceScopeName cat "\e[34m:\e[0m" cat sys .out .writeall
+    "scope" eval _ ==curScope keys { ==name
+      name existingGlobals .has not {
+        " " sys .out .writeall name "=" cat sys .out .writeall curScope name .| objectdump
+      } rep
+    } each
+    "\n" sys .out .writeall
+    stackdump
 
-{ running } {
-  "\n" sys .out .writeall
-  stackdump
-
-  [ "\e[35m" "scope" eval niceScopeName cat "\e[34m >" cat
-    quoted { "\e[32m{" } rep "\e[0m " ] |cat fold sys .out .writeall
-  65536 sys .in .read _ len { ==line
-    line "^(.*)\n$" regex {
-      eval
-    } {
-      "non-terminal input" dump
+    [ "\e[34m>" sys .out .writeall
+      quoted { "\e[32m{" } rep "\e[0m \e[1m" ] |cat fold sys .out .writeall
+    65536 sys .in .read "\e[0m" sys .out .writeall _ len { ==line
+      line "^(.*)\n$" regex {
+        eval
+      } {
+        "non-terminal input" dump
+      } ? *
+    } { --
+      0 =running
     } ? *
-  } { --
-    0 =running
-  } ? *
-} loop
+  } loop
+} /open deffd
+
+map ==existingGlobals
+globalScope keys { ==name
+  1 name existingGlobals =[]
+} each
+
+scope open
 
 "\n" sys .out .writeall
 
