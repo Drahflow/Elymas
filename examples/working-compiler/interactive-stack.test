@@ -1,0 +1,126 @@
+<
+  [ 0 11 range {
+    sys .asm .intToFloat
+  }' each ] =*:FLOAT
+
+  sys .out .|writeall =*out
+
+  "0123456789ABCDEF" ==:base16digits
+  { _ 0 lt { neg "-" }' { "" }' ? * -01
+    [ -01 16 { _ 16 umod base16digits * -01 16 udiv }' rep -- ] reverse str .fromArray cat
+  }' /base16encode64 deffd
+
+  { "<???>" out }" /unknown defvd
+
+  [
+    { o txt .produce .i out }" # integer
+    { "\"" o "\"" cat cat out }" # string
+    { o { ==f 0 ==e "+" ==s 0 ==i
+      f 0 FLOAT lt { 0 FLOAT f sub =f "-" =s }' rep
+      { f 1 FLOAT lt i 500 lt and }' { f 10 FLOAT mul =f e 1 sub =e i 1 add =i }' loop
+      { f 10 FLOAT ge i 500 lt and }' { f 10 FLOAT div =f e 1 add =e i 1 add =i }' loop
+
+      i 500 eq {
+        s
+        f 1 FLOAT lt "0.0e0" "inf" ?
+        cat out
+      }' {
+        {
+          0 ==d
+          1 10 range { ==i f i FLOAT gt { i =d }' rep } each
+          f d sub =f
+          f 10 FLOAT mul =f
+          d base10digits *
+        } /extractDigit deffst
+
+        [
+          0 s *
+          extractDigit
+          0 "." *
+          10 |extractDigit rep
+          0 "e" *
+          e 0 lt {
+            0 e sub =e
+            0 "-" *
+          } rep
+          e 0 eq {
+            0 "0" *
+          } rep
+          [
+            { e } {
+              e 10 mod base10digits *
+              e 10 div =e
+            } loop
+          ] reverse _ len dearray
+        ] str .fromArray out
+      }' ? *
+    } * }" # float
+    unknown
+    unknown # extension area
+    { "{...: " o sys .asm .rawAddress base16encode64 cat "}" cat out }"
+    unknown
+    { "[...: " o .sys .asm .rawAddress base16encode64 cat "]" cat out }" # array
+    unknown # function type
+    { "<...: " o sys .asm .rawAddress base16encode64 cat ">" cat out }"
+    unknown # name table
+    unknown # stack
+    { "<coroutine: " o sys .asm .rawAddress base16encode64 cat ">" cat out }"
+    unknown
+    unknown
+    unknown
+    { "[" out }"
+    { "{" out }"
+    { "<end of stack>" out }"
+    unknown
+  ] /dumpActions deffd
+
+  { ==indent _ ==o
+    "" indent { "  " cat }' rep out
+    sys .typed .type dumpActions *
+    "  " out
+  } /dumpIndented deffd
+
+  # dump top stack element
+  { 0 ==i "" ==x
+    { x sys .typed .type 18 neq } {
+      i _' =x
+      { 1 add } |=i
+    } loop
+
+    { 1 sub } |=i
+
+    { i 0 ge } {
+      i _' =x
+      { 1 sub } |=i
+      x 0 dumpIndented
+      " " out
+    } loop
+
+    "\n" out
+  }
+> -- /stackdump deffd
+
+"Welcome to elymas.\n" sys .out .writeall
+
+scope enincludeLine =*eval
+
+1 ==running
+{ 0 =running } =*quit
+
+{ running } {
+  [ ">" quoted { "{" } rep " " ] |cat fold sys .out .writeall
+  65536 sys .in .read _ len { ==line
+    line "^(.*)\n$" regex {
+      eval
+    } {
+      "non-terminal input" dump
+    } ? *
+  } { --
+    0 =running
+  } ? *
+
+  "\n" sys .out .writeall
+  stackdump
+} loop
+
+# vim: syn=elymas
