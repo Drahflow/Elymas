@@ -311,6 +311,19 @@ Duplicates the top stack element.
     0000000000000001
 
 
+`_'`
+---
+
+Takes from the top of the stack an integer. This is used as
+an index into the rest of the stack (starting from top).
+The specified stack element is duplicated to the top of the stack.
+
+    /a /b /c 1 _' dump dump dump dump
+    "b"
+    "c"
+    "b"
+    "a"
+
 `-`
 ---
 

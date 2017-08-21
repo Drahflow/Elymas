@@ -2056,6 +2056,24 @@
       :retn
     ] /ey_ defv
 
+    # top stack element is an integer index into the stack,
+    # starting with 0 at the one below this index
+    # duplicates the indicated stack element to the top
+    [[
+      /rbx :popqReg
+      /rdx :popqReg
+      63 /rdx :btrqImm8Reg
+      /unboxed :jcLbl8
+      8 /rdx /rdx :movqMemDisp8Reg
+      @unboxed
+
+      8 /rdx /rsp /rdx :movqMemIndexScaleReg
+      /rdx :pushqReg
+
+      /rbx :pushqReg
+      :retn
+    ]] /ey_' defv
+
     # top stack element is a string defining a stack shuffle
     # 0-9: push the thusly numbered element
     #   *: execute top element
