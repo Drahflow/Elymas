@@ -1,0 +1,6 @@
+language: perl
+perl:
+  - "5.24"
+
+script:
+  - make
