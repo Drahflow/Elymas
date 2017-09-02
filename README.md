@@ -2,7 +2,7 @@ Elymas
 ======
 
 *Just because I'm not following the true path, doesn't mean I can't get it to work.*
-
+[![Build Status](https://travis-ci.org/Drahflow/Elymas.svg?branch=master)](https://travis-ci.org/Drahflow/Elymas)
 
 Examples
 --------
