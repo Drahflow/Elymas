@@ -13,7 +13,6 @@
 * make map work on non-strings, too
 * utf8
 * regex substitution
-* asm-based regex engine
 * [,] must be escapable in regex
 * txt .consume .u sollte nicht negative Zahlen liefern
   * evtl. BigNums bauen und die Int-Funktionen entsprechend machen
