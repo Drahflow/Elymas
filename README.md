@@ -1,4 +1,4 @@
-<img src="elymas.svg" width="400" alt="Elymas logo"/><br><small>(Logo by @blinry)</small>
+<img src="elymas.svg" width="400px" style="margin-left: 100px;" alt="Elymas logo"/><br><span style="font-size: 50%; margin-top: -30px;">(Logo by @blinry)</span>
 
 *Just because I'm not following the true path, doesn't mean I can't get it to work.*
 
