@@ -1,4 +1,4 @@
-![Elymas logo](elymas.svg){:height="50%" width="50%"} (Logo by @blinry)
+<div style="width: 30%">![Elymas logo](elymas.svg) (Logo by @blinry)</div>
 
 *Just because I'm not following the true path, doesn't mean I can't get it to work.*
 
