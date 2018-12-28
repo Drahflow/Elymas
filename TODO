@@ -14,6 +14,7 @@
 * utf8
 * regex substitution
 * [,] must be escapable in regex
+* regex engine still only 10% as fast during scanning as perl
 * txt .consume .u sollte nicht negative Zahlen liefern
   * evtl. BigNums bauen und die Int-Funktionen entsprechend machen
 * trigonometrics
