@@ -804,7 +804,7 @@
                     g cat _ ==candidate .? { candidate =handlingMember } rep
                 } rep
               } each
-              "" handlingMember eq { "a handling member could not be found at argument index " dump mismatchIndex dump "" die } rep
+              "" handlingMember eq { "a handling member could not be found at argument index " dump mismatchIndex dump " of " dump arg dump "" die } rep
               0 concreteArgs len range { ==i
                 i mismatchIndex neq { i concreteArgs * } rep
               } each
