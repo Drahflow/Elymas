@@ -1,0 +1,22 @@
+# Implementing the list spell by Aphyr
+
+{ ==h { h ? 1 }_ } =*cons
+
+{ } "3" cons "2" cons "1" cons ==x
+x dump
+
+{ =*l _ { 1 sub 1 l -- nth } { -- 0 l -- } ? * } =*nth
+
+{ [ -01 { 0 -01*1 -01 } { 1 -01* -- } loop -1 ] dump } =*dumpList
+
+x dumpList
+
+{ { { } } -01
+  { =*r =*l
+    0 l {
+      { -1*0 cons } 1 l -- |r r
+    } rep
+  } _ * *
+} =*reverse
+
+x reverse dumpList
