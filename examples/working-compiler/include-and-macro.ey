@@ -1,0 +1,4 @@
+{
+  /ok ==ok
+  "include-and-macro.inc" include
+} *

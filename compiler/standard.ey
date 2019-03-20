@@ -5,11 +5,11 @@
 |defvc "==:" deffd
 |deffc "=*:" deffd
 
-{ "}" | *
+"}" | {
   { =*f ==x
     { x f }
   } quoted { } { * } ? *
-} "}_" defq
+} ; "}_" defq
 
 { { -01 < ==o { o -01 }' "." | ; > -12 } } {
   quoted { }" { * }" ? *
