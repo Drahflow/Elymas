@@ -3835,8 +3835,7 @@
       /rax :pushqReg
 
       /rax :pushqReg
-      /rax :movqImmOOBReg name ::string
-      /rax :pushqReg
+      name ::constStringCode _ len dearray
       |eydefvc /rax :movqImmReg
       /rax :callqReg
 
