@@ -1203,9 +1203,6 @@
     [ -01 16 { _ 16 umod base16digits * -01 16 udiv }' rep -- ] reverse str .fromArray cat
   }' /base16encode64 deffd
 
-  { "unknown type in dump" die }" /unknown defvd
-  { "invalid type in dump" die }" /invalid defvd
-
   [
     { o base16encode64 sys .err .writeall }" # integer
     { "\"" o "\"" cat cat sys .err .writeall }" # string
@@ -1249,8 +1246,8 @@
         ] str .fromArray sys .err .writeall
       }' ? *
     } * }" # float
-    unknown
-    invalid # extension area
+    { "<invalid object-type code 3>" sys .err .writeall }" # not allocated
+    { "<object extension area (should not be on stack)>" sys .err .writeall }"
     { "<function: " o sys .asm .rawAddress base16encode64 cat ">" cat sys .err .writeall }"
     { "<function code: " o sys .asm .rawAddress base16encode64 cat ">" cat sys .err .writeall }"
     {
@@ -1258,14 +1255,14 @@
       o { indent 1 add dumpIndented }' each
       "" indent { "  " cat }' rep "]" cat sys .err .writeall
     }" # array
-    invalid # function type
+    { "<function type (should not be on stack)>" sys .err .writeall }"
     { "<scope: " o sys .asm .rawAddress base16encode64 cat ">" cat sys .err .writeall }"
-    invalid # name table
-    invalid # stack
+    { "<name table (should not be on stack)>" sys .err .writeall }"
+    { "<call stack (should not be on stack)>" sys .err .writeall }"
     { "<coroutine: " o sys .asm .rawAddress base16encode64 cat ">" cat sys .err .writeall }"
-    unknown
-    unknown
-    unknown
+    { "<invalid object-type code 13>" sys .err .writeall }"
+    { "<invalid object-type code 14>" sys .err .writeall }"
+    { "<invalid object-type code 15>" sys .err .writeall }"
   ] /dumpActions deffd
 
   { ==indent _ ==o
