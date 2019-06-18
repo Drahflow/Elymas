@@ -24,7 +24,7 @@ They also allow specifying four different optimization guarantees:
 * _d_eep constant: The referenced object and all objects reached through it (i.e. submembers in case of a scope) stay identical forever.
                    This implies constant.
 
-No optimization guarantees can be specified for quoting execution mode, as optimization is not applied in this parsing stage.
+No optimization guarantees can be specified for quoting execution mode, as optimization is not applied in this parsing stage. To allow `defq` from within nested scopes, `defq` itself has quoting execution mode.
 
 The resulting function names are the concatenation of `def`, the desired execution mode character (`v`, `f`, `m`, `q`) and the
 desired optimization guarantee (none, `s`, `t`, `st`, `c`, `d`).
