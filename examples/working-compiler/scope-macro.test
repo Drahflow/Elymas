@@ -1,0 +1,15 @@
+{
+  /outer_macro dump
+} /macro defq
+
+{
+  {
+    /inner_macro dump
+  } "macro" defq
+
+  /here dump
+  macro
+  /there dump
+} *
+
+macro
