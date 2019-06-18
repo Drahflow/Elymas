@@ -3,6 +3,7 @@
 { keys dump "undefined member in .: " dump dump "" die } "#." defmd
 { keys dump "undefined member in .|: " dump dump "" die } "#.|" defmd
 { keys dump "undefined member in =: " dump dump "" die } "#.=" defmd
+{ -01 quoted { * } rep -01 } |defq ; /defq defq
 
 {
   quoted { ==name =*f

@@ -1863,6 +1863,7 @@
     ]] /internalExecuteIdentifier defv
   > { defv }' ::allocateOffsetStruct
 
+  [ ] ==eydefqImpl
   <
     # predefining defv, deff, defq # TODO think about moving this to standard(Client) one day
     # 0 -> name, string
@@ -1885,7 +1886,7 @@
       ]]
     } %00 -101* /eydefv defv
       %01 -101* /eydeff defv
-      %02 -101* /eydefq defv
+      %02 -101* =eydefqImpl
       %03 -101* /eydefm defv
       %10 -101* /eydefvs defv
       %11 -101* /eydeffs defv
@@ -3198,6 +3199,8 @@
       _ 1 ::unscopingFunctionHeader ::unscopingFunctionFooter internalCallOptimizeHook -32104* /ey}' defv
       _ 0 ::unscopingFunctionHeader ::unscopingFunctionFooter internalCallOptimizeHook -32104* /ey}" defv
       --
+
+    eydefqImpl /eydefq defv
   > _ ==globalMacros { defv }' ::allocateOffsetStruct
 
   <
