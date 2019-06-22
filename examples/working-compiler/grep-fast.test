@@ -1,17 +1,15 @@
-{ =*?p { [ -01 { _ p { } { -- } ? * } each ] } } /engrep deffd
+"{ =*p { [ -01 { _ p not \"--\" | rep }\" each ] }' } * *" ==grepCode
 
-{
-  engrep
-* } /grep deffd
+{ grepCode includeLine /including dump } /fastGrep defq
 
 [ 1 2 3 4 5 6 7 8 9 10 ] ==data
 
 1000000 {
-  data { 5 eq } grep --
+  data { 5 eq } fastGrep --
 } rep
 
 5 ==i
 
 1000000 {
-  data { i eq }" grep --
+  data { i eq }" fastGrep --
 } rep
