@@ -77,7 +77,7 @@
         /intLoadBoxed reg cat :jzLbl8
         %10 /bl :cmpbImmReg
         /stringLoad reg cat :jeLbl8
-        
+
         "neither int nor string argument in sys .asm .syscall" ::outputError
         :ud2
 
@@ -177,6 +177,46 @@
       :retn
     ]] /eyglobalAllocSize defv
 
+    # get number of unused cells until top of data stack
+    # 0 <- number of remaining stack cells
+    [[
+      /rbx :popqReg
+
+      /rcx /rcx :xorqRegReg
+      /rcx :decqReg
+      :STACKTOPMARKER /rax :movqImmReg
+      /rsp /rdi :movqRegReg
+      :std
+      :repnz :scasq
+      :cld
+      /rcx :negqReg
+      63 /rcx :btsqImm8Reg
+      /rcx :pushqReg
+
+      /rbx :pushqReg
+      :retn
+    ]] /eyremainingDataStack defv
+
+    # get number of unused cells until top of call stack
+    # 0 <- number of remaining stack cells
+    [[
+      /rbx :popqReg
+
+      /rcx /rcx :xorqRegReg
+      /rcx :decqReg
+      :STACKTOPMARKER /rax :movqImmReg
+      /r15 /rdi :movqRegReg
+      :std
+      :repnz :scasq
+      :cld
+      /rcx :negqReg
+      63 /rcx :btsqImm8Reg
+      /rcx :pushqReg
+
+      /rbx :pushqReg
+      :retn
+    ]] /eyremainingCallStack defv
+
     # get raw object address from object
     # 0 -> object
     # 0 <- address of the object
@@ -199,7 +239,7 @@
     # 0 <- object
     [[
       /rbx :popqReg
-      
+
       /rax :popqReg
       /rax ::unboxInteger
       /rax :pushqReg # push integer value
@@ -241,7 +281,7 @@
 
       # copy new opcodes
       :quoteEncodingBufferCode /rdi :movqImmReg
-      
+
       8 /r15 /rsi :movqMemDisp8Reg
       /rsi /ecx :movlMemReg
       8 /rsi :addqImm8Reg
@@ -326,7 +366,7 @@
 
       # copy new opcodes
       :quoteEncodingBufferCode /rdi :movqImmReg
-      
+
       8 /r15 /rsi :movqMemDisp8Reg
       /rsi /ecx :movlMemReg
       8 /rsi :addqImm8Reg
@@ -494,7 +534,7 @@
           /rdi /r8 :movqRegReg # FreeBSD passes argc stack location in rdi
         }
       ] conds
-      
+
       # empty encoding buffer to ensure the GC does not follow residue from freeze into unallocated memory
       :quoteEncodingBufferObjects /rdi :movqImmReg
       /rax /rax :xorqRegReg
@@ -554,8 +594,8 @@
       :ud2
 
       @copyCString
-# rdi -> pointer to beginning of string
-# rax <- pointer to new elymas string
+      # rdi -> pointer to beginning of string
+      # rax <- pointer to new elymas string
       /rax /rax :xorqRegReg
       /rcx /rcx :xorqRegReg
       /rcx :decqReg
