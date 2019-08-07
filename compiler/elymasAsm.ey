@@ -5,6 +5,7 @@
   16 ==STACKSTART
 
   6148914691236517205 ==STACKBOTTOMMARKER
+  6148914691236517206 ==STACKTOPMARKER
   4 ==ERRORMARKER
   3 ==HASHPOSITIONS # number of positions to probe on collisions
 
@@ -68,6 +69,7 @@
   # stack layout
   #    %0 : stack size
   #    %8 : current stack pointer
+  #   %10 : stack top marker
   #   ... : real stack
   # <end> : stack bottom marker
   [ /bootStack /bootCallStack ] {
@@ -78,6 +80,7 @@
       [
         PAGESIZE imm64
         stack .base PAGESIZE add 8 sub imm64
+        STACKTOPMARKER imm64
       ] { i sys .asm .poke i 1 add =i } each
 
       stack .base PAGESIZE add 8 sub =i

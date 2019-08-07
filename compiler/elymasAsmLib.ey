@@ -764,6 +764,7 @@
       /markObject :callqLbl32
 
       # start from stack and mark all reachable blocks
+      # TODO: validate current stack has a STACKTOPMARKER
       :STACKBOTTOMMARKER /rcx :movqImmReg
       /rsi :popqReg # load original stack pointer
       /rsi :pushqReg
@@ -1949,6 +1950,8 @@
       :STACKBOTTOMMARKER /rdx :movqImmReg
       /rdx /rdi :movqRegMem
       /rdi 8 /rax :movqRegMemDisp8
+      :STACKTOPMARKER /rdx :movqImmReg
+      /rdx 16 /rax :movqRegMemDisp8
 
       :retn
     ] /internalAllocateStack defv

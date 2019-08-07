@@ -128,6 +128,9 @@ quote begin marker
 0101010101010101010101010101010101010101010101010101010101010101
 bottom of stack marker
 
+0101010101010101010101010101010101010101010101010101010101010110
+top of stack marker
+
 0000000000000000000000000000000000000000000000000000000000000100
 error data marker (only for external debugging)
 
@@ -291,6 +294,7 @@ Overhead: 1/32.
   bit 63-60: 1 0 1 1
   bit 59: reserved for GC
 * Current stack pointer value
+* top of stack marker
 * <data ...>
 * bottom of stack marker
 
