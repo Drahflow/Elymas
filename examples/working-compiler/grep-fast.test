@@ -1,4 +1,4 @@
-"{ =*p { [ -01 { _ p not \"--\" | rep }\" each ] }' } * *" ==grepCode
+"{ =*p [ -01 { _ p not \"--\" | rep }\" each ] } *" ==grepCode
 
 { grepCode includeLine /including dump } /fastGrep defq
 
