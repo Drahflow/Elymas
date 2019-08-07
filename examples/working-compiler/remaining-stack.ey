@@ -1,0 +1,64 @@
+sys .asm .ops ==:sysasmops
+{
+  quoted {
+    _ sys .typed .type 1 eq {
+      sysasmops -01 .|
+    } {
+      "sysasmops" "|" | -102 "." |
+    } ? *
+  } {
+    sysasmops -01 .
+  } ? *
+} ":" defq
+{ :labelRecord [ } "[[" deff
+{ ] :labelResolve } "]]" deff
+sysasmops .|label "@" deff
+
+6148914691236516950 ==STACKTOPMARKER
+
+# Count unused cells up to top of data stack
+# 0 <- number of remaining stack cells
+[[
+  /rbx :popqReg
+      
+  /rcx /rcx :xorqRegReg
+  /rcx :decqReg
+  STACKTOPMARKER /rax :movqImmReg
+  /rsp /rdi :movqRegReg
+  :std
+  :repnz :scasq
+  :cld
+  /rcx :negqReg
+  63 /rcx :btsqImm8Reg
+  /rcx :pushqReg
+
+  /rbx :pushqReg
+  :retn
+]] [ ] sys .asm .createFunction =*remainingDataStack
+
+# Count unused cells up to top of call stack
+# 0 <- number of remaining stack cells
+[[
+  /rbx :popqReg
+      
+  /rcx /rcx :xorqRegReg
+  /rcx :decqReg
+  STACKTOPMARKER /rax :movqImmReg
+  /r15 /rdi :movqRegReg
+  :std
+  :repnz :scasq
+  :cld
+  /rcx :negqReg
+  63 /rcx :btsqImm8Reg
+  /rcx :pushqReg
+
+  /rbx :pushqReg
+  :retn
+]] [ ] sys .asm .createFunction =*remainingCallStack
+
+{
+  remainingCallStack txt .produce .u dump
+  f
+} _ =*f *
+
+# vim: syn=elymas
