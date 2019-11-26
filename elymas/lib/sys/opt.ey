@@ -337,10 +337,26 @@
   /ge /jngeRel8 comparisonOperator ==:INLINEBLOCKGE
   /gt /jngRel8 comparisonOperator ==:INLINEBLOCKGT
 
+  { ==t
+    t 0 lt { # unboxed integer
+      1
+    } {
+      t ::rawObject sys .typed .type 0 eq
+    } ? *
+  } /isConstInt deffd
+
+  { ==t
+    t 0 lt { # unboxed integer
+      t 9223372036854775807 band
+    } {
+      t ::rawObject
+    } ? *
+  } /getConstInt deffd
+
   { ==e
     [
       0 e * STATICTYPED eq { 4 e * sys .typed .type 0 eq }' andif
-      0 e * PUSH        eq { 1 e * sys .typed .type 0 eq }' andif # FIXME: this is wrong! PUSH holds _address_ of integer, if at all
+      0 e * PUSH        eq { 1 e * isConstInt }' andif
       0 e * STRINGSTAR  eq
     ] any
   } /holdsInt deffd
@@ -654,9 +670,11 @@
           [
             { 1 last * |add ::rawAddress eq
               { 0 secondLast * PUSH eq }' andif
-              { 1 secondLast * 128 lt }' andif
+              { 1 secondLast * isConstInt }' andif
+              { 1 secondLast * getConstInt 128 lt }' andif
+              { 1 secondLast * getConstInt 0 ge }' andif
             }' {
-              1 secondLast * ==value
+              1 secondLast * getConstInt ==value
               [ NATIVENOSCOPE [
                 /rdx :popqReg
                 63 /rdx :btrqImm8Reg
