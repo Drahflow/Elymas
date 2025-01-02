@@ -78,8 +78,24 @@
   8 str .alloc ==:r15backup
   8 str .alloc ==:rspbackup
 
-  8 str .alloc _ str .zero ==:dlopenAddress
-  8 str .alloc _ str .zero ==:dlsymAddress
+  [
+    { sys .?linux } {
+      %2FFFFFFF0000 ==:DYNINFOADDR
+      # We need addresses available before memory setup at program start to target relocations onto.
+      # At the same time, this file should remain a library.
+      # One of the few locations "private" to the specific shared object setup
+      # is the newly added and loaded dynamic linking data.
+      # Here, we overwrite the elf magic numbers with the relocations required.
+      %2FFFFFFF0000 ==:dlopenAddress
+      %2FFFFFFF0008 ==:dlsymAddress
+    }'
+
+    { sys .?freebsd } {
+      %700000000000 ==:DYNINFOADDR
+      8 str .alloc _ str .zero _ ==:dlopenBuffer rawContentAddress ==:dlopenAddress
+      8 str .alloc _ str .zero _ ==:dlsymBuffer rawContentAddress ==:dlsymAddress
+    }'
+  ] conds
 
   [
     { sys .?freebsd } {
@@ -595,7 +611,7 @@
     /rsp /rbp :movqRegReg
     %F0 /rsp :andqImm8Reg
 
-    dlopenAddress rawContentAddress /rax :movqImmReg
+    dlopenAddress /rax :movqImmReg
     /rax /rax :movqMemReg
     /rax :callqReg
 
@@ -634,7 +650,7 @@
     /rsp /rbp :movqRegReg
     %F0 /rsp :andqImm8Reg
 
-    dlsymAddress rawContentAddress /rax :movqImmReg
+    dlsymAddress /rax :movqImmReg
     /rax /rax :movqMemReg
     /rax :callqReg
 
@@ -659,7 +675,7 @@
   #   /rdi :popqReg
   #   63 /rdi :btrqImm8Reg
   #   # %100 /rsi :movqImmReg # RTLD_GLOBAL
-  #   dlopenAddress rawContentAddress /rax :movqImmReg
+  #   dlopenAddress /rax :movqImmReg
   #   /rax /rax :movqMemReg
   #   /rax :callqReg
   #   
@@ -788,6 +804,7 @@
       ] conds
     ] ==?metaSections
 
+    0 ==loadedSections
     [
       0 frozenAllocationCount range { ==i
         <
@@ -799,15 +816,21 @@
           i sys .asm .globalAllocBase ==?addr # address where this section will be loaded
           0 ==?link # no associated section
           0 ==?entsize # no entries
-          i sys .asm .globalAllocBase ==?dataBase
           i sys .asm .globalAllocSize ==?dataSize
+          i sys .asm .globalAllocBase _ ==?dataBase
+                                          # only load static-sized sections via ELF loading on linux
+                                          sys .?linux { %40 256 mul 65536 mul 65536 mul lt } rep
+                                          sys .?freebsd { -- 1 } rep
+                                          _ ==?loaded {
+                                            loadedSections 1 add =loadedSections
+                                          }' rep
         >
       } each
     ] ==?allocSections
 
     4096 ==:PAGESIZE
 
-    allocSections len 4 add ==programHeaderCount
+    loadedSections 4 add ==programHeaderCount
     metaSections len allocSections len add ==sectionHeaderCount
 
     [
@@ -917,11 +940,11 @@
 
     <
       [
-        dlopenAddress rawContentAddress uint64
+        dlopenAddress uint64
         6 uint32 # R_X86_64_GLOB_DAT
         1 uint32
         0 uint64
-        dlsymAddress rawContentAddress uint64
+        dlsymAddress uint64
         6 uint32 # R_X86_64_GLOB_DAT
         2 uint32
         0 uint64
@@ -932,9 +955,9 @@
       [
       # TAG       VALUE
          1 uint64 libcStringOffset uint64 # require libc (DT_NEEDED)
-         5 uint64 %700000000000 stringTable .dataOffset add uint64 # string table address (DT_STRTAB)
-         6 uint64 %700000000000 symbolTable .dataOffset add uint64 # symbol table address (DT_SYMTAB)
-         7 uint64 %700000000000 relocationTable .dataOffset add uint64 # relocation table address (DT_RELA)
+         5 uint64 DYNINFOADDR stringTable .dataOffset add uint64 # string table address (DT_STRTAB)
+         6 uint64 DYNINFOADDR symbolTable .dataOffset add uint64 # symbol table address (DT_SYMTAB)
+         7 uint64 DYNINFOADDR relocationTable .dataOffset add uint64 # relocation table address (DT_RELA)
          8 uint64 relocationTable .dataSize uint64 # relocation table size (DT_RELASZ)
          9 uint64 24 uint64 # relocation entry size (DT_RELAENT)
         10 uint64 stringTable .dataSize uint64 # string table size (DT_STRSZ)
@@ -944,7 +967,7 @@
             1 uint64 libdlStringOffset uint64 # require libdl (DT_NEEDED)
           }'
           { sys .?freebsd } {
-            4 uint64 %700000000000 hashTable .dataOffset add uint64 # hash table address (DT_HASH)
+            4 uint64 DYNINFOADDR hashTable .dataOffset add uint64 # hash table address (DT_HASH)
           }'
         ] conds
         #   0x0000000000000015 (DEBUG)              0x0
@@ -1026,7 +1049,7 @@
       # Elf64_Off        p_offset;        /* Offset in file */
       %40 uint64
       # Elf64_Addr       p_vaddr;         /* Virtual address in memory */
-      %700000000000 %40 add uint64
+      DYNINFOADDR %40 add uint64
       # Elf64_Addr       p_paddr;         /* Reserved */
       %00 %00 %00 %00 %00 %00 %00 %00
       # Elf64_Xword      p_filesz;        /* Size of segment in file */
@@ -1042,7 +1065,7 @@
       # Elf64_Off        p_offset;        /* Offset in file */
       stringTable .dataOffset interpreterStringOffset add uint64
       # Elf64_Addr       p_vaddr;         /* Virtual address in memory */
-      %700000000000 stringTable .dataOffset add interpreterStringOffset add uint64
+      DYNINFOADDR stringTable .dataOffset add interpreterStringOffset add uint64
       # Elf64_Addr       p_paddr;         /* Reserved */
       %00 %00 %00 %00 %00 %00 %00 %00
       # Elf64_Xword      p_filesz;        /* Size of segment in file */
@@ -1060,7 +1083,7 @@
       # Elf64_Off        p_offset;        /* Offset in file */
       0 uint64
       # Elf64_Addr       p_vaddr;         /* Virtual address in memory */
-      %700000000000 uint64
+      DYNINFOADDR uint64
       # Elf64_Addr       p_paddr;         /* Reserved */
       %00 %00 %00 %00 %00 %00 %00 %00
       # Elf64_Xword      p_filesz;        /* Size of segment in file */
@@ -1071,23 +1094,25 @@
       %00 %10 %00 %00 %00 %00 %00 %00 # alignment
 
       allocSections { ==s
-        ### program header
-        # Elf64_Word       p_type;          /* Type of segment */
-        %01 %00 %00 %00 # loadable segment
-        # Elf64_Word       p_flags;         /* Segment attributes */
-        %07 %00 %00 %00 # read | write | execute
-        # Elf64_Off        p_offset;        /* Offset in file */
-        s .dataOffset uint64
-        # Elf64_Addr       p_vaddr;         /* Virtual address in memory */
-        s .dataBase uint64
-        # Elf64_Addr       p_paddr;         /* Reserved */
-        %00 %00 %00 %00 %00 %00 %00 %00
-        # Elf64_Xword      p_filesz;        /* Size of segment in file */
-        s .dataSize uint64
-        # Elf64_Xword      p_memsz;         /* Size of segment in memory */
-        s .dataSize uint64
-        # Elf64_Xword      p_align;         /* Alignment of segment */
-        %00 %10 %00 %00 %00 %00 %00 %00 # alignment
+        s .loaded {
+          ### program header
+          # Elf64_Word       p_type;          /* Type of segment */
+          %01 %00 %00 %00 # loadable segment
+          # Elf64_Word       p_flags;         /* Segment attributes */
+          %07 %00 %00 %00 # read | write | execute
+          # Elf64_Off        p_offset;        /* Offset in file */
+          s .dataOffset uint64
+          # Elf64_Addr       p_vaddr;         /* Virtual address in memory */
+          s .dataBase uint64
+          # Elf64_Addr       p_paddr;         /* Reserved */
+          %00 %00 %00 %00 %00 %00 %00 %00
+          # Elf64_Xword      p_filesz;        /* Size of segment in file */
+          s .dataSize uint64
+          # Elf64_Xword      p_memsz;         /* Size of segment in memory */
+          s .dataSize uint64
+          # Elf64_Xword      p_align;         /* Alignment of segment */
+          %00 %10 %00 %00 %00 %00 %00 %00 # alignment
+        } rep
       } each
 
       ### program header describing dynamic table
@@ -1096,7 +1121,7 @@
       # Elf64_Off        p_offset;        /* Offset in file */
       dynamicTable .dataOffset uint64
       # Elf64_Addr       p_vaddr;         /* Virtual address in memory */
-      %700000000000 dynamicTable .dataOffset add uint64
+      DYNINFOADDR dynamicTable .dataOffset add uint64
       # Elf64_Addr       p_paddr;         /* Reserved */
       %00 %00 %00 %00 %00 %00 %00 %00
       # Elf64_Xword      p_filesz;        /* Size of segment in file */

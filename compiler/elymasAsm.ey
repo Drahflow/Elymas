@@ -34,6 +34,7 @@
   # %10 : base of this very alloc
   # %18 : size of this very alloc
   # %20... : <base> <size> of next allocs
+  # This structure is directly read also in sys .asm .programStart
   <
     { # ==addr
       [ -01 7 add 8 { _ sys .asm .peek -01 1 sub } rep -- ] { -01 256 mul add } fold

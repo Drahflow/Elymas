@@ -985,6 +985,7 @@
       > _ ==?stringTable
     ] ==metaSections
 
+    0 ==loadedSections
     [
       0 frozenAllocationCount range { ==i
         <
@@ -996,8 +997,14 @@
           i sys .asm .globalAllocBase ==?addr # address where this section will be loaded
           0 ==?link # no associated section
           0 ==?entsize # no entries
-          i sys .asm .globalAllocBase ==?dataBase
           i sys .asm .globalAllocSize ==?dataSize
+          i sys .asm .globalAllocBase _ ==?dataBase
+                                        # only load static-sized sections via ELF loading on linux
+                                        sys .?linux { %40 256 mul 65536 mul 65536 mul lt } rep
+                                        sys .?freebsd { -- 1 } rep
+                                        _ ==?loaded {
+                                          loadedSections 1 add =loadedSections
+                                        }' rep
         >
       } each
     ] ==allocSections
@@ -1019,7 +1026,7 @@
     > -- <
       # %40 ==? section header size, %38 == program header size
       metaSections len allocSections len add %40 mul
-                       allocSections len     %38 mul add
+                       loadedSections        %38 mul add
                                              %40     add ==?dataOffset
       metaSections { ==s
         dataOffset s .setDataOffset
@@ -1066,7 +1073,7 @@
       # Elf64_Half    e_phentsize; /* Size of program header entry */
       %38 %00
       # Elf64_Half    e_phnum;     /* Number of program header entries */
-      allocSections len uint16
+      loadedSections uint16
       # Elf64_Half    e_shentsize; /* Size of section header entry */
       %40 %00
       # Elf64_Half    e_shnum;     /* Number of section header entries */
@@ -1099,23 +1106,25 @@
       } each } each
 
       allocSections { ==s
-        ### program header
-        # Elf64_Word       p_type;          /* Type of segment */
-        %01 %00 %00 %00 # loadable segment
-        # Elf64_Word       p_flags;         /* Segment attributes */
-        %07 %00 %00 %00 # read | write | execute
-        # Elf64_Off        p_offset;        /* Offset in file */
-        s .dataOffset uint64
-        # Elf64_Addr       p_vaddr;         /* Virtual address in memory */
-        s .dataBase uint64
-        # Elf64_Addr       p_paddr;         /* Reserved */
-        %00 %00 %00 %00 %00 %00 %00 %00
-        # Elf64_Xword      p_filesz;        /* Size of segment in file */
-        s .dataSize uint64
-        # Elf64_Xword      p_memsz;         /* Size of segment in memory */
-        s .dataSize uint64
-        # Elf64_Xword      p_align;         /* Alignment of segment */
-        %01 %00 %00 %00 %00 %00 %00 %00 # alignment
+        s .loaded {
+          ### program header
+          # Elf64_Word       p_type;          /* Type of segment */
+          %01 %00 %00 %00 # loadable segment
+          # Elf64_Word       p_flags;         /* Segment attributes */
+          %07 %00 %00 %00 # read | write | execute
+          # Elf64_Off        p_offset;        /* Offset in file */
+          s .dataOffset uint64
+          # Elf64_Addr       p_vaddr;         /* Virtual address in memory */
+          s .dataBase uint64
+          # Elf64_Addr       p_paddr;         /* Reserved */
+          %00 %00 %00 %00 %00 %00 %00 %00
+          # Elf64_Xword      p_filesz;        /* Size of segment in file */
+          s .dataSize uint64
+          # Elf64_Xword      p_memsz;         /* Size of segment in memory */
+          s .dataSize uint64
+          # Elf64_Xword      p_align;         /* Alignment of segment */
+          %01 %00 %00 %00 %00 %00 %00 %00 # alignment
+        } rep
       } each
     ] ==fileHeaders
 

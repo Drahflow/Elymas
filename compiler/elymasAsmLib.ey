@@ -27,6 +27,8 @@
     [
       { sys .?linux } {
         1 ==write
+        2 ==open
+        3 ==close
         9 ==mmap
       }'
       { sys .?freebsd } {
