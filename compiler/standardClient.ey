@@ -1273,6 +1273,10 @@
     { "<invalid object-type code 13>" sys .err .writeall }"
     { "<invalid object-type code 14>" sys .err .writeall }"
     { "<invalid object-type code 15>" sys .err .writeall }"
+    { "<array begin marker, unconsumed [>" sys .err .writeall }"
+    { "<quote begin marker, unconsumed {>" sys .err .writeall }"
+    { "<bottom of stack marker>" sys .err .writeall }"
+    { "<error data marker>" sys .err .writeall }"
   ] /dumpActions deffd
 
   { ==indent _ ==o
